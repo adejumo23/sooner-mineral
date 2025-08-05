@@ -122,3 +122,96 @@ export interface LeadNote {
   createdAt: string;
   createdByUser?: User;
 }
+
+export interface TractSpatial {
+  id: string;
+  tractId: string;
+  latitude?: number;
+  longitude?: number;
+  geometryType: 'Point' | 'Polygon' | 'STR';
+  geometryData?: any; // GeoJSON or STR data
+  createdAt: string;
+  updatedAt: string;
+  tract?: Tract;
+}
+
+export interface ProducingWell {
+  id: string;
+  apiNumber: string;
+  wellName: string;
+  operator: string;
+  latitude: number;
+  longitude: number;
+  status: 'Producing' | 'Shut-in' | 'Abandoned' | 'Drilling';
+  spudDate?: string;
+  completionDate?: string;
+  totalDepth?: number;
+  productionData?: any; // Monthly production data
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Permit {
+  id: string;
+  permitNumber: string;
+  operator: string;
+  latitude: number;
+  longitude: number;
+  permitType: 'Drilling' | 'Recompletion' | 'Workover' | 'Abandonment';
+  permitDate: string;
+  spudDate?: string;
+  totalDepth?: number;
+  targetFormation?: string;
+  status: 'Pending' | 'Approved' | 'Drilling' | 'Completed' | 'Abandoned';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Rig {
+  id: string;
+  rigName: string;
+  operator: string;
+  latitude: number;
+  longitude: number;
+  rigType: 'Land' | 'Offshore' | 'Platform';
+  status: 'Active' | 'Moving' | 'Stacked' | 'Retired';
+  spudDate?: string;
+  targetCompletion?: string;
+  totalDepth?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Unit {
+  id: string;
+  unitName: string;
+  operator: string;
+  unitType: 'Spacing' | 'Pooling' | 'Drilling';
+  latitude: number;
+  longitude: number;
+  geometryData?: any; // Unit boundary GeoJSON
+  formation?: string;
+  status: 'Proposed' | 'Approved' | 'Active' | 'Abandoned';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MapLayerPreference {
+  id: string;
+  userId: string;
+  layerName: string;
+  isVisible: boolean;
+  opacity: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MapLayer {
+  id: string;
+  name: string;
+  displayName: string;
+  isVisible: boolean;
+  opacity: number;
+  color: string;
+  icon?: string;
+}

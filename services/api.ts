@@ -1,5 +1,5 @@
 
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, MapLayerPreference } from '../types';
 
 /*
 ================================================================================
@@ -956,5 +956,386 @@ export const updateLeadStatus = async (leadId: string, status: TractLead['status
             updatedAt: new Date().toISOString(),
         };
         resolve(populateTractLead(mockTractLeads[leadIndex]));
+    }, apiDelay));
+};
+
+// Mock mapping data
+let mockTractSpatial: TractSpatial[] = [
+    {
+        id: 'ts1',
+        tractId: 't1',
+        latitude: 31.9686,
+        longitude: -102.0776,
+        geometryType: 'STR',
+        geometryData: { str: '15-02S-32E', section: '15', township: '2S', range: '32E' },
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'ts2',
+        tractId: 't2',
+        latitude: 33.9137,
+        longitude: -97.0965,
+        geometryType: 'STR',
+        geometryData: { str: '10-08S-02E', section: '10', township: '8S', range: '2E' },
+        createdAt: '2024-01-16T11:00:00Z',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'ts3',
+        tractId: 't3',
+        latitude: 32.7767,
+        longitude: -96.7970,
+        geometryType: 'Point',
+        geometryData: { type: 'Point', coordinates: [-96.7970, 32.7767] },
+        createdAt: '2024-01-17T12:00:00Z',
+        updatedAt: '2024-01-17T12:00:00Z',
+    }
+];
+
+let mockProducingWells: ProducingWell[] = [
+    {
+        id: 'pw1',
+        apiNumber: '42-335-12345',
+        wellName: 'Smith #1H',
+        operator: 'Pioneer Natural Resources',
+        latitude: 31.9686,
+        longitude: -102.0776,
+        status: 'Producing',
+        spudDate: '2023-01-15',
+        completionDate: '2023-03-20',
+        totalDepth: 12000,
+        productionData: { '2024-01': { oil: 150, gas: 500, water: 200 }, '2024-02': { oil: 145, gas: 480, water: 220 } },
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'pw2',
+        apiNumber: '42-335-12346',
+        wellName: 'Smith #2H',
+        operator: 'Pioneer Natural Resources',
+        latitude: 31.9690,
+        longitude: -102.0780,
+        status: 'Producing',
+        spudDate: '2023-02-10',
+        completionDate: '2023-04-15',
+        totalDepth: 12000,
+        productionData: { '2024-01': { oil: 160, gas: 520, water: 180 }, '2024-02': { oil: 155, gas: 500, water: 200 } },
+        createdAt: '2024-01-16T11:00:00Z',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'pw3',
+        apiNumber: '40-439-78901',
+        wellName: 'Johnson #1',
+        operator: 'Devon Energy',
+        latitude: 33.9137,
+        longitude: -97.0965,
+        status: 'Producing',
+        spudDate: '2023-03-05',
+        completionDate: '2023-05-10',
+        totalDepth: 11000,
+        productionData: { '2024-01': { oil: 120, gas: 400, water: 150 }, '2024-02': { oil: 118, gas: 390, water: 160 } },
+        createdAt: '2024-01-17T12:00:00Z',
+        updatedAt: '2024-01-17T12:00:00Z',
+    },
+    {
+        id: 'pw4',
+        apiNumber: '40-439-78902',
+        wellName: 'Johnson #2',
+        operator: 'Devon Energy',
+        latitude: 33.9140,
+        longitude: -97.0970,
+        status: 'Drilling',
+        spudDate: '2024-01-20',
+        totalDepth: 8000,
+        createdAt: '2024-01-18T13:00:00Z',
+        updatedAt: '2024-01-18T13:00:00Z',
+    },
+    {
+        id: 'pw5',
+        apiNumber: '48-113-45678',
+        wellName: 'Wilson #1H',
+        operator: 'EOG Resources',
+        latitude: 32.7767,
+        longitude: -96.7970,
+        status: 'Producing',
+        spudDate: '2023-04-12',
+        completionDate: '2023-06-18',
+        totalDepth: 13000,
+        productionData: { '2024-01': { oil: 180, gas: 600, water: 250 }, '2024-02': { oil: 175, gas: 580, water: 270 } },
+        createdAt: '2024-01-19T14:00:00Z',
+        updatedAt: '2024-01-19T14:00:00Z',
+    }
+];
+
+let mockPermits: Permit[] = [
+    {
+        id: 'p1',
+        permitNumber: '42-335-12347',
+        operator: 'Pioneer Natural Resources',
+        latitude: 31.9688,
+        longitude: -102.0778,
+        permitType: 'Drilling',
+        permitDate: '2024-01-15',
+        spudDate: '2024-02-01',
+        totalDepth: 12000,
+        targetFormation: 'Wolfcamp A',
+        status: 'Drilling',
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'p2',
+        permitNumber: '40-439-78903',
+        operator: 'Devon Energy',
+        latitude: 33.9139,
+        longitude: -97.0967,
+        permitType: 'Drilling',
+        permitDate: '2024-01-20',
+        spudDate: '2024-02-05',
+        totalDepth: 11000,
+        targetFormation: 'Woodford',
+        status: 'Approved',
+        createdAt: '2024-01-16T11:00:00Z',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'p3',
+        permitNumber: '48-113-45679',
+        operator: 'EOG Resources',
+        latitude: 32.7769,
+        longitude: -96.7972,
+        permitType: 'Recompletion',
+        permitDate: '2024-01-25',
+        totalDepth: 13000,
+        targetFormation: 'Eagle Ford',
+        status: 'Pending',
+        createdAt: '2024-01-17T12:00:00Z',
+        updatedAt: '2024-01-17T12:00:00Z',
+    }
+];
+
+let mockRigs: Rig[] = [
+    {
+        id: 'r1',
+        rigName: 'Pioneer Rig #15',
+        operator: 'Pioneer Natural Resources',
+        latitude: 31.9688,
+        longitude: -102.0778,
+        rigType: 'Land',
+        status: 'Active',
+        spudDate: '2024-02-01',
+        targetCompletion: '2024-04-01',
+        totalDepth: 12000,
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'r2',
+        rigName: 'Devon Rig #8',
+        operator: 'Devon Energy',
+        latitude: 33.9139,
+        longitude: -97.0967,
+        rigType: 'Land',
+        status: 'Active',
+        spudDate: '2024-02-05',
+        targetCompletion: '2024-04-05',
+        totalDepth: 11000,
+        createdAt: '2024-01-16T11:00:00Z',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'r3',
+        rigName: 'EOG Rig #22',
+        operator: 'EOG Resources',
+        latitude: 32.7769,
+        longitude: -96.7972,
+        rigType: 'Land',
+        status: 'Moving',
+        spudDate: '2024-02-10',
+        targetCompletion: '2024-04-10',
+        totalDepth: 13000,
+        createdAt: '2024-01-17T12:00:00Z',
+        updatedAt: '2024-01-17T12:00:00Z',
+    }
+];
+
+let mockUnits: Unit[] = [
+    {
+        id: 'u1',
+        unitName: 'Smith Unit',
+        operator: 'Pioneer Natural Resources',
+        unitType: 'Spacing',
+        latitude: 31.9686,
+        longitude: -102.0776,
+        geometryData: { type: 'Polygon', coordinates: [[[-102.0776, 31.9686], [-102.0770, 31.9686], [-102.0770, 31.9690], [-102.0776, 31.9690], [-102.0776, 31.9686]]] },
+        formation: 'Wolfcamp A',
+        status: 'Active',
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'u2',
+        unitName: 'Johnson Unit',
+        operator: 'Devon Energy',
+        unitType: 'Pooling',
+        latitude: 33.9137,
+        longitude: -97.0965,
+        geometryData: { type: 'Polygon', coordinates: [[[-97.0965, 33.9137], [-97.0960, 33.9137], [-97.0960, 33.9140], [-97.0965, 33.9140], [-97.0965, 33.9137]]] },
+        formation: 'Woodford',
+        status: 'Active',
+        createdAt: '2024-01-16T11:00:00Z',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'u3',
+        unitName: 'Wilson Unit',
+        operator: 'EOG Resources',
+        unitType: 'Drilling',
+        latitude: 32.7767,
+        longitude: -96.7970,
+        geometryData: { type: 'Polygon', coordinates: [[[-96.7970, 32.7767], [-96.7965, 32.7767], [-96.7965, 32.7770], [-96.7970, 32.7770], [-96.7970, 32.7767]]] },
+        formation: 'Eagle Ford',
+        status: 'Proposed',
+        createdAt: '2024-01-17T12:00:00Z',
+        updatedAt: '2024-01-17T12:00:00Z',
+    }
+];
+
+let mockMapLayerPreferences: MapLayerPreference[] = [
+    { id: 'mlp1', userId: 'u1', layerName: 'tract_boundary', isVisible: true, opacity: 1.00, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
+    { id: 'mlp2', userId: 'u1', layerName: 'producing_wells', isVisible: true, opacity: 0.80, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
+    { id: 'mlp3', userId: 'u1', layerName: 'permits', isVisible: true, opacity: 0.70, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
+    { id: 'mlp4', userId: 'u1', layerName: 'rigs', isVisible: true, opacity: 0.90, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
+    { id: 'mlp5', userId: 'u1', layerName: 'units', isVisible: false, opacity: 0.60, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
+    { id: 'mlp6', userId: 'u1', layerName: 'nearby_tracts', isVisible: true, opacity: 0.50, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' }
+];
+
+// ====== MAPPING ENDPOINTS ======
+
+/*
+ * GET /api/tracts/:id/spatial
+ * Response: TractSpatial
+ */
+export const fetchTractSpatial = async (tractId: string): Promise<TractSpatial | null> => {
+    return new Promise(resolve => setTimeout(() => {
+        const spatial = mockTractSpatial.find(ts => ts.tractId === tractId);
+        resolve(spatial || null);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/wells
+ * Query: { latitude: number, longitude: number, radius: number }
+ * Response: ProducingWell[]
+ */
+export const fetchNearbyWells = async (latitude: number, longitude: number, radius: number = 10): Promise<ProducingWell[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Simple distance calculation (in a real app, you'd use proper spatial queries)
+        const wells = mockProducingWells.filter(well => {
+            const distance = Math.sqrt(
+                Math.pow(well.latitude - latitude, 2) + 
+                Math.pow(well.longitude - longitude, 2)
+            ) * 69; // Rough miles conversion
+            return distance <= radius;
+        });
+        resolve(wells);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/permits
+ * Query: { latitude: number, longitude: number, radius: number }
+ * Response: Permit[]
+ */
+export const fetchNearbyPermits = async (latitude: number, longitude: number, radius: number = 10): Promise<Permit[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const permits = mockPermits.filter(permit => {
+            const distance = Math.sqrt(
+                Math.pow(permit.latitude - latitude, 2) + 
+                Math.pow(permit.longitude - longitude, 2)
+            ) * 69;
+            return distance <= radius;
+        });
+        resolve(permits);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/rigs
+ * Query: { latitude: number, longitude: number, radius: number }
+ * Response: Rig[]
+ */
+export const fetchNearbyRigs = async (latitude: number, longitude: number, radius: number = 10): Promise<Rig[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const rigs = mockRigs.filter(rig => {
+            const distance = Math.sqrt(
+                Math.pow(rig.latitude - latitude, 2) + 
+                Math.pow(rig.longitude - longitude, 2)
+            ) * 69;
+            return distance <= radius;
+        });
+        resolve(rigs);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/units
+ * Query: { latitude: number, longitude: number, radius: number }
+ * Response: Unit[]
+ */
+export const fetchNearbyUnits = async (latitude: number, longitude: number, radius: number = 10): Promise<Unit[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const units = mockUnits.filter(unit => {
+            const distance = Math.sqrt(
+                Math.pow(unit.latitude - latitude, 2) + 
+                Math.pow(unit.longitude - longitude, 2)
+            ) * 69;
+            return distance <= radius;
+        });
+        resolve(units);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/layer-preferences
+ * Response: MapLayerPreference[]
+ */
+export const fetchMapLayerPreferences = async (): Promise<MapLayerPreference[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        resolve([...mockMapLayerPreferences]);
+    }, apiDelay));
+};
+
+/*
+ * PUT /api/mapping/layer-preferences/:layerName
+ * Body: { isVisible: boolean, opacity: number }
+ * Response: MapLayerPreference
+ */
+export const updateMapLayerPreference = async (layerName: string, data: { isVisible: boolean; opacity: number }): Promise<MapLayerPreference> => {
+    return new Promise(resolve => setTimeout(() => {
+        const prefIndex = mockMapLayerPreferences.findIndex(p => p.layerName === layerName);
+        if (prefIndex === -1) {
+            const newPref: MapLayerPreference = {
+                id: `mlp${Date.now()}`,
+                userId: 'u1', // Mock current user
+                layerName,
+                isVisible: data.isVisible,
+                opacity: data.opacity,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+            mockMapLayerPreferences.push(newPref);
+            resolve(newPref);
+        } else {
+            mockMapLayerPreferences[prefIndex] = {
+                ...mockMapLayerPreferences[prefIndex],
+                isVisible: data.isVisible,
+                opacity: data.opacity,
+                updatedAt: new Date().toISOString(),
+            };
+            resolve(mockMapLayerPreferences[prefIndex]);
+        }
     }, apiDelay));
 };

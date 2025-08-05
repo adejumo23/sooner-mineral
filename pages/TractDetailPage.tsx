@@ -4,6 +4,7 @@ import type { Tract, User } from '../types';
 import * as api from '../services/api';
 import ContactsTab from '../components/ContactsTab';
 import LeadsTab from '../components/LeadsTab';
+import MappingTab from '../components/MappingTab';
 import Button from '../components/ui/Button';
 
 const TractDetailPage: React.FC = () => {
@@ -64,6 +65,7 @@ const TractDetailPage: React.FC = () => {
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'contacts', label: 'Contacts' },
+    { id: 'mapping', label: 'Mapping' },
     { id: 'title-chain', label: 'Title Chain' },
     { id: 'leads', label: 'Leads' }
   ] as const;
@@ -234,6 +236,10 @@ const TractDetailPage: React.FC = () => {
 
         {activeTab === 'contacts' && (
           <ContactsTab tractId={tract.id} users={users} />
+        )}
+
+        {activeTab === 'mapping' && (
+          <MappingTab tractId={tract.id} tractName={tract.tractName} />
         )}
 
         {activeTab === 'title-chain' && (

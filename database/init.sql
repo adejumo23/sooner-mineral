@@ -13,6 +13,9 @@ SOURCE /docker-entrypoint-initdb.d/contacts.sql;
 -- Run the leads and lead notes script
 SOURCE /docker-entrypoint-initdb.d/leads.sql;
 
+-- Run the mapping and spatial data script
+SOURCE /docker-entrypoint-initdb.d/mapping.sql;
+
 -- Run additional SQL scripts if they exist
 -- These will be executed in alphabetical order by MySQL
 -- The files are already copied to /docker-entrypoint-initdb.d/ via volume mount 
