@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Tract, User, TitleStatus } from '../types';
 import * as api from '../services/api';
 import Table from '../components/ui/Table';
@@ -10,6 +11,7 @@ import Input from '../components/ui/Input';
 const titleStatuses: TitleStatus[] = ['In Progress', 'Verified', 'Verified with Curative Requirements', 'Failed', 'Unmapped'];
 
 const TractsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [tracts, setTracts] = useState<Tract[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +106,7 @@ const TractsPage: React.FC = () => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.assignedBuyer?.name || 'Unassigned'}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.netMineralAcres || 'N/A'} / {tract.grossAcres}</td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <Button variant="secondary" onClick={() => navigate(`/tracts/${tract.id}`)}>View Details</Button>
                 <Button variant="secondary" onClick={() => handleOpenModal(tract)}>Edit</Button>
                 <Button variant="danger" onClick={() => handleDelete(tract.id)}>Delete</Button>
               </td>

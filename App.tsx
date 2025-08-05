@@ -10,6 +10,7 @@ import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
 import TractsPage from './pages/TractsPage';
+import TractDetailPage from './pages/TractDetailPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -36,6 +37,7 @@ function App() {
                 <Route path="/roles" element={<RolesPage />} />
                 <Route path="/privileges" element={<PrivilegesPage />} />
                 <Route path="/tracts" element={<TractsPage />} />
+                <Route path="/tracts/:tractId" element={<TractDetailPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>
