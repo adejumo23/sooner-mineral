@@ -1,5 +1,5 @@
 
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, MapLayerPreference } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference } from '../types';
 
 /*
 ================================================================================
@@ -1163,43 +1163,199 @@ let mockRigs: Rig[] = [
 
 let mockUnits: Unit[] = [
     {
-        id: 'u1',
-        unitName: 'Smith Unit',
+        id: 'unit1',
+        unitName: 'Smith Unit #1',
         operator: 'Pioneer Natural Resources',
-        unitType: 'Spacing',
-        latitude: 31.9686,
-        longitude: -102.0776,
-        geometryData: { type: 'Polygon', coordinates: [[[-102.0776, 31.9686], [-102.0770, 31.9686], [-102.0770, 31.9690], [-102.0776, 31.9690], [-102.0776, 31.9686]]] },
-        formation: 'Wolfcamp A',
-        status: 'Active',
+        apiNumbers: ['42-335-12345', '42-335-12346'],
+        targetFormations: ['Wolfcamp A', 'Wolfcamp B'],
+        status: 'Producing',
+        estimatedGrossAcres: 1280.00,
+        estimatedNetAcres: 960.00,
+        county: 'Midland',
+        state: 'TX',
+        linkedTractIds: ['t1', 't2'],
+        linkedContactIds: ['c1', 'c2', 'c3'],
+        assignedBuyerId: 'u4',
+        heldByFund: true,
+        exitStrategy: 'Hold',
+        isLocked: false,
+        notes: 'High-producing unit with excellent Wolfcamp A performance',
         createdAt: '2024-01-15T10:00:00Z',
         updatedAt: '2024-01-15T10:00:00Z',
+        createdBy: 'u1',
+        updatedBy: 'u1',
     },
     {
-        id: 'u2',
-        unitName: 'Johnson Unit',
+        id: 'unit2',
+        unitName: 'Johnson Unit #2',
         operator: 'Devon Energy',
-        unitType: 'Pooling',
-        latitude: 33.9137,
-        longitude: -97.0965,
-        geometryData: { type: 'Polygon', coordinates: [[[-97.0965, 33.9137], [-97.0960, 33.9137], [-97.0960, 33.9140], [-97.0965, 33.9140], [-97.0965, 33.9137]]] },
-        formation: 'Woodford',
-        status: 'Active',
+        apiNumbers: ['40-439-78901', '40-439-78902'],
+        targetFormations: ['Woodford', 'Hunton'],
+        status: 'Producing',
+        estimatedGrossAcres: 640.00,
+        estimatedNetAcres: 480.00,
+        county: 'Love',
+        state: 'OK',
+        linkedTractIds: ['t2'],
+        linkedContactIds: ['c4', 'c5'],
+        assignedBuyerId: 'u4',
+        heldByFund: false,
+        exitStrategy: 'Flip',
+        isLocked: true,
+        notes: 'Unit under due diligence - do not contact landowners',
         createdAt: '2024-01-16T11:00:00Z',
         updatedAt: '2024-01-16T11:00:00Z',
+        createdBy: 'u2',
+        updatedBy: 'u2',
     },
     {
-        id: 'u3',
-        unitName: 'Wilson Unit',
+        id: 'unit3',
+        unitName: 'Wilson Unit #3',
         operator: 'EOG Resources',
-        unitType: 'Drilling',
-        latitude: 32.7767,
-        longitude: -96.7970,
-        geometryData: { type: 'Polygon', coordinates: [[[-96.7970, 32.7767], [-96.7965, 32.7767], [-96.7965, 32.7770], [-96.7970, 32.7770], [-96.7970, 32.7767]]] },
-        formation: 'Eagle Ford',
-        status: 'Proposed',
+        apiNumbers: ['48-113-45678'],
+        targetFormations: ['Eagle Ford'],
+        status: 'Permitted',
+        estimatedGrossAcres: 320.00,
+        estimatedNetAcres: 240.00,
+        county: 'Dallas',
+        state: 'TX',
+        linkedTractIds: ['t3'],
+        linkedContactIds: ['c1', 'c5'],
+        assignedBuyerId: undefined,
+        heldByFund: false,
+        exitStrategy: 'Hold',
+        isLocked: false,
+        notes: 'Newly permitted unit targeting Eagle Ford formation',
         createdAt: '2024-01-17T12:00:00Z',
         updatedAt: '2024-01-17T12:00:00Z',
+        createdBy: 'u2',
+        updatedBy: 'u2',
+    }
+];
+
+// Mock unit assignments data
+let mockUnitAssignments: UnitAssignment[] = [
+    {
+        id: 'ua1',
+        unitId: 'unit1',
+        buyerId: 'u4',
+        assignedBy: 'u1',
+        assignedAt: '2024-01-15T10:00:00Z',
+        notes: 'Initial assignment for acquisition campaign',
+    },
+    {
+        id: 'ua2',
+        unitId: 'unit2',
+        buyerId: 'u4',
+        assignedBy: 'u2',
+        assignedAt: '2024-01-16T11:00:00Z',
+        notes: 'Assignment for due diligence review',
+    }
+];
+
+// Mock unit-tract relationships data
+let mockUnitTracts: UnitTract[] = [
+    {
+        id: 'ut1',
+        unitId: 'unit1',
+        tractId: 't1',
+        allocationPercentage: 0.75,
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'ut2',
+        unitId: 'unit1',
+        tractId: 't2',
+        allocationPercentage: 0.25,
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'ut3',
+        unitId: 'unit2',
+        tractId: 't2',
+        allocationPercentage: 1.00,
+        createdAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'ut4',
+        unitId: 'unit3',
+        tractId: 't3',
+        allocationPercentage: 1.00,
+        createdAt: '2024-01-17T12:00:00Z',
+    }
+];
+
+// Mock unit-contact relationships data
+let mockUnitContacts: UnitContact[] = [
+    {
+        id: 'uc1',
+        unitId: 'unit1',
+        contactId: 'c1',
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'uc2',
+        unitId: 'unit1',
+        contactId: 'c2',
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'uc3',
+        unitId: 'unit1',
+        contactId: 'c3',
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'uc4',
+        unitId: 'unit2',
+        contactId: 'c4',
+        createdAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'uc5',
+        unitId: 'unit2',
+        contactId: 'c5',
+        createdAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'uc6',
+        unitId: 'unit3',
+        contactId: 'c1',
+        createdAt: '2024-01-17T12:00:00Z',
+    },
+    {
+        id: 'uc7',
+        unitId: 'unit3',
+        contactId: 'c5',
+        createdAt: '2024-01-17T12:00:00Z',
+    }
+];
+
+// Mock unit notes data
+let mockUnitNotes: UnitNote[] = [
+    {
+        id: 'un1',
+        unitId: 'unit1',
+        noteText: 'Unit assigned to David Buyer for acquisition campaign',
+        noteType: 'Assignment',
+        createdBy: 'u1',
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'un2',
+        unitId: 'unit2',
+        noteText: 'Unit locked for due diligence - do not contact landowners',
+        noteType: 'Lock/Unlock',
+        createdBy: 'u2',
+        createdAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'un3',
+        unitId: 'unit3',
+        noteText: 'New unit created - awaiting operator updates',
+        noteType: 'Status Change',
+        createdBy: 'u2',
+        createdAt: '2024-01-17T12:00:00Z',
     }
 ];
 
@@ -1337,5 +1493,331 @@ export const updateMapLayerPreference = async (layerName: string, data: { isVisi
             };
             resolve(mockMapLayerPreferences[prefIndex]);
         }
+    }, apiDelay));
+};
+
+// ====== UNITS ENDPOINTS ======
+
+// Helper functions to populate unit data
+const populateUnit = (unit: Unit): Unit => {
+    const assignedBuyer = unit.assignedBuyerId ? mockUsers.find(u => u.id === unit.assignedBuyerId) : undefined;
+    const createdByUser = mockUsers.find(u => u.id === unit.createdBy);
+    const updatedByUser = mockUsers.find(u => u.id === unit.updatedBy);
+    return { ...unit, assignedBuyer, createdByUser, updatedByUser };
+};
+
+const populateUnitAssignment = (assignment: UnitAssignment): UnitAssignment => {
+    const buyer = mockUsers.find(u => u.id === assignment.buyerId);
+    const assignedByUser = mockUsers.find(u => u.id === assignment.assignedBy);
+    const removedByUser = assignment.removedBy ? mockUsers.find(u => u.id === assignment.removedBy) : undefined;
+    return { ...assignment, buyer, assignedByUser, removedByUser };
+};
+
+const populateUnitTract = (unitTract: UnitTract): UnitTract => {
+    const tract = mockTracts.find(t => t.id === unitTract.tractId);
+    return { ...unitTract, tract };
+};
+
+const populateUnitContact = (unitContact: UnitContact): UnitContact => {
+    const contact = mockContacts.find(c => c.id === unitContact.contactId);
+    return { ...unitContact, contact };
+};
+
+const populateUnitNote = (note: UnitNote): UnitNote => {
+    const createdByUser = mockUsers.find(u => u.id === note.createdBy);
+    return { ...note, createdByUser };
+};
+
+/*
+ * GET /api/units
+ * Query: UnitFilters
+ * Response: Unit[]
+ */
+export const fetchUnits = async (filters?: UnitFilters): Promise<Unit[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        let filteredUnits = [...mockUnits];
+        
+        if (filters) {
+            if (filters.operator) {
+                filteredUnits = filteredUnits.filter(u => 
+                    u.operator.toLowerCase().includes(filters.operator!.toLowerCase())
+                );
+            }
+            if (filters.formation) {
+                filteredUnits = filteredUnits.filter(u => 
+                    u.targetFormations.some(f => 
+                        f.toLowerCase().includes(filters.formation!.toLowerCase())
+                    )
+                );
+            }
+            if (filters.county) {
+                filteredUnits = filteredUnits.filter(u => 
+                    u.county.toLowerCase().includes(filters.county!.toLowerCase())
+                );
+            }
+            if (filters.status) {
+                filteredUnits = filteredUnits.filter(u => u.status === filters.status);
+            }
+            if (filters.assignedBuyer) {
+                filteredUnits = filteredUnits.filter(u => u.assignedBuyerId === filters.assignedBuyer);
+            }
+            if (filters.heldByFund !== undefined) {
+                filteredUnits = filteredUnits.filter(u => u.heldByFund === filters.heldByFund);
+            }
+            if (filters.isLocked !== undefined) {
+                filteredUnits = filteredUnits.filter(u => u.isLocked === filters.isLocked);
+            }
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                filteredUnits = filteredUnits.filter(u => 
+                    u.unitName.toLowerCase().includes(searchLower) ||
+                    u.apiNumbers.some(api => api.includes(searchLower))
+                );
+            }
+        }
+        
+        const populatedUnits = filteredUnits.map(populateUnit);
+        resolve(populatedUnits);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id
+ * Response: Unit
+ */
+export const fetchUnit = async (id: string): Promise<Unit | null> => {
+    return new Promise(resolve => setTimeout(() => {
+        const unit = mockUnits.find(u => u.id === id);
+        resolve(unit ? populateUnit(unit) : null);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/units
+ * Body: Omit<Unit, 'id' | 'assignedBuyer' | 'createdByUser' | 'updatedByUser' | 'createdAt' | 'updatedAt'>
+ * Response: Unit
+ */
+export const createUnit = async (data: Omit<Unit, 'id' | 'assignedBuyer' | 'createdByUser' | 'updatedByUser' | 'createdAt' | 'updatedAt'>): Promise<Unit> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newUnit: Unit = {
+            ...data,
+            id: `unit${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'u1', // Mock current user
+            updatedBy: 'u1', // Mock current user
+        };
+        mockUnits.push(newUnit);
+        resolve(populateUnit(newUnit));
+    }, apiDelay));
+};
+
+/*
+ * PUT /api/units/:id
+ * Body: Partial<Omit<Unit, 'id' | 'assignedBuyer' | 'createdByUser' | 'updatedByUser' | 'createdAt' | 'updatedAt'>>
+ * Response: Unit
+ */
+export const updateUnit = async (id: string, data: Partial<Omit<Unit, 'id' | 'assignedBuyer' | 'createdByUser' | 'updatedByUser' | 'createdAt' | 'updatedAt'>>): Promise<Unit> => {
+    return new Promise(resolve => setTimeout(() => {
+        const unitIndex = mockUnits.findIndex(u => u.id === id);
+        if (unitIndex === -1) throw new Error("Unit not found");
+        
+        const updatedUnit: Unit = {
+            ...mockUnits[unitIndex],
+            ...data,
+            id,
+            updatedAt: new Date().toISOString(),
+            updatedBy: 'u1', // Mock current user
+        };
+        mockUnits[unitIndex] = updatedUnit;
+        resolve(populateUnit(updatedUnit));
+    }, apiDelay));
+};
+
+/*
+ * DELETE /api/units/:id
+ * Response: 204 No Content
+ */
+export const deleteUnit = async (id: string): Promise<void> => {
+    return new Promise(resolve => setTimeout(() => {
+        mockUnits = mockUnits.filter(u => u.id !== id);
+        // Also remove related data
+        mockUnitAssignments = mockUnitAssignments.filter(ua => ua.unitId !== id);
+        mockUnitTracts = mockUnitTracts.filter(ut => ut.unitId !== id);
+        mockUnitContacts = mockUnitContacts.filter(uc => uc.unitId !== id);
+        mockUnitNotes = mockUnitNotes.filter(un => un.unitId !== id);
+        resolve();
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id/assignments
+ * Response: UnitAssignment[]
+ */
+export const fetchUnitAssignments = async (unitId: string): Promise<UnitAssignment[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const assignments = mockUnitAssignments
+            .filter(ua => ua.unitId === unitId)
+            .map(populateUnitAssignment)
+            .sort((a, b) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime());
+        resolve(assignments);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/units/:id/assign
+ * Body: { buyerId: string, notes?: string }
+ * Response: UnitAssignment
+ */
+export const assignUnit = async (unitId: string, data: { buyerId: string; notes?: string }): Promise<UnitAssignment> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Create new assignment
+        const newAssignment: UnitAssignment = {
+            id: `ua${Date.now()}`,
+            unitId,
+            buyerId: data.buyerId,
+            assignedBy: 'u1', // Mock current user
+            assignedAt: new Date().toISOString(),
+            notes: data.notes,
+        };
+        mockUnitAssignments.push(newAssignment);
+        
+        // Update unit assignment
+        const unitIndex = mockUnits.findIndex(u => u.id === unitId);
+        if (unitIndex !== -1) {
+            mockUnits[unitIndex].assignedBuyerId = data.buyerId;
+            mockUnits[unitIndex].updatedAt = new Date().toISOString();
+            mockUnits[unitIndex].updatedBy = 'u1';
+        }
+        
+        resolve(populateUnitAssignment(newAssignment));
+    }, apiDelay));
+};
+
+/*
+ * PUT /api/units/:id/unassign
+ * Body: { notes?: string }
+ * Response: UnitAssignment
+ */
+export const unassignUnit = async (unitId: string, notes?: string): Promise<UnitAssignment> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Find the current active assignment
+        const assignmentIndex = mockUnitAssignments.findIndex(ua => 
+            ua.unitId === unitId && !ua.removedAt
+        );
+        
+        if (assignmentIndex === -1) throw new Error("No active assignment found");
+        
+        // Mark assignment as removed
+        mockUnitAssignments[assignmentIndex] = {
+            ...mockUnitAssignments[assignmentIndex],
+            removedBy: 'u1', // Mock current user
+            removedAt: new Date().toISOString(),
+            notes: notes || mockUnitAssignments[assignmentIndex].notes,
+        };
+        
+        // Remove unit assignment
+        const unitIndex = mockUnits.findIndex(u => u.id === unitId);
+        if (unitIndex !== -1) {
+            mockUnits[unitIndex].assignedBuyerId = undefined;
+            mockUnits[unitIndex].updatedAt = new Date().toISOString();
+            mockUnits[unitIndex].updatedBy = 'u1';
+        }
+        
+        resolve(populateUnitAssignment(mockUnitAssignments[assignmentIndex]));
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id/tracts
+ * Response: UnitTract[]
+ */
+export const fetchUnitTracts = async (unitId: string): Promise<UnitTract[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const unitTracts = mockUnitTracts
+            .filter(ut => ut.unitId === unitId)
+            .map(populateUnitTract);
+        resolve(unitTracts);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id/contacts
+ * Response: UnitContact[]
+ */
+export const fetchUnitContacts = async (unitId: string): Promise<UnitContact[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const unitContacts = mockUnitContacts
+            .filter(uc => uc.unitId === unitId)
+            .map(populateUnitContact);
+        resolve(unitContacts);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id/notes
+ * Response: UnitNote[]
+ */
+export const fetchUnitNotes = async (unitId: string): Promise<UnitNote[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const notes = mockUnitNotes
+            .filter(note => note.unitId === unitId)
+            .map(populateUnitNote)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        resolve(notes);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/units/:id/notes
+ * Body: { noteText: string, noteType: string }
+ * Response: UnitNote
+ */
+export const createUnitNote = async (unitId: string, data: { noteText: string; noteType: string }): Promise<UnitNote> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newNote: UnitNote = {
+            id: `un${Date.now()}`,
+            unitId,
+            noteText: data.noteText,
+            noteType: data.noteType as UnitNote['noteType'],
+            createdBy: 'u1', // Mock current user
+            createdAt: new Date().toISOString(),
+        };
+        mockUnitNotes.push(newNote);
+        resolve(populateUnitNote(newNote));
+    }, apiDelay));
+};
+
+/*
+ * PUT /api/units/:id/lock
+ * Body: { isLocked: boolean, notes?: string }
+ * Response: Unit
+ */
+export const updateUnitLock = async (unitId: string, data: { isLocked: boolean; notes?: string }): Promise<Unit> => {
+    return new Promise(resolve => setTimeout(() => {
+        const unitIndex = mockUnits.findIndex(u => u.id === unitId);
+        if (unitIndex === -1) throw new Error("Unit not found");
+        
+        mockUnits[unitIndex] = {
+            ...mockUnits[unitIndex],
+            isLocked: data.isLocked,
+            updatedAt: new Date().toISOString(),
+            updatedBy: 'u1', // Mock current user
+        };
+        
+        // Add note about lock status change
+        if (data.notes) {
+            const newNote: UnitNote = {
+                id: `un${Date.now()}`,
+                unitId,
+                noteText: data.notes,
+                noteType: 'Lock/Unlock',
+                createdBy: 'u1', // Mock current user
+                createdAt: new Date().toISOString(),
+            };
+            mockUnitNotes.push(newNote);
+        }
+        
+        resolve(populateUnit(mockUnits[unitIndex]));
     }, apiDelay));
 };

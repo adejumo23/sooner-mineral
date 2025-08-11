@@ -186,14 +186,79 @@ export interface Unit {
   id: string;
   unitName: string;
   operator: string;
-  unitType: 'Spacing' | 'Pooling' | 'Drilling';
-  latitude: number;
-  longitude: number;
-  geometryData?: any; // Unit boundary GeoJSON
-  formation?: string;
-  status: 'Proposed' | 'Approved' | 'Active' | 'Abandoned';
+  apiNumbers: string[]; // Array of API numbers (1 or more if multiple wells per unit)
+  targetFormations: string[]; // Array of target formations/zones
+  status: 'Permitted' | 'Producing' | 'Held by Production' | 'Plugged';
+  estimatedGrossAcres: number;
+  estimatedNetAcres?: number; // Linked from assigned tracts
+  county: string;
+  state: string;
+  linkedTractIds: string[]; // Array of tract IDs linked to this unit
+  linkedContactIds: string[]; // Array of contact IDs (landowners in unit footprint)
+  assignedBuyerId?: string; // User ID reference
+  assignedBuyer?: User; // Populated from assignedBuyerId
+  heldByFund: boolean;
+  exitStrategy: 'Hold' | 'Flip' | 'LP Buyout';
+  isLocked: boolean; // Prevents outreach while under diligence
+  notes?: string; // Internal notes only
   createdAt: string;
   updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+  createdByUser?: User; // Populated from createdBy
+  updatedByUser?: User; // Populated from updatedBy
+}
+
+export interface UnitAssignment {
+  id: string;
+  unitId: string;
+  buyerId: string;
+  buyer?: User; // Populated from buyerId
+  assignedBy: string;
+  assignedByUser?: User; // Populated from assignedBy
+  assignedAt: string;
+  removedBy?: string;
+  removedByUser?: User; // Populated from removedBy
+  removedAt?: string;
+  notes?: string;
+}
+
+export interface UnitTract {
+  id: string;
+  unitId: string;
+  tractId: string;
+  tract?: Tract; // Populated from tractId
+  allocationPercentage?: number; // Allocation % for OK & take points for TX
+  createdAt: string;
+}
+
+export interface UnitContact {
+  id: string;
+  unitId: string;
+  contactId: string;
+  contact?: Contact; // Populated from contactId
+  createdAt: string;
+}
+
+export interface UnitNote {
+  id: string;
+  unitId: string;
+  noteText: string;
+  noteType: 'Internal' | 'Assignment' | 'Status Change' | 'Lock/Unlock' | 'Other';
+  createdBy: string;
+  createdByUser?: User; // Populated from createdBy
+  createdAt: string;
+}
+
+export interface UnitFilters {
+  operator?: string;
+  formation?: string;
+  county?: string;
+  status?: Unit['status'];
+  assignedBuyer?: string;
+  heldByFund?: boolean;
+  isLocked?: boolean;
+  search?: string; // Search by Unit Name or API
 }
 
 export interface MapLayerPreference {
