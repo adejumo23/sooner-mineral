@@ -30,19 +30,19 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-sc-dark-blue p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sc-warm-cream via-sc-light-yellow to-sc-light-orange p-4">
       <Card className="w-full max-w-md">
         <div className="text-center mb-8">
-            <BuildingIcon className="h-12 w-12 text-sc-blue mx-auto" />
-            <h1 className="text-3xl font-bold mt-4 text-white">Sooner Capital</h1>
-            <p className="text-sc-slate mt-1">Land Management Portal</p>
+            <BuildingIcon className="h-12 w-12 text-sc-orange mx-auto" />
+            <h1 className="text-3xl font-bold mt-4 text-sc-dark-gray">Sooner Capital</h1>
+            <p className="text-sc-medium-gray mt-1">Land Management Portal</p>
         </div>
 
-        {error && <p className="bg-red-500/20 text-red-400 p-3 rounded-md mb-4 text-center text-sm">{error}</p>}
+        {error && <p className="bg-sc-light-red/20 text-sc-dark-red p-3 rounded-md mb-4 text-center text-sm">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-sc-slate mb-1">Email</label>
+            <label htmlFor="email" className="block text-sm font-medium text-sc-dark-gray mb-1">Email</label>
             <Input
               id="email"
               type="email"
@@ -53,7 +53,7 @@ const LoginPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-sc-slate mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-sc-dark-gray mb-1">Password</label>
             <Input
               id="password"
               type="password"

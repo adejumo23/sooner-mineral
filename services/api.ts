@@ -1,5 +1,4 @@
-
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters } from '../types';
 
 /*
 ================================================================================
@@ -69,6 +68,25 @@ let mockTracts: Tract[] = [
         sourceChannel: 'Inbound',
         heldByFund: false,
         isLocked: true,
+    },
+    {
+        id: 't3',
+        state: 'TX',
+        county: 'Dallas',
+        tractName: 'Wilson Eagle Ford Prospect',
+        legalDescription: 'Section 25, Block 3, T&P RR Co. Survey',
+        str: '25-03S-32E',
+        abstractNumber: 'A-5678',
+        grossAcres: 320,
+        netMineralAcres: 80,
+        royalty: 0.20,
+        nra: 128, // 80 * 0.20 / 0.125
+        titleStatus: 'Verified',
+        assignedBuyerId: undefined,
+        nraCapUsd: 8000,
+        sourceChannel: 'Direct',
+        heldByFund: false,
+        isLocked: false,
     }
 ];
 
@@ -79,55 +97,56 @@ let mockContacts: Contact[] = [
         name: 'John Smith',
         email: 'john.smith@email.com',
         phone: '(555) 123-4567',
-        address: '123 Main St, Oklahoma City, OK 73101',
-        entityType: 'Individual',
-        legalName: 'John Smith',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-01-15T10:00:00Z',
+        address: '123 Main St',
+        city: 'Midland',
+        state: 'TX',
+        zipCode: '79701',
+        contactType: 'Landowner',
+        notes: 'Primary landowner contact',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
     },
     {
         id: 'c2',
         name: 'Sarah Johnson',
         email: 'sarah.j@email.com',
         phone: '(555) 234-5678',
-        address: '456 Oak Ave, Tulsa, OK 74101',
-        entityType: 'Individual',
-        legalName: 'Sarah Johnson',
-        createdAt: '2024-01-16T11:00:00Z',
-        updatedAt: '2024-01-16T11:00:00Z',
+        address: '456 Oak Ave',
+        city: 'Ardmore',
+        state: 'OK',
+        zipCode: '73401',
+        contactType: 'Landowner',
+        notes: 'Direct contact - motivated seller',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
     },
     {
         id: 'c3',
-        name: 'ABC Minerals LLC',
-        email: 'contact@abcminerals.com',
+        name: 'Mike Wilson',
+        email: 'mike.w@email.com',
         phone: '(555) 345-6789',
-        address: '789 Business Blvd, Oklahoma City, OK 73102',
-        entityType: 'Entity',
-        legalName: 'ABC Minerals LLC, a Delaware Limited Liability Company',
-        createdAt: '2024-01-17T12:00:00Z',
-        updatedAt: '2024-01-17T12:00:00Z',
+        address: '789 Pine Rd',
+        city: 'Oklahoma City',
+        state: 'OK',
+        zipCode: '73101',
+        contactType: 'Landowner',
+        notes: 'Premium unit landowner',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
     },
     {
         id: 'c4',
-        name: 'Robert Wilson',
-        email: 'rob.wilson@email.com',
+        name: 'Lisa Brown',
+        email: 'lisa.b@email.com',
         phone: '(555) 456-7890',
-        address: '321 Pine St, Edmond, OK 73034',
-        entityType: 'Individual',
-        legalName: 'Robert Wilson',
-        createdAt: '2024-01-18T13:00:00Z',
-        updatedAt: '2024-01-18T13:00:00Z',
-    },
-    {
-        id: 'c5',
-        name: 'XYZ Energy Corp',
-        email: 'info@xyzenergy.com',
-        phone: '(555) 567-8901',
-        address: '654 Corporate Dr, Oklahoma City, OK 73103',
-        entityType: 'Entity',
-        legalName: 'XYZ Energy Corporation, a Texas Corporation',
-        createdAt: '2024-01-19T14:00:00Z',
-        updatedAt: '2024-01-19T14:00:00Z',
+        address: '321 Elm St',
+        city: 'Tulsa',
+        state: 'OK',
+        zipCode: '74101',
+        contactType: 'Landowner',
+        notes: 'Development opportunity contact',
+        createdAt: '2024-01-01T00:00-00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
     }
 ];
 
@@ -235,61 +254,7 @@ let mockContactNotes: ContactNote[] = [
     }
 ];
 
-// Mock leads data
-let mockLeads: Lead[] = [
-    {
-        id: 'l1',
-        contactId: 'c1',
-        tractId: 't1',
-        status: 'In Progress',
-        leadType: 'Acquisition',
-        priority: 'High',
-        assignedTo: 'u2',
-        notes: 'High priority lead - contact has significant mineral acreage',
-        createdBy: 'u1',
-        createdAt: '2024-01-20T09:00:00Z',
-        updatedAt: '2024-01-20T09:00:00Z',
-    },
-    {
-        id: 'l2',
-        contactId: 'c2',
-        tractId: 't1',
-        status: 'Open',
-        leadType: 'Acquisition',
-        priority: 'Medium',
-        assignedTo: 'u2',
-        notes: 'Initial contact made, follow-up needed',
-        createdBy: 'u1',
-        createdAt: '2024-01-21T10:00:00Z',
-        updatedAt: '2024-01-21T10:00:00Z',
-    },
-    {
-        id: 'l3',
-        contactId: 'c3',
-        tractId: 't1',
-        status: 'Qualified',
-        leadType: 'Acquisition',
-        priority: 'High',
-        assignedTo: 'u1',
-        notes: 'Entity contact, complex ownership structure',
-        createdBy: 'u2',
-        createdAt: '2024-01-22T11:00:00Z',
-        updatedAt: '2024-01-22T11:00:00Z',
-    },
-    {
-        id: 'l4',
-        contactId: 'c4',
-        tractId: 't2',
-        status: 'Open',
-        leadType: 'Lease',
-        priority: 'Low',
-        assignedTo: 'u2',
-        notes: 'Contact interested in leasing options',
-        createdBy: 'u1',
-        createdAt: '2024-01-23T12:00:00Z',
-        updatedAt: '2024-01-23T12:00:00Z',
-    }
-];
+// Mock leads data - removed old structure, using new Lead interface
 
 // Mock tract leads data
 let mockTractLeads: TractLead[] = [
@@ -361,132 +326,7 @@ let mockTractLeads: TractLead[] = [
     }
 ];
 
-// Mock lead notes data
-let mockLeadNotes: LeadNote[] = [
-    // Lead 1 (In Progress) - David Buyer
-    {
-        id: 'ln1',
-        leadId: 'tl1',
-        noteText: 'Initial contact made via phone. Contact expressed interest in selling mineral rights. Discussed basic terms and timeline.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u4',
-        createdAt: '2024-01-15T10:00:00Z',
-    },
-    {
-        id: 'ln2',
-        leadId: 'tl1',
-        noteText: 'Follow-up email sent with detailed offer package. Included NRA calculations and market analysis.',
-        outreachMethod: 'Email',
-        createdBy: 'u4',
-        createdAt: '2024-01-18T14:00:00Z',
-    },
-    {
-        id: 'ln3',
-        leadId: 'tl1',
-        noteText: 'Meeting scheduled for next week to discuss acquisition terms and due diligence process.',
-        outreachMethod: 'Meeting',
-        createdBy: 'u4',
-        createdAt: '2024-01-22T11:00:00Z',
-    },
-    {
-        id: 'ln4',
-        leadId: 'tl1',
-        noteText: 'Contact requested additional documentation before proceeding. Sent title chain summary and ownership verification.',
-        outreachMethod: 'Email',
-        createdBy: 'u4',
-        createdAt: '2024-01-25T14:30:00Z',
-    },
-
-    // Lead 2 (Closed) - Bob Manager
-    {
-        id: 'ln5',
-        leadId: 'tl2',
-        noteText: 'Initial outreach call made. Contact was not interested in selling at this time.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u2',
-        createdAt: '2024-01-10T09:00:00Z',
-    },
-    {
-        id: 'ln6',
-        leadId: 'tl2',
-        noteText: 'Follow-up call to check if circumstances have changed. Still not interested.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u2',
-        createdAt: '2024-01-12T16:00:00Z',
-    },
-
-    // Lead 3 (Converted) - David Buyer
-    {
-        id: 'ln7',
-        leadId: 'tl3',
-        noteText: 'Contact referred by existing client. High interest in selling mineral rights.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u4',
-        createdAt: '2024-01-05T11:00:00Z',
-    },
-    {
-        id: 'ln8',
-        leadId: 'tl3',
-        noteText: 'Deal terms agreed upon. Moving to contract phase.',
-        outreachMethod: 'Meeting',
-        createdBy: 'u4',
-        createdAt: '2024-01-15T13:00:00Z',
-    },
-    {
-        id: 'ln9',
-        leadId: 'tl3',
-        noteText: 'Contract signed and deal closed successfully.',
-        outreachMethod: 'Meeting',
-        createdBy: 'u4',
-        createdAt: '2024-01-20T15:00:00Z',
-    },
-
-    // Lead 4 (In Progress) - David Buyer
-    {
-        id: 'ln10',
-        leadId: 'tl4',
-        noteText: 'Initial contact made. Contact is considering selling but needs more information.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u4',
-        createdAt: '2024-01-18T13:00:00Z',
-    },
-    {
-        id: 'ln11',
-        leadId: 'tl4',
-        noteText: 'Sent detailed property analysis and comparable sales data.',
-        outreachMethod: 'Email',
-        createdBy: 'u4',
-        createdAt: '2024-01-24T10:00:00Z',
-    },
-
-    // Lead 5 (Closed) - Bob Manager
-    {
-        id: 'ln12',
-        leadId: 'tl5',
-        noteText: 'Cold outreach via phone. Contact was not interested in selling.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u2',
-        createdAt: '2024-01-14T11:00:00Z',
-    },
-
-    // Lead 6 (In Progress) - David Buyer
-    {
-        id: 'ln13',
-        leadId: 'tl6',
-        noteText: 'Initial contact made. Contact is interested but needs to consult with family members.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u4',
-        createdAt: '2024-01-20T16:00:00Z',
-    },
-    {
-        id: 'ln14',
-        leadId: 'tl6',
-        noteText: 'Follow-up call scheduled for next month after family discussion.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'u4',
-        createdAt: '2024-01-26T09:00:00Z',
-    }
-];
+// Mock lead notes data - removed old structure, using new LeadNote interface
 
 
 const apiDelay = 500;
@@ -735,13 +575,7 @@ const populateContactNote = (note: ContactNote): ContactNote => {
     return { ...note, createdByUser };
 };
 
-const populateLead = (lead: Lead): Lead => {
-    const contact = mockContacts.find(c => c.id === lead.contactId);
-    const tract = mockTracts.find(t => t.id === lead.tractId);
-    const assignedToUser = lead.assignedTo ? mockUsers.find(u => u.id === lead.assignedTo) : undefined;
-    const createdByUser = mockUsers.find(u => u.id === lead.createdBy);
-    return { ...lead, contact, tract, assignedToUser, createdByUser };
-};
+// Old populateLead function removed - using new Lead interface
 
 /*
  * GET /api/tracts/:id/contacts
@@ -804,29 +638,7 @@ export const fetchContactLeads = async (contactId: string, tractId: string): Pro
     }, apiDelay));
 };
 
-/*
- * POST /api/leads
- * Body: { contactId: string, tractId: string, leadType: string, priority: string, notes?: string }
- * Response: Lead
- */
-export const createLead = async (data: { contactId: string; tractId: string; leadType: string; priority: string; notes?: string }): Promise<Lead> => {
-    return new Promise(resolve => setTimeout(() => {
-        const newLead: Lead = {
-            id: `l${Date.now()}`,
-            contactId: data.contactId,
-            tractId: data.tractId,
-            status: 'Open',
-            leadType: data.leadType as Lead['leadType'],
-            priority: data.priority as Lead['priority'],
-            notes: data.notes,
-            createdBy: 'u1', // Mock current user
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
-        mockLeads.push(newLead);
-        resolve(populateLead(newLead));
-    }, apiDelay));
-};
+// Old createLead function removed - using new Lead interface
 
 /*
  * GET /api/contacts
@@ -864,10 +676,7 @@ const populateTractLead = (lead: TractLead): TractLead => {
     return { ...lead, buyer, tract };
 };
 
-const populateLeadNote = (note: LeadNote): LeadNote => {
-    const createdByUser = mockUsers.find(u => u.id === note.createdBy);
-    return { ...note, createdByUser };
-};
+// Old populateLeadNote function removed - using new LeadNote interface
 
 /*
  * GET /api/tracts/:id/leads
@@ -883,39 +692,7 @@ export const fetchTractLeads = async (tractId: string): Promise<TractLead[]> => 
     }, apiDelay));
 };
 
-/*
- * GET /api/leads/:id/notes
- * Response: LeadNote[]
- */
-export const fetchLeadNotes = async (leadId: string): Promise<LeadNote[]> => {
-    return new Promise(resolve => setTimeout(() => {
-        const notes = mockLeadNotes
-            .filter(note => note.leadId === leadId)
-            .map(populateLeadNote)
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        resolve(notes);
-    }, apiDelay));
-};
-
-/*
- * POST /api/leads/:id/notes
- * Body: { noteText: string, outreachMethod: string }
- * Response: LeadNote
- */
-export const createLeadNote = async (leadId: string, data: { noteText: string; outreachMethod: string }): Promise<LeadNote> => {
-    return new Promise(resolve => setTimeout(() => {
-        const newNote: LeadNote = {
-            id: `ln${Date.now()}`,
-            leadId,
-            noteText: data.noteText,
-            outreachMethod: data.outreachMethod as LeadNote['outreachMethod'],
-            createdBy: 'u1', // Mock current user
-            createdAt: new Date().toISOString(),
-        };
-        mockLeadNotes.push(newNote);
-        resolve(populateLeadNote(newNote));
-    }, apiDelay));
-};
+// Old fetchLeadNotes and createLeadNote functions removed - using new LeadNote interface
 
 /*
  * POST /api/tracts/:id/leads
@@ -1819,5 +1596,694 @@ export const updateUnitLock = async (unitId: string, data: { isLocked: boolean; 
         }
         
         resolve(populateUnit(mockUnits[unitIndex]));
+    }, apiDelay));
+};
+
+// Mock assignment data
+let mockAssignments: Assignment[] = [
+    {
+        id: 'assign1',
+        assetType: 'Tract',
+        assetId: 't1',
+        assignedBuyerId: 'u4',
+        priceCapUsd: 15000.00,
+        priceCapType: 'Per NRA',
+        sourceChannel: 'Broker',
+        priorityScore: 85,
+        status: 'Active',
+        notes: 'High priority - recent permitting activity in area',
+        assignedDate: '2024-01-15T10:00:00Z',
+        assignedById: 'u1',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'assign2',
+        assetType: 'Tract',
+        assetId: 't2',
+        assignedBuyerId: 'u4',
+        priceCapUsd: 8000.00,
+        priceCapType: 'Per Acre',
+        sourceChannel: 'Inbound',
+        priorityScore: 70,
+        status: 'Active',
+        notes: 'Direct landowner contact - ready to discuss',
+        assignedDate: '2024-01-16T11:00:00Z',
+        assignedById: 'u2',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'assign3',
+        assetType: 'Unit',
+        assetId: 'unit1',
+        assignedBuyerId: 'u4',
+        priceCapUsd: 12000.00,
+        priceCapType: 'Per NRA',
+        sourceChannel: 'Broker',
+        priorityScore: 90,
+        status: 'Active',
+        notes: 'Premium unit with proven production',
+        assignedDate: '2024-01-17T12:00:00Z',
+        assignedById: 'u1',
+        updatedAt: '2024-01-17T12:00:00Z',
+    },
+    {
+        id: 'assign4',
+        assetType: 'Unit',
+        assetId: 'unit2',
+        assignedBuyerId: 'u4',
+        priceCapUsd: 6000.00,
+        priceCapType: 'Per Acre',
+        sourceChannel: 'Outbound',
+        priorityScore: 60,
+        status: 'Active',
+        notes: 'Development opportunity - needs due diligence',
+        assignedDate: '2024-01-18T13:00:00Z',
+        assignedById: 'u2',
+        updatedAt: '2024-01-18T13:00:00Z',
+    }
+];
+
+// Mock assignment history data
+let mockAssignmentHistory: AssignmentHistory[] = [
+    {
+        id: 'ah1',
+        assignmentId: 'assign1',
+        actionType: 'Created',
+        actionDetails: 'Initial assignment for acquisition campaign',
+        actionTimestamp: '2024-01-15T10:00:00Z',
+        actionById: 'u1',
+    },
+    {
+        id: 'ah2',
+        assignmentId: 'assign2',
+        actionType: 'Created',
+        actionDetails: 'Assignment for direct outreach',
+        actionTimestamp: '2024-01-16T11:00:00Z',
+        actionById: 'u2',
+    },
+    {
+        id: 'ah3',
+        assignmentId: 'assign3',
+        actionType: 'Created',
+        actionDetails: 'Premium unit assignment',
+        actionTimestamp: '2024-01-17T12:00:00Z',
+        actionById: 'u1',
+    },
+    {
+        id: 'ah4',
+        assignmentId: 'assign4',
+        actionType: 'Created',
+        actionDetails: 'Development opportunity assignment',
+        actionTimestamp: '2024-01-18T13:00:00Z',
+        actionById: 'u2',
+    }
+];
+
+// Helper functions for assignments
+const populateAssignment = (assignment: Assignment): Assignment => {
+    const assignedBuyer = mockUsers.find(u => u.id === assignment.assignedBuyerId);
+    const assignedBy = mockUsers.find(u => u.id === assignment.assignedById);
+    const asset = assignment.assetType === 'Tract' 
+        ? mockTracts.find(t => t.id === assignment.assetId)
+        : mockUnits.find(u => u.id === assignment.assetId);
+    
+    return { ...assignment, assignedBuyer, assignedBy, asset };
+};
+
+const populateAssignmentHistory = (history: AssignmentHistory): AssignmentHistory => {
+    const actionBy = mockUsers.find(u => u.id === history.actionById);
+    return { ...history, actionBy };
+};
+
+/*
+ * GET /api/assignments
+ * Query: AssignmentFilters
+ * Response: Assignment[]
+ */
+export const fetchAssignments = async (filters?: AssignmentFilters): Promise<Assignment[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        let filteredAssignments = [...mockAssignments];
+        
+        if (filters) {
+            if (filters.assetType) {
+                filteredAssignments = filteredAssignments.filter(a => a.assetType === filters.assetType);
+            }
+            if (filters.assetId) {
+                filteredAssignments = filteredAssignments.filter(a => a.assetId === filters.assetId);
+            }
+            if (filters.assignedBuyerId) {
+                filteredAssignments = filteredAssignments.filter(a => a.assignedBuyerId === filters.assignedBuyerId);
+            }
+            if (filters.sourceChannel) {
+                filteredAssignments = filteredAssignments.filter(a => a.sourceChannel === filters.sourceChannel);
+            }
+            if (filters.status) {
+                filteredAssignments = filteredAssignments.filter(a => a.status === filters.status);
+            }
+            if (filters.priorityMin !== undefined) {
+                filteredAssignments = filteredAssignments.filter(a => a.priorityScore >= filters.priorityMin!);
+            }
+            if (filters.priorityMax !== undefined) {
+                filteredAssignments = filteredAssignments.filter(a => a.priorityScore <= filters.priorityMax!);
+            }
+            if (filters.assignedDateFrom) {
+                filteredAssignments = filteredAssignments.filter(a => a.assignedDate >= filters.assignedDateFrom!);
+            }
+            if (filters.assignedDateTo) {
+                filteredAssignments = filteredAssignments.filter(a => a.assignedDate <= filters.assignedDateTo!);
+            }
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                filteredAssignments = filteredAssignments.filter(a => 
+                    a.notes?.toLowerCase().includes(searchLower) ||
+                    a.assetId.toLowerCase().includes(searchLower)
+                );
+            }
+        }
+        
+        const populatedAssignments = filteredAssignments.map(populateAssignment);
+        resolve(populatedAssignments);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/assignments/:id
+ * Response: Assignment
+ */
+export const fetchAssignment = async (id: string): Promise<Assignment | null> => {
+    return new Promise(resolve => setTimeout(() => {
+        const assignment = mockAssignments.find(a => a.id === id);
+        resolve(assignment ? populateAssignment(assignment) : null);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/assignments
+ * Body: CreateAssignmentData
+ * Response: Assignment
+ */
+export const createAssignment = async (data: CreateAssignmentData): Promise<Assignment> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newAssignment: Assignment = {
+            ...data,
+            id: `assign${Date.now()}`,
+            status: 'Active',
+            assignedDate: new Date().toISOString(),
+            assignedById: 'u1', // Mock current user
+            updatedAt: new Date().toISOString(),
+        };
+        mockAssignments.push(newAssignment);
+        
+        // Create history record
+        const historyRecord: AssignmentHistory = {
+            id: `ah${Date.now()}`,
+            assignmentId: newAssignment.id,
+            actionType: 'Created',
+            actionDetails: 'Assignment created',
+            actionTimestamp: new Date().toISOString(),
+            actionById: 'u1',
+        };
+        mockAssignmentHistory.push(historyRecord);
+        
+        resolve(populateAssignment(newAssignment));
+    }, apiDelay));
+};
+
+/*
+ * PUT /api/assignments/:id
+ * Body: UpdateAssignmentData
+ * Response: Assignment
+ */
+export const updateAssignment = async (id: string, data: UpdateAssignmentData): Promise<Assignment> => {
+    return new Promise(resolve => setTimeout(() => {
+        const assignmentIndex = mockAssignments.findIndex(a => a.id === id);
+        if (assignmentIndex === -1) throw new Error("Assignment not found");
+        
+        const updatedAssignment: Assignment = {
+            ...mockAssignments[assignmentIndex],
+            ...data,
+            id,
+            updatedAt: new Date().toISOString(),
+        };
+        mockAssignments[assignmentIndex] = updatedAssignment;
+        
+        // Create history record
+        const historyRecord: AssignmentHistory = {
+            id: `ah${Date.now()}`,
+            assignmentId: id,
+            actionType: 'Updated',
+            actionDetails: 'Assignment updated',
+            actionTimestamp: new Date().toISOString(),
+            actionById: 'u1',
+        };
+        mockAssignmentHistory.push(historyRecord);
+        
+        resolve(populateAssignment(updatedAssignment));
+    }, apiDelay));
+};
+
+/*
+ * DELETE /api/assignments/:id
+ * Response: void
+ */
+export const deleteAssignment = async (id: string): Promise<void> => {
+    return new Promise(resolve => setTimeout(() => {
+        const assignmentIndex = mockAssignments.findIndex(a => a.id === id);
+        if (assignmentIndex === -1) throw new Error("Assignment not found");
+        
+        // Create history record before deletion
+        const historyRecord: AssignmentHistory = {
+            id: `ah${Date.now()}`,
+            assignmentId: id,
+            actionType: 'Cancelled',
+            actionDetails: 'Assignment cancelled',
+            actionTimestamp: new Date().toISOString(),
+            actionById: 'u1',
+        };
+        mockAssignmentHistory.push(historyRecord);
+        
+        mockAssignments.splice(assignmentIndex, 1);
+        resolve();
+    }, apiDelay));
+};
+
+/*
+ * GET /api/assignments/:id/history
+ * Response: AssignmentHistory[]
+ */
+export const fetchAssignmentHistory = async (assignmentId: string): Promise<AssignmentHistory[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const history = mockAssignmentHistory.filter(h => h.assignmentId === assignmentId);
+        const populatedHistory = history.map(populateAssignmentHistory);
+        resolve(populatedHistory);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/assignments/bulk
+ * Body: CreateAssignmentData[]
+ * Response: Assignment[]
+ */
+export const createBulkAssignments = async (data: CreateAssignmentData[]): Promise<Assignment[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newAssignments: Assignment[] = data.map((item, index) => ({
+            ...item,
+            id: `assign${Date.now()}-${index}`,
+            status: 'Active',
+            assignedDate: new Date().toISOString(),
+            assignedById: 'u1', // Mock current user
+            updatedAt: new Date().toISOString(),
+        }));
+        
+        mockAssignments.push(...newAssignments);
+        
+        // Create history records for each assignment
+        newAssignments.forEach(assignment => {
+            const historyRecord: AssignmentHistory = {
+                id: `ah${Date.now()}-${Math.random()}`,
+                assignmentId: assignment.id,
+                actionType: 'Created',
+                actionDetails: 'Bulk assignment created',
+                actionTimestamp: new Date().toISOString(),
+                actionById: 'u1',
+            };
+            mockAssignmentHistory.push(historyRecord);
+        });
+        
+        const populatedAssignments = newAssignments.map(populateAssignment);
+        resolve(populatedAssignments);
+    }, apiDelay));
+};
+
+// ====== LEAD MANAGEMENT ENDPOINTS ======
+
+// Mock lead data
+let mockLeads: Lead[] = [
+    {
+        id: 'lead1',
+        linkedContactId: 'c1',
+        linkedTractIds: ['t1'],
+        linkedUnitIds: [],
+        buyerId: 'u4',
+        sourceChannel: 'Broker',
+        status: 'Spoke',
+        priorityScore: 85,
+        lastContactDate: '2024-01-15',
+        nextFollowUpDate: '2024-01-22',
+        notes: 'Contacted landowner - interested in discussing mineral rights sale',
+        outreachCount: 2,
+        documentLinks: [],
+        assignmentId: 'assign1',
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'lead2',
+        linkedContactId: 'c2',
+        linkedTractIds: ['t2'],
+        linkedUnitIds: [],
+        buyerId: 'u4',
+        sourceChannel: 'Inbound',
+        status: 'Interested',
+        priorityScore: 70,
+        lastContactDate: '2024-01-16',
+        nextFollowUpDate: '2024-01-23',
+        notes: 'Landowner reached out directly - ready to move forward',
+        outreachCount: 1,
+        documentLinks: [],
+        assignmentId: 'assign2',
+        createdAt: '2024-01-16T11:00:00Z',
+        updatedAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'lead3',
+        linkedContactId: 'c3',
+        linkedTractIds: [],
+        linkedUnitIds: ['unit1'],
+        buyerId: 'u4',
+        sourceChannel: 'Broker',
+        status: 'Uncontacted',
+        priorityScore: 90,
+        lastContactDate: undefined,
+        nextFollowUpDate: '2024-01-20',
+        notes: 'Premium unit lead - needs initial outreach',
+        outreachCount: 0,
+        documentLinks: [],
+        assignmentId: 'assign3',
+        createdAt: '2024-01-17T12:00:00Z',
+        updatedAt: '2024-01-17T12:00:00Z',
+    },
+    {
+        id: 'lead4',
+        linkedContactId: 'c4',
+        linkedTractIds: [],
+        linkedUnitIds: ['unit2'],
+        buyerId: 'u4',
+        sourceChannel: 'Outbound',
+        status: 'LOI Sent',
+        priorityScore: 60,
+        lastContactDate: '2024-01-17',
+        nextFollowUpDate: '2024-01-24',
+        notes: 'LOI sent - waiting for response',
+        outreachCount: 3,
+        documentLinks: ['https://example.com/loi1.pdf'],
+        assignmentId: 'assign4',
+        createdAt: '2024-01-18T13:00:00Z',
+        updatedAt: '2024-01-18T13:00:00Z',
+    }
+];
+
+// Mock lead call logs data
+let mockLeadCallLogs: LeadCallLog[] = [
+    {
+        id: 'cl1',
+        leadId: 'lead1',
+        callDate: '2024-01-15T10:30:00Z',
+        outcome: 'Spoke',
+        notes: 'Had good conversation about mineral rights',
+        nextSteps: 'Follow up next week with offer details',
+        loggedById: 'u4',
+    },
+    {
+        id: 'cl2',
+        leadId: 'lead2',
+        callDate: '2024-01-16T14:15:00Z',
+        outcome: 'Interested',
+        notes: 'Landowner is motivated seller',
+        nextSteps: 'Send LOI within 48 hours',
+        loggedById: 'u4',
+    },
+    {
+        id: 'cl3',
+        leadId: 'lead4',
+        callDate: '2024-01-17T09:45:00Z',
+        outcome: 'Spoke',
+        notes: 'Discussed terms and sent LOI',
+        nextSteps: 'Wait for LOI response',
+        loggedById: 'u4',
+    }
+];
+
+// Mock lead notes data
+let mockLeadNotes: LeadNote[] = [
+    {
+        id: 'ln1',
+        leadId: 'lead1',
+        noteText: 'Landowner has 160 net mineral acres in high-value area',
+        noteType: 'Important',
+        createdById: 'u4',
+        createdAt: '2024-01-15T10:00:00Z',
+    },
+    {
+        id: 'ln2',
+        leadId: 'lead2',
+        noteText: 'Direct contact - no broker fees involved',
+        noteType: 'General',
+        createdById: 'u4',
+        createdAt: '2024-01-16T11:00:00Z',
+    },
+    {
+        id: 'ln3',
+        leadId: 'lead3',
+        noteText: 'Premium unit with proven production history',
+        noteType: 'Important',
+        createdById: 'u4',
+        createdAt: '2024-01-17T12:00:00Z',
+    },
+    {
+        id: 'ln4',
+        leadId: 'lead4',
+        noteText: 'Development opportunity - needs due diligence',
+        noteType: 'General',
+        createdById: 'u4',
+        createdAt: '2024-01-18T13:00:00Z',
+    }
+];
+
+// Helper functions for leads
+const populateLead = (lead: Lead): Lead => {
+    const linkedContact = mockContacts.find(c => c.id === lead.linkedContactId);
+    const linkedTracts = lead.linkedTractIds.map(id => mockTracts.find(t => t.id === id)).filter(Boolean) as Tract[];
+    const linkedUnits = lead.linkedUnitIds.map(id => mockUnits.find(u => u.id === id)).filter(Boolean) as Unit[];
+    const buyer = mockUsers.find(u => u.id === lead.buyerId);
+    const assignment = lead.assignmentId ? mockAssignments.find(a => a.id === lead.assignmentId) : undefined;
+    
+    return { ...lead, linkedContact, linkedTracts, linkedUnits, buyer, assignment };
+};
+
+const populateLeadCallLog = (callLog: LeadCallLog): LeadCallLog => {
+    const loggedBy = mockUsers.find(u => u.id === callLog.loggedById);
+    return { ...callLog, loggedBy };
+};
+
+const populateLeadNote = (note: LeadNote): LeadNote => {
+    const createdBy = mockUsers.find(u => u.id === note.createdById);
+    return { ...note, createdBy };
+};
+
+/*
+ * GET /api/leads
+ * Query: LeadFilters
+ * Response: Lead[]
+ */
+export const fetchLeads = async (filters?: LeadFilters): Promise<Lead[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        let filteredLeads = [...mockLeads];
+        
+        if (filters) {
+            if (filters.status) {
+                filteredLeads = filteredLeads.filter(l => l.status === filters.status);
+            }
+            if (filters.county) {
+                filteredLeads = filteredLeads.filter(l => {
+                    const tract = l.linkedTractIds.length > 0 ? mockTracts.find(t => t.id === l.linkedTractIds[0]) : undefined;
+                    const unit = l.linkedUnitIds.length > 0 ? mockUnits.find(u => u.id === l.linkedUnitIds[0]) : undefined;
+                    return tract?.county === filters.county || unit?.county === filters.county;
+                });
+            }
+            if (filters.tractId) {
+                filteredLeads = filteredLeads.filter(l => l.linkedTractIds.includes(filters.tractId!));
+            }
+            if (filters.unitId) {
+                filteredLeads = filteredLeads.filter(l => l.linkedUnitIds.includes(filters.unitId!));
+            }
+            if (filters.buyerId) {
+                filteredLeads = filteredLeads.filter(l => l.buyerId === filters.buyerId);
+            }
+            if (filters.sourceChannel) {
+                filteredLeads = filteredLeads.filter(l => l.sourceChannel === filters.sourceChannel);
+            }
+            if (filters.priorityMin !== undefined) {
+                filteredLeads = filteredLeads.filter(l => l.priorityScore >= filters.priorityMin!);
+            }
+            if (filters.priorityMax !== undefined) {
+                filteredLeads = filteredLeads.filter(l => l.priorityScore <= filters.priorityMax!);
+            }
+            if (filters.lastContactFrom) {
+                filteredLeads = filteredLeads.filter(l => l.lastContactDate && l.lastContactDate >= filters.lastContactFrom!);
+            }
+            if (filters.lastContactTo) {
+                filteredLeads = filteredLeads.filter(l => l.lastContactDate && l.lastContactDate <= filters.lastContactTo!);
+            }
+            if (filters.nextFollowUpFrom) {
+                filteredLeads = filteredLeads.filter(l => l.nextFollowUpDate && l.nextFollowUpDate >= filters.nextFollowUpFrom!);
+            }
+            if (filters.nextFollowUpTo) {
+                filteredLeads = filteredLeads.filter(l => l.nextFollowUpDate && l.nextFollowUpDate <= filters.nextFollowUpTo!);
+            }
+            if (filters.search) {
+                const searchLower = filters.search.toLowerCase();
+                filteredLeads = filteredLeads.filter(l => 
+                    l.notes?.toLowerCase().includes(searchLower) ||
+                    l.linkedContact?.name.toLowerCase().includes(searchLower)
+                );
+            }
+        }
+        
+        const populatedLeads = filteredLeads.map(populateLead);
+        resolve(populatedLeads);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/leads/:id
+ * Response: Lead
+ */
+export const fetchLead = async (id: string): Promise<Lead | null> => {
+    return new Promise(resolve => setTimeout(() => {
+        const lead = mockLeads.find(l => l.id === id);
+        resolve(lead ? populateLead(lead) : null);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/leads
+ * Body: CreateLeadData
+ * Response: Lead
+ */
+export const createLead = async (data: CreateLeadData): Promise<Lead> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newLead: Lead = {
+            ...data,
+            id: `lead${Date.now()}`,
+            status: 'Uncontacted',
+            outreachCount: 0,
+            documentLinks: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+        mockLeads.push(newLead);
+        resolve(populateLead(newLead));
+    }, apiDelay));
+};
+
+/*
+ * PUT /api/leads/:id
+ * Body: UpdateLeadData
+ * Response: Lead
+ */
+export const updateLead = async (id: string, data: UpdateLeadData): Promise<Lead> => {
+    return new Promise(resolve => setTimeout(() => {
+        const leadIndex = mockLeads.findIndex(l => l.id === id);
+        if (leadIndex === -1) throw new Error("Lead not found");
+        
+        const updatedLead: Lead = {
+            ...mockLeads[leadIndex],
+            ...data,
+            id,
+            updatedAt: new Date().toISOString(),
+        };
+        mockLeads[leadIndex] = updatedLead;
+        resolve(populateLead(updatedLead));
+    }, apiDelay));
+};
+
+/*
+ * DELETE /api/leads/:id
+ * Response: void
+ */
+export const deleteLead = async (id: string): Promise<void> => {
+    return new Promise(resolve => setTimeout(() => {
+        mockLeads = mockLeads.filter(l => l.id !== id);
+        // Also remove related data
+        mockLeadCallLogs = mockLeadCallLogs.filter(cl => cl.leadId !== id);
+        mockLeadNotes = mockLeadNotes.filter(ln => ln.leadId !== id);
+        resolve();
+    }, apiDelay));
+};
+
+/*
+ * GET /api/leads/:id/call-logs
+ * Response: LeadCallLog[]
+ */
+export const fetchLeadCallLogs = async (leadId: string): Promise<LeadCallLog[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const callLogs = mockLeadCallLogs
+            .filter(cl => cl.leadId === leadId)
+            .map(populateLeadCallLog)
+            .sort((a, b) => new Date(b.callDate).getTime() - new Date(a.callDate).getTime());
+        resolve(callLogs);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/leads/:id/call-logs
+ * Body: CreateCallLogData
+ * Response: LeadCallLog
+ */
+export const createLeadCallLog = async (leadId: string, data: CreateCallLogData): Promise<LeadCallLog> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newCallLog: LeadCallLog = {
+            ...data,
+            id: `cl${Date.now()}`,
+            leadId,
+            callDate: new Date().toISOString(),
+            loggedById: 'u4', // Mock current user
+        };
+        mockLeadCallLogs.push(newCallLog);
+        
+        // Update lead's last contact date and outreach count
+        const leadIndex = mockLeads.findIndex(l => l.id === leadId);
+        if (leadIndex !== -1) {
+            mockLeads[leadIndex].lastContactDate = new Date().toISOString().split('T')[0];
+            mockLeads[leadIndex].outreachCount += 1;
+            mockLeads[leadIndex].updatedAt = new Date().toISOString();
+        }
+        
+        resolve(populateLeadCallLog(newCallLog));
+    }, apiDelay));
+};
+
+/*
+ * GET /api/leads/:id/notes
+ * Response: LeadNote[]
+ */
+export const fetchLeadNotes = async (leadId: string): Promise<LeadNote[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const notes = mockLeadNotes
+            .filter(note => note.leadId === leadId)
+            .map(populateLeadNote)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        resolve(notes);
+    }, apiDelay));
+};
+
+/*
+ * POST /api/leads/:id/notes
+ * Body: CreateLeadNoteData
+ * Response: LeadNote
+ */
+export const createLeadNote = async (leadId: string, data: CreateLeadNoteData): Promise<LeadNote> => {
+    return new Promise(resolve => setTimeout(() => {
+        const newNote: LeadNote = {
+            ...data,
+            id: `ln${Date.now()}`,
+            leadId,
+            noteType: data.noteType || 'General',
+            createdById: 'u4', // Mock current user
+            createdAt: new Date().toISOString(),
+        };
+        mockLeadNotes.push(newNote);
+        resolve(populateLeadNote(newNote));
     }, apiDelay));
 };

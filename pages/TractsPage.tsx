@@ -22,10 +22,12 @@ const TractsPage: React.FC = () => {
     setIsLoading(true);
     try {
       const [tractsData, usersData] = await Promise.all([api.fetchTracts(), api.fetchUsers()]);
-      setTracts(tractsData);
+      setTracts(tractsData || []);
       setUsers(usersData.filter(u => u.role.name === 'Buyer' || u.role.name === 'Land Manager'));
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      setTracts([]);
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
@@ -86,33 +88,73 @@ const TractsPage: React.FC = () => {
     handleCloseModal();
   };
 
+  const columns = [
+    {
+      header: 'Tract Name',
+      accessor: 'tractName',
+      cell: (tract: Tract) => (
+        <span className="text-sm font-medium text-sc-dark-gray">{tract.tractName}</span>
+      )
+    },
+    {
+      header: 'State',
+      accessor: 'state',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-sc-dark-gray">{tract.state}</span>
+      )
+    },
+    {
+      header: 'County',
+      accessor: 'county',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-sc-dark-gray">{tract.county}</span>
+      )
+    },
+    {
+      header: 'Status',
+      accessor: 'titleStatus',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-sc-dark-gray">{tract.titleStatus}</span>
+      )
+    },
+    {
+      header: 'Assigned To',
+      accessor: 'assignedBuyer',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-sc-dark-gray">{tract.assignedBuyer?.name || 'Unassigned'}</span>
+      )
+    },
+    {
+      header: 'Acres (Net/Gross)',
+      accessor: 'acres',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-sc-dark-gray">{tract.netMineralAcres || 'N/A'} / {tract.grossAcres}</span>
+      )
+    },
+    {
+      header: 'Actions',
+      accessor: 'actions',
+      cell: (tract: Tract) => (
+        <div className="flex space-x-2">
+          <Button variant="secondary" onClick={() => navigate(`/tracts/${tract.id}`)}>View Details</Button>
+          <Button variant="secondary" onClick={() => handleOpenModal(tract)}>Edit</Button>
+          <Button variant="danger" onClick={() => handleDelete(tract.id)}>Delete</Button>
+        </div>
+      )
+    }
+  ];
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">Manage Tracts</h1>
+        <h1 className="text-3xl font-bold text-sc-dark-gray">Manage Tracts</h1>
         <Button onClick={() => handleOpenModal()}>Add Tract</Button>
       </div>
 
       {isLoading ? (
-        <p className="text-center text-sc-slate">Loading tracts...</p>
+        <p className="text-center text-sc-medium-gray">Loading tracts...</p>
       ) : (
-        <Table headers={['Tract Name', 'State', 'County', 'Status', 'Assigned To', 'Acres (Net/Gross)', 'Actions']}>
-          {tracts.map((tract) => (
-            <tr key={tract.id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{tract.tractName}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.state}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.county}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.titleStatus}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.assignedBuyer?.name || 'Unassigned'}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{tract.netMineralAcres || 'N/A'} / {tract.grossAcres}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                <Button variant="secondary" onClick={() => navigate(`/tracts/${tract.id}`)}>View Details</Button>
-                <Button variant="secondary" onClick={() => handleOpenModal(tract)}>Edit</Button>
-                <Button variant="danger" onClick={() => handleDelete(tract.id)}>Delete</Button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        <Table data={tracts} columns={columns} />
       )}
 
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingTract ? 'Edit Tract' : 'Add Tract'}>
@@ -140,7 +182,7 @@ const TractsPage: React.FC = () => {
             {/* Legal Info */}
             <div>
                 <label htmlFor="legalDescription" className="block text-sm font-medium text-sc-slate mb-1">Legal Description</label>
-                <textarea id="legalDescription" name="legalDescription" defaultValue={editingTract?.legalDescription} required  className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate placeholder-sc-slate focus:outline-none focus:ring-2 focus:ring-sc-blue transition duration-200" rows={3}></textarea>
+                <textarea id="legalDescription" name="legalDescription" defaultValue={editingTract?.legalDescription} required  className="w-full px-4 py-2 bg-white border border-sc-light-orange rounded-md text-sc-dark-gray placeholder-sc-medium-gray focus:outline-none focus:ring-2 focus:ring-sc-orange transition duration-200" rows={3}></textarea>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <div>
@@ -181,13 +223,13 @@ const TractsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label htmlFor="titleStatus" className="block text-sm font-medium text-sc-slate mb-1">Title Status</label>
-                    <select id="titleStatus" name="titleStatus" defaultValue={editingTract?.titleStatus || 'In Progress'} className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue" required>
+                    <select id="titleStatus" name="titleStatus" defaultValue={editingTract?.titleStatus || 'In Progress'} className="w-full px-4 py-2 bg-white border border-sc-light-orange rounded-md text-sc-dark-gray focus:outline-none focus:ring-2 focus:ring-sc-orange" required>
                         {titleStatuses.map(status => <option key={status} value={status}>{status}</option>)}
                     </select>
                 </div>
                 <div>
                     <label htmlFor="assignedBuyerId" className="block text-sm font-medium text-sc-slate mb-1">Assigned Buyer</label>
-                    <select id="assignedBuyerId" name="assignedBuyerId" defaultValue={editingTract?.assignedBuyerId} className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue">
+                    <select id="assignedBuyerId" name="assignedBuyerId" defaultValue={editingTract?.assignedBuyerId} className="w-full px-4 py-2 bg-white border border-sc-light-orange rounded-md text-sc-dark-gray focus:outline-none focus:ring-2 focus:ring-sc-orange">
                         <option value="">Unassigned</option>
                         {users.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
                     </select>
@@ -200,22 +242,22 @@ const TractsPage: React.FC = () => {
 
              <div>
                 <label htmlFor="routingNotes" className="block text-sm font-medium text-sc-slate mb-1">Routing Notes</label>
-                <textarea id="routingNotes" name="routingNotes" defaultValue={editingTract?.routingNotes} className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate placeholder-sc-slate focus:outline-none focus:ring-2 focus:ring-sc-blue transition duration-200" rows={3}></textarea>
+                <textarea id="routingNotes" name="routingNotes" defaultValue={editingTract?.routingNotes} className="w-full px-4 py-2 bg-white border border-sc-light-orange rounded-md text-sc-dark-gray placeholder-sc-medium-gray focus:outline-none focus:ring-2 focus:ring-sc-orange transition duration-200" rows={3}></textarea>
             </div>
 
              {/* Flags */}
              <div className="flex items-center space-x-8">
                 <label className="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" name="heldByFund" defaultChecked={editingTract?.heldByFund} className="h-4 w-4 rounded border-gray-300 text-sc-blue focus:ring-sc-blue" />
-                    <span className="text-sm text-sc-slate">Held by Fund</span>
+                    <input type="checkbox" name="heldByFund" defaultChecked={editingTract?.heldByFund} className="h-4 w-4 rounded border-gray-300 text-sc-orange focus:ring-sc-orange" />
+                    <span className="text-sm text-sc-dark-gray">Held by Fund</span>
                 </label>
                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" name="isLocked" defaultChecked={editingTract?.isLocked} className="h-4 w-4 rounded border-gray-300 text-sc-blue focus:ring-sc-blue" />
-                    <span className="text-sm text-sc-slate">Lock Flag (e.g. under LOI)</span>
+                    <input type="checkbox" name="isLocked" defaultChecked={editingTract?.isLocked} className="h-4 w-4 rounded border-gray-300 text-sc-orange focus:ring-sc-orange" />
+                    <span className="text-sm text-sc-dark-gray">Lock Flag (e.g. under LOI)</span>
                 </label>
              </div>
             
-            <div className="flex justify-end space-x-3 pt-4 border-t border-sc-light-navy">
+            <div className="flex justify-end space-x-3 pt-4 border-t border-sc-light-orange">
                 <Button type="button" variant="secondary" onClick={handleCloseModal}>Cancel</Button>
                 <Button type="submit">Save Tract</Button>
             </div>

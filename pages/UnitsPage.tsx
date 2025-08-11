@@ -42,10 +42,12 @@ const UnitsPage: React.FC = () => {
         fetchUnits(),
         fetchUsers()
       ]);
-      setUnits(unitsData);
-      setUsers(usersData);
+      setUnits(unitsData || []);
+      setUsers(usersData || []);
     } catch (error) {
       console.error('Error loading data:', error);
+      setUnits([]);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -55,9 +57,10 @@ const UnitsPage: React.FC = () => {
     try {
       setLoading(true);
       const unitsData = await fetchUnits(filters);
-      setUnits(unitsData);
+      setUnits(unitsData || []);
     } catch (error) {
       console.error('Error loading units:', error);
+      setUnits([]);
     } finally {
       setLoading(false);
     }
@@ -276,11 +279,13 @@ const UnitsPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                   >
                     <option value="">All Buyers</option>
-                    {users.filter(u => u.role.name === 'Buyer').map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.name}
-                      </option>
-                    ))}
+                    {users && users.length > 0 && users
+                      .filter(u => u.role && u.role.name === 'Buyer')
+                      .map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -322,7 +327,7 @@ const UnitsPage: React.FC = () => {
       {/* Results Summary */}
       <div className="mb-4">
         <p className="text-sm text-gray-600">
-          Showing {units.length} unit{units.length !== 1 ? 's' : ''}
+          Showing {units?.length || 0} unit{(units?.length || 0) !== 1 ? 's' : ''}
           {Object.keys(filters).length > 0 && ' (filtered)'}
         </p>
       </div>
@@ -330,7 +335,7 @@ const UnitsPage: React.FC = () => {
       {/* Units Table */}
       <Card>
         <div className="p-6">
-          {units.length === 0 ? (
+          {!units || units.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 text-lg mb-2">No units found</div>
               <p className="text-gray-500">

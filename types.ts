@@ -51,8 +51,11 @@ export interface Contact {
   email?: string;
   phone?: string;
   address?: string;
-  entityType: 'Individual' | 'Entity';
-  legalName: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  contactType: 'Landowner' | 'Broker' | 'Attorney' | 'Other';
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -279,4 +282,172 @@ export interface MapLayer {
   opacity: number;
   color: string;
   icon?: string;
+}
+
+// Assignment & Buyer Routing Module Types
+export interface Assignment {
+  id: string;
+  assetType: 'Tract' | 'Unit';
+  assetId: string;
+  assignedBuyerId: string;
+  priceCapUsd: number;
+  priceCapType: 'Per NRA' | 'Per Acre';
+  sourceChannel: 'Broker' | 'Inbound' | 'Outbound';
+  priorityScore: number;
+  status: 'Active' | 'Completed' | 'Cancelled' | 'Expired';
+  notes?: string;
+  assignedDate: string;
+  assignedById: string;
+  updatedAt: string;
+  
+  // Populated fields
+  assignedBuyer?: User;
+  assignedBy?: User;
+  asset?: Tract | Unit;
+}
+
+export interface AssignmentHistory {
+  id: string;
+  assignmentId: string;
+  actionType: 'Created' | 'Updated' | 'Reassigned' | 'Cancelled' | 'Completed';
+  actionDetails?: string;
+  actionTimestamp: string;
+  actionById: string;
+  
+  // Populated fields
+  actionBy?: User;
+}
+
+export interface AssignmentFilters {
+  assetType?: 'Tract' | 'Unit';
+  assetId?: string;
+  assignedBuyerId?: string;
+  sourceChannel?: 'Broker' | 'Inbound' | 'Outbound';
+  status?: 'Active' | 'Completed' | 'Cancelled' | 'Expired';
+  priorityMin?: number;
+  priorityMax?: number;
+  assignedDateFrom?: string;
+  assignedDateTo?: string;
+  search?: string;
+}
+
+export interface CreateAssignmentData {
+  assetType: 'Tract' | 'Unit';
+  assetId: string;
+  assignedBuyerId: string;
+  priceCapUsd: number;
+  priceCapType: 'Per NRA' | 'Per Acre';
+  sourceChannel: 'Broker' | 'Inbound' | 'Outbound';
+  priorityScore: number;
+  notes?: string;
+}
+
+export interface UpdateAssignmentData {
+  priceCapUsd?: number;
+  priceCapType?: 'Per NRA' | 'Per Acre';
+  sourceChannel?: 'Broker' | 'Inbound' | 'Outbound';
+  priorityScore?: number;
+  status?: 'Active' | 'Completed' | 'Cancelled' | 'Expired';
+  notes?: string;
+}
+
+// Lead Management Module Types
+export interface Lead {
+  id: string;
+  linkedContactId: string;
+  linkedTractIds: string[]; // Array of tract IDs
+  linkedUnitIds: string[]; // Array of unit IDs
+  buyerId: string;
+  sourceChannel: 'Broker' | 'Inbound' | 'Outbound';
+  status: 'Uncontacted' | 'Spoke' | 'Interested' | 'LOI Sent' | 'Dead';
+  priorityScore: number;
+  lastContactDate?: string;
+  nextFollowUpDate?: string;
+  notes?: string;
+  outreachCount: number;
+  documentLinks?: string[]; // Array of document URLs
+  assignmentId?: string; // Reference to the assignment that created this lead
+  createdAt: string;
+  updatedAt: string;
+  
+  // Populated fields
+  linkedContact?: Contact;
+  linkedTracts?: Tract[];
+  linkedUnits?: Unit[];
+  buyer?: User;
+  assignment?: Assignment;
+}
+
+export interface LeadCallLog {
+  id: string;
+  leadId: string;
+  callDate: string;
+  outcome: 'No Answer' | 'Left Message' | 'Spoke' | 'Not Interested' | 'Interested' | 'Call Back Later' | 'Wrong Number';
+  notes?: string;
+  nextSteps?: string;
+  loggedById: string;
+  
+  // Populated fields
+  loggedBy?: User;
+}
+
+export interface LeadNote {
+  id: string;
+  leadId: string;
+  noteText: string;
+  noteType: 'General' | 'Follow Up' | 'Important' | 'Internal';
+  createdById: string;
+  createdAt: string;
+  
+  // Populated fields
+  createdBy?: User;
+}
+
+export interface LeadFilters {
+  status?: Lead['status'];
+  county?: string;
+  tractId?: string;
+  unitId?: string;
+  buyerId?: string;
+  sourceChannel?: 'Broker' | 'Inbound' | 'Outbound';
+  priorityMin?: number;
+  priorityMax?: number;
+  lastContactFrom?: string;
+  lastContactTo?: string;
+  nextFollowUpFrom?: string;
+  nextFollowUpTo?: string;
+  search?: string;
+}
+
+export interface CreateLeadData {
+  linkedContactId: string;
+  linkedTractIds?: string[];
+  linkedUnitIds?: string[];
+  buyerId: string;
+  sourceChannel: 'Broker' | 'Inbound' | 'Outbound';
+  priorityScore: number;
+  notes?: string;
+  assignmentId?: string;
+}
+
+export interface UpdateLeadData {
+  status?: Lead['status'];
+  priorityScore?: number;
+  lastContactDate?: string;
+  nextFollowUpDate?: string;
+  notes?: string;
+  documentLinks?: string[];
+}
+
+export interface CreateCallLogData {
+  leadId: string;
+  outcome: LeadCallLog['outcome'];
+  notes?: string;
+  nextSteps?: string;
+}
+
+export interface CreateLeadNoteData {
+  leadId: string;
+  noteText: string;
+  noteType?: LeadNote['noteType'];
 }

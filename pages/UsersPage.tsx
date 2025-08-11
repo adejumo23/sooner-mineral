@@ -18,10 +18,12 @@ const UsersPage: React.FC = () => {
     setIsLoading(true);
     try {
       const [usersData, rolesData] = await Promise.all([api.fetchUsers(), api.fetchRoles()]);
-      setUsers(usersData);
-      setRoles(rolesData);
+      setUsers(usersData || []);
+      setRoles(rolesData || []);
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      setUsers([]);
+      setRoles([]);
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +69,42 @@ const UsersPage: React.FC = () => {
     handleCloseModal();
   };
 
+  const columns = [
+    {
+      header: 'Name',
+      accessor: 'name',
+      cell: (user: User) => (
+        <span className="text-sm font-medium text-white">{user.name}</span>
+      )
+    },
+    {
+      header: 'Email',
+      accessor: 'email',
+      cell: (user: User) => (
+        <span className="text-sm text-sc-slate">{user.email}</span>
+      )
+    },
+    {
+      header: 'Role',
+      accessor: 'role',
+      cell: (user: User) => (
+        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-sc-blue/20 text-sc-light-blue">
+          {user.role.name}
+        </span>
+      )
+    },
+    {
+      header: 'Actions',
+      accessor: 'actions',
+      cell: (user: User) => (
+        <div className="flex space-x-2">
+          <Button variant="secondary" onClick={() => handleOpenModal(user)}>Edit</Button>
+          <Button variant="danger" onClick={() => handleDelete(user.id)}>Delete</Button>
+        </div>
+      )
+    }
+  ];
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -77,23 +115,7 @@ const UsersPage: React.FC = () => {
       {isLoading ? (
         <p>Loading users...</p>
       ) : (
-        <Table headers={['Name', 'Email', 'Role', 'Actions']}>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{user.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">{user.email}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-sc-blue/20 text-sc-light-blue">
-                  {user.role.name}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                <Button variant="secondary" onClick={() => handleOpenModal(user)}>Edit</Button>
-                <Button variant="danger" onClick={() => handleDelete(user.id)}>Delete</Button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        <Table data={users} columns={columns} />
       )}
 
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingUser ? 'Edit User' : 'Add User'}>

@@ -13,14 +13,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
 
   return (
-    <div className="flex h-screen bg-sc-dark-blue">
+    <div className="flex h-screen bg-sc-warm-cream">
       <Sidebar />
       <div className="flex-1 flex flex-col ml-64">
-        <header className="flex justify-end items-center h-20 px-8 bg-sc-navy/50 backdrop-blur-sm border-b border-sc-light-navy">
+        <header className="flex justify-end items-center h-20 px-8 bg-sc-light-orange/80 backdrop-blur-sm border-b border-sc-orange">
             <div className="flex items-center space-x-4">
                 <div className="text-right">
-                    <p className="font-semibold text-white">{user?.name}</p>
-                    <p className="text-xs text-sc-slate">{user?.role.name}</p>
+                    <p className="font-semibold text-sc-dark-gray">{user?.name}</p>
+                    <p className="text-xs text-sc-medium-gray">{user?.role.name}</p>
                 </div>
                  <Button onClick={logout} variant="secondary" className="!p-2">
                     <LogoutIcon className="h-5 w-5"/>
