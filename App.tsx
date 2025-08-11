@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './src/theme';
 import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -35,28 +36,30 @@ function App() {
   }
 
   return (
-    <MainLayout>
-      <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/tracts" element={<TractsPage />} />
-        <Route path="/units" element={<UnitsPage />} />
-        <Route path="/units/new" element={<UnitFormPage />} />
-        <Route path="/units/:id" element={<UnitDetailPage />} />
-        <Route path="/units/:id/edit" element={<UnitFormPage />} />
-        <Route path="/assignments" element={<AssignmentsPage />} />
-        <Route path="/assignments/new" element={<AssignmentFormPage />} />
-        <Route path="/assignments/:id" element={<AssignmentDetailPage />} />
-        <Route path="/assignments/:id/edit" element={<AssignmentFormPage />} />
-        <Route path="/leads" element={<LeadsPage />} />
-        <Route path="/leads/new" element={<LeadFormPage />} />
-        <Route path="/leads/:id" element={<LeadDetailPage />} />
-        <Route path="/leads/:id/edit" element={<LeadFormPage />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/roles" element={<RolesPage />} />
-        <Route path="/privileges" element={<PrivilegesPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </MainLayout>
+    <ThemeProvider>
+      <MainLayout>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/tracts" element={<TractsPage />} />
+          <Route path="/units" element={<UnitsPage />} />
+          <Route path="/units/new" element={<UnitFormPage />} />
+          <Route path="/units/:id" element={<UnitDetailPage />} />
+          <Route path="/units/:id/edit" element={<UnitFormPage />} />
+          <Route path="/assignments" element={<AssignmentsPage />} />
+          <Route path="/assignments/new" element={<AssignmentFormPage />} />
+          <Route path="/assignments/:id" element={<AssignmentDetailPage />} />
+          <Route path="/assignments/:id/edit" element={<AssignmentFormPage />} />
+          <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/leads/new" element={<LeadFormPage />} />
+          <Route path="/leads/:id" element={<LeadDetailPage />} />
+          <Route path="/leads/:id/edit" element={<LeadFormPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/roles" element={<RolesPage />} />
+          <Route path="/privileges" element={<PrivilegesPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </MainLayout>
+    </ThemeProvider>
   );
 }
 
