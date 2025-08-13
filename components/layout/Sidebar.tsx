@@ -16,10 +16,10 @@ const navigation = [
 
 const Sidebar: React.FC = () => {
   return (
-    <div className="w-64 bg-sc-orange h-full flex flex-col fixed top-0 left-0 border-r border-sc-dark-orange shadow-lg">
-      <div className="flex items-center justify-center h-20 border-b border-sc-dark-orange bg-sc-dark-orange">
-        <BuildingIcon className="h-8 w-8 text-sc-warm-cream" />
-        <h1 className="text-2xl font-bold ml-2 text-sc-warm-cream">Sooner Capital</h1>
+    <div className="w-64 bg-gradient-to-b from-orange-500 to-orange-600 h-full flex flex-col fixed top-0 left-0 border-r border-orange-700 shadow-lg">
+      <div className="flex items-center justify-center h-20 border-b border-orange-700 bg-orange-600">
+        <BuildingIcon className="h-8 w-8 text-white" />
+        <h1 className="text-2xl font-bold ml-2 text-white">Sooner Capital</h1>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
         {navigation.map((item) => (
@@ -30,8 +30,8 @@ const Sidebar: React.FC = () => {
             className={({ isActive }) =>
               `flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-colors duration-200 ${
                 isActive
-                  ? 'bg-sc-dark-orange text-sc-warm-cream shadow-md'
-                  : 'text-sc-warm-cream hover:bg-sc-dark-orange/80 hover:text-sc-warm-cream'
+                  ? 'bg-orange-700 text-white shadow-md'
+                  : 'text-white hover:bg-orange-600/80 hover:text-white'
               }`
             }
           >

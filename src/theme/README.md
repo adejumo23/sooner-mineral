@@ -1,248 +1,166 @@
-# Centralized Theme System
+# Sooner Capital Theme System
 
-This directory contains a centralized theme system for the Sooner Capital land management application. All colors, spacing, shadows, and other design tokens are defined in one place for easy maintenance and consistency.
+## Overview
 
-## 🎨 Theme Structure
+This theme system provides a comprehensive color palette and design tokens for the Sooner Capital application, featuring an enhanced orange, red, and yellow color scheme that ensures excellent text readability and visual hierarchy.
 
-### Files
+## Color Scheme
 
-- **`theme.ts`** - Main theme configuration with all design tokens
-- **`theme.css`** - CSS custom properties (variables) for use in CSS
-- **`ThemeContext.tsx`** - React context for theme access
-- **`index.ts`** - Main exports and commonly used values
-- **`tailwind.config.js`** - Tailwind CSS configuration using theme values
+### Primary Colors (Orange Palette)
+- **50**: `#fff7ed` - Very light warm orange (backgrounds, subtle highlights)
+- **100**: `#ffedd5` - Light warm orange (hover states, secondary backgrounds)
+- **200**: `#fed7aa` - Light orange (borders, dividers)
+- **300**: `#fdba74` - Medium light orange (focus rings, accents)
+- **400**: `#fb923c` - Orange (medium emphasis)
+- **500**: `#f97316` - Vibrant orange (primary actions, main brand color)
+- **600**: `#ea580c` - Dark orange (hover states, secondary actions)
+- **700**: `#c2410c` - Darker orange (active states, emphasis)
+- **800**: `#9a3412` - Very dark orange (deep accents)
+- **900**: `#7c2d12` - Darkest orange (text on light backgrounds)
 
-### Design Tokens
+### Secondary Colors (Yellow Palette)
+- **50**: `#fefce8` - Very light yellow (tertiary backgrounds, focus states)
+- **100**: `#fef3c7` - Light yellow (subtle highlights)
+- **200**: `#fde68a` - Medium light yellow (gradients, accents)
+- **300**: `#fcd34d` - Medium yellow (focus indicators)
+- **400**: `#fbbf24` - Yellow (secondary actions, highlights)
+- **500**: `#f59e0b` - Vibrant yellow (emphasis, warnings)
+- **600**: `#d97706` - Dark yellow (text on light backgrounds)
+- **700**: `#b45309` - Darker yellow (deep emphasis)
+- **800**: `#92400e` - Very dark yellow (strong emphasis)
+- **900**: `#78350f` - Darkest yellow (text on very light backgrounds)
 
-The theme includes:
+### Accent Colors (Red Palette)
+- **50**: `#fef2f2` - Very light red (error backgrounds, subtle alerts)
+- **100**: `#fee2e2` - Light red (error highlights)
+- **200**: `#fecaca` - Medium light red (error borders)
+- **300**: `#fca5a5` - Medium red (error indicators)
+- **400**: `#f87171` - Red (error actions, alerts)
+- **500**: `#ef4444` - Vibrant red (danger actions, critical alerts)
+- **600**: `#dc2626` - Dark red (error text, strong emphasis)
+- **700**: `#b91c1c` - Darker red (deep error emphasis)
+- **800**: `#991b1b` - Very dark red (strong error emphasis)
+- **900**: `#7f1d1d` - Darkest red (text on light backgrounds)
 
-- **Colors**: Primary, secondary, accent, neutral, and semantic colors
-- **Backgrounds**: Different background colors for various UI elements
-- **Borders**: Border colors for inputs, cards, tables, etc.
-- **Text**: Text colors for different contexts and hierarchies
-- **Shadows**: Box shadow values for depth
-- **Spacing**: Consistent spacing scale
-- **Border Radius**: Corner radius values
-- **Transitions**: Animation timing values
-- **Z-Index**: Layering values
+### Neutral Colors (Warm Grays)
+- **50**: `#fafaf9` - Very light warm gray (page backgrounds)
+- **100**: `#f5f5f4` - Light warm gray (card backgrounds, subtle borders)
+- **200**: `#e7e5e4` - Medium light warm gray (borders, dividers)
+- **300**: `#d6d3d1` - Medium warm gray (input borders, secondary borders)
+- **400**: `#a8a29e` - Medium gray (placeholder text, muted content)
+- **500**: `#78716c` - Medium dark gray (secondary text, labels)
+- **600**: `#57534e` - Dark gray (tertiary text, subtle emphasis)
+- **700**: `#44403c` - Darker gray (primary text, headings)
+- **800**: `#292524` - Very dark gray (strong text, emphasis)
+- **900**: `#1c1917` - Darkest gray (text on light backgrounds)
 
-## 🚀 Usage
+## Text Readability Guidelines
 
-### In React Components
+### High Contrast Combinations (Excellent Readability)
+- **Primary text**: `text-neutral-900` (#1c1917) on light backgrounds
+- **Secondary text**: `text-neutral-700` (#44403c) on light backgrounds
+- **Tertiary text**: `text-neutral-600` (#78716c) on light backgrounds
+- **Inverse text**: `text-white` (#ffffff) on dark backgrounds
 
+### Medium Contrast Combinations (Good Readability)
+- **Orange text**: `text-primary-600` (#ea580c) on light backgrounds
+- **Yellow text**: `text-secondary-600` (#d97706) on light backgrounds
+- **Red text**: `text-accent-700` (#b91c1c) on light backgrounds
+
+### Low Contrast Combinations (Use Sparingly)
+- **Light orange text**: `text-primary-100` (#ffedd5) - only on very dark backgrounds
+- **Light yellow text**: `text-secondary-100` (#fef3c7) - only on very dark backgrounds
+- **Light red text**: `text-accent-100` (#fee2e2) - only on very dark backgrounds
+
+## Background Color Guidelines
+
+### Primary Backgrounds
+- **Page background**: `bg-primary-50` (#fff7ed) - Very light warm orange
+- **Card background**: `bg-white` (#ffffff) - Pure white for content areas
+- **Sidebar background**: `bg-gradient-to-b from-primary-500 to-primary-600` - Orange gradient
+
+### Secondary Backgrounds
+- **Header background**: `bg-gradient-to-r from-primary-100/90 to-secondary-50/90` - Subtle gradient
+- **Hover states**: `bg-primary-100` (#ffedd5) - Light warm orange
+- **Focus states**: `bg-secondary-50` (#fefce8) - Very light yellow
+
+### Semantic Backgrounds
+- **Success**: `bg-green-50` with `text-green-800`
+- **Warning**: `bg-yellow-50` with `text-yellow-800`
+- **Error**: `bg-accent-50` with `text-accent-600`
+- **Info**: `bg-blue-50` with `text-blue-800`
+
+## Component Usage Examples
+
+### Buttons
 ```tsx
-import { useTheme, colors, commonColors } from '../src/theme';
+// Primary button (orange)
+<Button variant="primary">Primary Action</Button>
 
-const MyComponent = () => {
-  const { theme, getColor } = useTheme();
-  
-  return (
-    <div 
-      style={{ 
-        backgroundColor: theme.backgrounds.primary,
-        color: theme.text.primary 
-      }}
-    >
-      <h1 style={{ color: colors.primary[500] }}>
-        Hello World
-      </h1>
-    </div>
-  );
-};
+// Secondary button (yellow)
+<Button variant="secondary">Secondary Action</Button>
+
+// Danger button (red)
+<Button variant="danger">Delete</Button>
 ```
 
-### In Tailwind Classes
-
-The theme is automatically available in Tailwind classes:
-
+### Input Fields
 ```tsx
-<div className="bg-primary text-primary border-border-primary">
-  Content
+// Normal state
+<Input className="border-primary-200 focus:ring-primary-500" />
+
+// Error state
+<Input className="border-accent-400 focus:ring-accent-500" />
+```
+
+### Cards and Containers
+```tsx
+// Primary card
+<div className="bg-white border border-primary-200 shadow-md">
+  <h2 className="text-neutral-700">Card Title</h2>
+  <p className="text-neutral-500">Card content</p>
 </div>
 ```
 
-### In CSS
+## Migration Guide
 
-```css
-.my-component {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-}
-```
+### Replacing Old Color Classes
 
-## 🔧 Making Changes
-
-### Adding New Colors
-
-1. **Update `theme.ts`**:
-```ts
-colors: {
-  // ... existing colors
-  newColor: {
-    50: '#f0f9ff',
-    500: '#0ea5e9',
-    600: '#0284c7',
-  },
-}
-```
-
-2. **Update `theme.css`**:
-```css
-:root {
-  /* ... existing variables */
-  --color-new-color-50: #f0f9ff;
-  --color-new-color-500: #0ea5e9;
-  --color-new-color-600: #0284c7;
-}
-```
-
-3. **Update `tailwind.config.js`**:
-```js
-colors: {
-  // ... existing colors
-  newColor: {
-    50: '#f0f9ff',
-    500: '#0ea5e9',
-    600: '#0284c7',
-  },
-}
-```
-
-### Changing Existing Colors
-
-1. **Update `theme.ts`** - Change the color value
-2. **Update `theme.css`** - Change the CSS variable value
-3. **Update `tailwind.config.js`** - Change the Tailwind color value
-4. **All components using these colors will automatically update**
-
-### Adding New Design Tokens
-
-1. **Add to `theme.ts`**:
-```ts
-export const theme = {
-  // ... existing tokens
-  newTokens: {
-    value1: 'value',
-    value2: 'value',
-  },
-} as const;
-```
-
-2. **Add to `theme.css`** if needed for CSS:
-```css
-:root {
-  /* ... existing variables */
-  --new-token-1: value;
-  --new-token-2: value;
-}
-```
-
-3. **Add to `tailwind.config.js`** if needed for Tailwind:
-```js
-theme: {
-  extend: {
-    // ... existing extensions
-    newProperty: {
-      value1: 'value',
-      value2: 'value',
-    },
-  },
-}
-```
-
-## 📱 Responsive Design
-
-The theme system supports responsive design through Tailwind's responsive prefixes:
-
-```tsx
-<div className="bg-primary-50 md:bg-primary-100 lg:bg-primary-500">
-  Responsive background
-</div>
-```
-
-## 🎯 Best Practices
-
-1. **Always use theme values** instead of hardcoded colors
-2. **Use semantic color names** (e.g., `error`, `success`) for consistency
-3. **Test color contrast** when making changes for accessibility
-4. **Update all three files** when making changes (theme.ts, theme.css, tailwind.config.js)
-5. **Use the color scale** (50, 100, 500, 600, etc.) for variations
-
-## 🔍 Color Palette
-
-### Primary (Orange)
-- **50**: Warm cream (#fef7ed)
-- **100**: Light orange (#fed7aa)
-- **500**: Orange (#fb923c)
-- **600**: Dark orange (#ea580c)
-
-### Secondary (Yellow)
-- **50**: Light yellow (#fef3c7)
-- **500**: Yellow (#fbbf24)
-- **600**: Dark yellow (#d97706)
-
-### Accent (Red)
-- **50**: Light red (#fecaca)
-- **500**: Red (#f87171)
-- **600**: Dark red (#dc2626)
-
-### Neutral (Gray)
-- **50**: Warm gray (#f8fafc)
-- **100**: Lighter gray (#f1f5f9)
-- **200**: Light gray (#e2e8f0)
-- **300**: Medium light gray (#cbd5e1)
-- **400**: Medium gray (#94a3b8)
-- **500**: Medium gray (#64748b)
-- **600**: Medium dark gray (#475569)
-- **700**: Dark gray (#334155)
-- **800**: Darker gray (#1e293b)
-- **900**: Darkest gray (#0f172a)
-
-## 🚨 Migration Notes
-
-When migrating from the old `sc-*` color classes:
-
-1. **Replace `sc-warm-cream`** with `bg-primary` or `bg-primary-50`
+1. **Replace `sc-warm-cream`** with `bg-primary-50` or `bg-primary-50`
 2. **Replace `sc-orange`** with `bg-primary-500`
 3. **Replace `sc-dark-orange`** with `bg-primary-600`
-4. **Replace `sc-light-orange`** with `bg-primary-100`
-5. **Replace `sc-dark-gray`** with `text-neutral-700`
-6. **Replace `sc-medium-gray`** with `text-neutral-500`
+4. **Replace `sc-light-yellow`** with `bg-secondary-50`
+5. **Replace `sc-yellow`** with `bg-secondary-400`
+6. **Replace `sc-red`** with `bg-accent-400`
+7. **Replace `sc-dark-gray`** with `text-neutral-700`
+8. **Replace `sc-medium-gray`** with `text-neutral-500`
 
-## 📚 Examples
-
-### Button Component
+### Example Migration
 ```tsx
-const Button = ({ variant = 'primary', children, ...props }) => {
-  const baseClasses = 'px-4 py-2 rounded-md font-semibold transition-normal';
-  
-  const variantClasses = {
-    primary: 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500',
-    secondary: 'bg-neutral-500 hover:bg-neutral-600 text-white focus:ring-neutral-500',
-    danger: 'bg-accent-500 hover:bg-accent-600 text-white focus:ring-accent-500',
-  };
-  
-  return (
-    <button 
-      className={`${baseClasses} ${variantClasses[variant]}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
+// Before
+<div className="bg-sc-warm-cream text-sc-dark-gray">
+  <h1 className="text-sc-orange">Title</h1>
+</div>
+
+// After
+<div className="bg-primary-50 text-neutral-700">
+  <h1 className="text-primary-500">Title</h1>
+</div>
 ```
 
-### Card Component
-```tsx
-const Card = ({ children, className }) => {
-  return (
-    <div className={`bg-white border border-border-card rounded-lg shadow-md p-6 ${className}`}>
-      {children}
-    </div>
-  );
-};
-```
+## Accessibility Features
 
-This centralized system makes it easy to maintain consistent styling across the entire application and quickly make global design changes.
+- **High contrast ratios** for all text combinations
+- **Focus indicators** using orange and yellow colors
+- **Semantic color usage** for status and alerts
+- **Consistent visual hierarchy** through color and spacing
+- **WCAG AA compliance** for color contrast requirements
+
+## Customization
+
+The theme can be customized by modifying the color values in:
+- `src/theme/theme.ts` - TypeScript theme object
+- `src/theme/theme.css` - CSS custom properties
+- `tailwind.config.js` - Tailwind CSS configuration
+
+All colors are designed to work together harmoniously while maintaining excellent readability and accessibility standards.

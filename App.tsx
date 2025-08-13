@@ -6,6 +6,7 @@ import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import TractsPage from './pages/TractsPage';
+import TractDetailPage from './pages/TractDetailPage';
 import UnitsPage from './pages/UnitsPage';
 import UnitDetailPage from './pages/UnitDetailPage';
 import UnitFormPage from './pages/UnitFormPage';
@@ -41,6 +42,7 @@ function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/tracts" element={<TractsPage />} />
+          <Route path="/tracts/:tractId" element={<TractDetailPage />} />
           <Route path="/units" element={<UnitsPage />} />
           <Route path="/units/new" element={<UnitFormPage />} />
           <Route path="/units/:id" element={<UnitDetailPage />} />

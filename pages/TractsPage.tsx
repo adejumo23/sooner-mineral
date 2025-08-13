@@ -93,42 +93,42 @@ const TractsPage: React.FC = () => {
       header: 'Tract Name',
       accessor: 'tractName',
       cell: (tract: Tract) => (
-        <span className="text-sm font-medium text-sc-dark-gray">{tract.tractName}</span>
+        <span className="text-sm font-medium text-gray-900">{tract.tractName}</span>
       )
     },
     {
       header: 'State',
       accessor: 'state',
       cell: (tract: Tract) => (
-        <span className="text-sm text-sc-dark-gray">{tract.state}</span>
+        <span className="text-sm text-gray-900">{tract.state}</span>
       )
     },
     {
       header: 'County',
       accessor: 'county',
       cell: (tract: Tract) => (
-        <span className="text-sm text-sc-dark-gray">{tract.county}</span>
+        <span className="text-sm text-gray-900">{tract.county}</span>
       )
     },
     {
       header: 'Status',
       accessor: 'titleStatus',
       cell: (tract: Tract) => (
-        <span className="text-sm text-sc-dark-gray">{tract.titleStatus}</span>
+        <span className="text-sm text-gray-900">{tract.titleStatus}</span>
       )
     },
     {
       header: 'Assigned To',
       accessor: 'assignedBuyer',
       cell: (tract: Tract) => (
-        <span className="text-sm text-sc-dark-gray">{tract.assignedBuyer?.name || 'Unassigned'}</span>
+        <span className="text-sm text-gray-900">{tract.assignedBuyer?.name || 'Unassigned'}</span>
       )
     },
     {
       header: 'Acres (Net/Gross)',
       accessor: 'acres',
       cell: (tract: Tract) => (
-        <span className="text-sm text-sc-dark-gray">{tract.netMineralAcres || 'N/A'} / {tract.grossAcres}</span>
+        <span className="text-sm text-gray-900">{tract.netMineralAcres || 'N/A'} / {tract.grossAcres}</span>
       )
     },
     {
@@ -136,9 +136,25 @@ const TractsPage: React.FC = () => {
       accessor: 'actions',
       cell: (tract: Tract) => (
         <div className="flex space-x-2">
-          <Button variant="secondary" onClick={() => navigate(`/tracts/${tract.id}`)}>View Details</Button>
-          <Button variant="secondary" onClick={() => handleOpenModal(tract)}>Edit</Button>
-          <Button variant="danger" onClick={() => handleDelete(tract.id)}>Delete</Button>
+          <button
+            onClick={() => navigate(`/tracts/${tract.id}`)}
+            className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+            style={{ backgroundColor: '#fbbf24' }}
+          >
+            View Details
+          </button>
+          <button
+            onClick={() => handleOpenModal(tract)}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => handleDelete(tract.id)}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          >
+            Delete
+          </button>
         </div>
       )
     }

@@ -1,43 +1,62 @@
 export const theme = {
   colors: {
-    // Primary brand colors
+    // Primary brand colors - Enhanced orange palette
     primary: {
-      50: '#fef7ed',    // sc-warm-cream
-      100: '#fed7aa',   // sc-light-orange
-      500: '#fb923c',   // sc-orange
-      600: '#ea580c',   // sc-dark-orange
-      700: '#c2410c',   // sc-darker-orange
+      50: '#fff7ed',    // Very light warm orange
+      100: '#ffedd5',   // Light warm orange
+      200: '#fed7aa',   // Light orange
+      300: '#fdba74',   // Medium light orange
+      400: '#fb923c',   // Orange
+      500: '#f97316',   // Vibrant orange
+      600: '#ea580c',   // Dark orange
+      700: '#c2410c',   // Darker orange
+      800: '#9a3412',   // Very dark orange
+      900: '#7c2d12',   // Darkest orange
     },
     
-    // Secondary colors
+    // Secondary colors - Enhanced yellow palette
     secondary: {
-      50: '#fef3c7',    // sc-light-yellow
-      500: '#fbbf24',   // sc-yellow
-      600: '#d97706',   // sc-dark-yellow
+      50: '#fefce8',    // Very light yellow
+      100: '#fef3c7',   // Light yellow
+      200: '#fde68a',   // Medium light yellow
+      300: '#fcd34d',   // Medium yellow
+      400: '#fbbf24',   // Yellow
+      500: '#f59e0b',   // Vibrant yellow
+      600: '#d97706',   // Dark yellow
+      700: '#b45309',   // Darker yellow
+      800: '#92400e',   // Very dark yellow
+      900: '#78350f',   // Darkest yellow
     },
     
-    // Accent colors
+    // Accent colors - Enhanced red palette
     accent: {
-      50: '#fecaca',    // sc-light-red
-      500: '#f87171',   // sc-red
-      600: '#dc2626',   // sc-dark-red
+      50: '#fef2f2',    // Very light red
+      100: '#fee2e2',   // Light red
+      200: '#fecaca',   // Medium light red
+      300: '#fca5a5',   // Medium red
+      400: '#f87171',   // Red
+      500: '#ef4444',   // Vibrant red
+      600: '#dc2626',   // Dark red
+      700: '#b91c1c',   // Darker red
+      800: '#991b1b',   // Very dark red
+      900: '#7f1d1d',   // Darkest red
     },
     
-    // Neutral colors
+    // Neutral colors - Warm grays that complement the orange theme
     neutral: {
-      50: '#f8fafc',    // sc-warm-gray
-      100: '#f1f5f9',   // sc-lighter-gray
-      200: '#e2e8f0',   // sc-light-gray
-      300: '#cbd5e1',   // sc-medium-light-gray
-      400: '#94a3b8',   // sc-medium-gray
-      500: '#64748b',   // sc-medium-gray
-      600: '#475569',   // sc-medium-dark-gray
-      700: '#334155',   // sc-dark-gray
-      800: '#1e293b',   // sc-darker-gray
-      900: '#0f172a',   // sc-darkest-gray
+      50: '#fafaf9',    // Very light warm gray
+      100: '#f5f5f4',   // Light warm gray
+      200: '#e7e5e4',   // Medium light warm gray
+      300: '#d6d3d1',   // Medium warm gray
+      400: '#a8a29e',   // Medium gray
+      500: '#78716c',   // Medium dark gray
+      600: '#57534e',   // Dark gray
+      700: '#44403c',   // Darker gray
+      800: '#292524',   // Very dark gray
+      900: '#1c1917',   // Darkest gray
     },
     
-    // Semantic colors
+    // Semantic colors - Updated to fit the new theme
     success: {
       50: '#f0fdf4',
       500: '#22c55e',
@@ -63,97 +82,113 @@ export const theme = {
     },
   },
   
-  // Background colors
+  // Background colors - Enhanced with new color palette
   backgrounds: {
-    primary: '#fef7ed',      // sc-warm-cream
+    primary: '#fff7ed',      // Very light warm orange
     secondary: '#ffffff',    // white
-    sidebar: '#fb923c',      // sc-orange
-    sidebarHeader: '#ea580c', // sc-dark-orange
-    header: 'rgba(254, 215, 170, 0.8)', // sc-light-orange/80
+    tertiary: '#fefce8',     // Very light yellow
+    sidebar: '#f97316',      // Vibrant orange
+    sidebarHeader: '#ea580c', // Dark orange
+    header: 'rgba(255, 237, 213, 0.9)', // Light warm orange/90
     card: '#ffffff',         // white
     modal: '#ffffff',        // white
     table: '#ffffff',        // white
     input: '#ffffff',        // white
+    inputFocus: '#fefce8',   // Very light yellow for focus states
+    hover: '#fff7ed',        // Very light warm orange for hover states
   },
   
-  // Border colors
+  // Border colors - Enhanced with new color palette
   borders: {
-    primary: '#fed7aa',      // sc-light-orange
-    secondary: '#e2e8f0',    // sc-light-gray
-    accent: '#fb923c',       // sc-orange
-    dark: '#ea580c',         // sc-dark-orange
-    input: '#fed7aa',        // sc-light-orange
-    inputError: '#f87171',   // sc-red
-    table: '#fed7aa',        // sc-light-orange
-    card: '#fed7aa',         // sc-light-orange
-    modal: '#fed7aa',        // sc-light-orange
+    primary: '#fed7aa',      // Light orange
+    secondary: '#e7e5e4',    // Medium light warm gray
+    accent: '#f97316',       // Vibrant orange
+    dark: '#ea580c',         // Dark orange
+    input: '#fed7aa',        // Light orange
+    inputError: '#f87171',   // Red
+    inputFocus: '#fbbf24',   // Yellow for focus
+    table: '#fed7aa',        // Light orange
+    card: '#fed7aa',         // Light orange
+    modal: '#fed7aa',        // Light orange
+    divider: '#e7e5e4',      // Medium light warm gray
   },
   
-  // Text colors
+  // Text colors - Carefully selected for readability
   text: {
-    primary: '#334155',      // sc-dark-gray
-    secondary: '#64748b',    // sc-medium-gray
-    tertiary: '#94a3b8',     // sc-medium-light-gray
-    inverse: '#fef7ed',      // sc-warm-cream (for dark backgrounds)
-    muted: '#94a3b8',        // sc-medium-light-gray
-    placeholder: '#64748b',  // sc-medium-gray
-    error: '#dc2626',        // sc-dark-red
-    success: '#16a34a',      // sc-success-600
-    warning: '#d97706',      // sc-warning-600
-    info: '#2563eb',         // sc-info-600
+    primary: '#1c1917',      // Darkest gray for excellent readability
+    secondary: '#44403c',    // Dark gray for good readability
+    tertiary: '#78716c',     // Medium dark gray
+    inverse: '#ffffff',      // White for dark backgrounds
+    muted: '#a8a29e',        // Medium gray
+    placeholder: '#78716c',  // Medium dark gray
+    error: '#dc2626',        // Dark red
+    success: '#16a34a',      // Success green
+    warning: '#d97706',      // Dark yellow
+    info: '#2563eb',         // Info blue
+    link: '#ea580c',         // Dark orange for links
+    linkHover: '#c2410c',    // Darker orange for link hover
   },
   
-  // Button variants
+  // Button variants - Enhanced with new color palette
   buttons: {
     primary: {
-      background: '#fb923c',     // sc-orange
-      hover: '#ea580c',          // sc-dark-orange
-      focus: '#fb923c',          // sc-orange
+      background: '#f97316',     // Vibrant orange
+      hover: '#ea580c',          // Dark orange
+      focus: '#f97316',          // Vibrant orange
       text: '#ffffff',           // white
     },
     secondary: {
-      background: '#64748b',     // sc-medium-gray
-      hover: '#334155',          // sc-dark-gray
-      focus: '#64748b',          // sc-medium-gray
-      text: '#ffffff',           // white
+      background: '#fbbf24',     // Yellow
+      hover: '#f59e0b',          // Dark yellow
+      focus: '#fbbf24',          // Yellow
+      text: '#44403c',           // Dark gray for readability
     },
     danger: {
-      background: '#f87171',     // sc-red
-      hover: '#dc2626',          // sc-dark-red
-      focus: '#f87171',          // sc-red
+      background: '#ef4444',     // Vibrant red
+      hover: '#dc2626',          // Dark red
+      focus: '#ef4444',          // Vibrant red
       text: '#ffffff',           // white
     },
     outline: {
       background: 'transparent',
-      hover: '#fef7ed',          // sc-warm-cream
-      focus: '#fb923c',          // sc-orange
-      text: '#fb923c',           // sc-orange
-      border: '#fb923c',         // sc-orange
+      hover: '#fff7ed',          // Very light warm orange
+      focus: '#f97316',          // Vibrant orange
+      text: '#f97316',           // Vibrant orange
+      border: '#f97316',         // Vibrant orange
+    },
+    ghost: {
+      background: 'transparent',
+      hover: '#fefce8',          // Very light yellow
+      focus: '#fbbf24',          // Yellow
+      text: '#78716c',           // Medium dark gray
     },
   },
   
-  // Focus states
+  // Focus states - Enhanced with new color palette
   focus: {
     ring: {
-      primary: '#fb923c',        // sc-orange
-      secondary: '#64748b',      // sc-medium-gray
-      danger: '#f87171',         // sc-red
-      offset: '#fef7ed',         // sc-warm-cream
+      primary: '#f97316',        // Vibrant orange
+      secondary: '#fbbf24',      // Yellow
+      danger: '#ef4444',         // Vibrant red
+      offset: '#fff7ed',         // Very light warm orange
     },
   },
   
-  // Shadows
+  // Shadows - Enhanced with warm tones
   shadows: {
-    sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-    md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-    lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    sm: '0 1px 2px 0 rgba(249, 115, 22, 0.05)',
+    md: '0 4px 6px -1px rgba(249, 115, 22, 0.1), 0 2px 4px -1px rgba(249, 115, 22, 0.06)',
+    lg: '0 10px 15px -3px rgba(249, 115, 22, 0.1), 0 4px 6px -2px rgba(249, 115, 22, 0.05)',
+    xl: '0 20px 25px -5px rgba(249, 115, 22, 0.1), 0 10px 10px -5px rgba(249, 115, 22, 0.04)',
   },
   
-  // Gradients
+  // Gradients - Enhanced with new color palette
   gradients: {
-    primary: 'linear-gradient(to bottom right, #fef7ed, #fef3c7, #fed7aa)',
-    sidebar: 'linear-gradient(to bottom, #fb923c, #ea580c)',
+    primary: 'linear-gradient(to bottom right, #fff7ed, #fefce8, #fed7aa)',
+    secondary: 'linear-gradient(to bottom right, #fefce8, #fde68a, #fbbf24)',
+    accent: 'linear-gradient(to bottom right, #fef2f2, #fecaca, #f87171)',
+    sidebar: 'linear-gradient(to bottom, #f97316, #ea580c)',
+    header: 'linear-gradient(to right, rgba(255, 237, 213, 0.9), rgba(254, 252, 232, 0.9))',
   },
   
   // Spacing (using Tailwind's spacing scale)
