@@ -1,4 +1,4 @@
-# Run and deploy your AI Studio app
+# Run and deploy your app
 
 This contains everything you need to run your app locally.
 
@@ -9,7 +9,6 @@ This contains everything you need to run your app locally.
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
 
@@ -22,3 +21,5 @@ This contains everything you need to run your app locally.
 3. navigate to the code folder using cd
 4. run `docker compose up --build`
 5. Open a browser and navigate to localhost:3000
+6. To make changes and rebuild app, run `docker compose down && docker compose up --build`
+7. Refer to [DOCKER_README.md](DOCKER_README.md) for more info
