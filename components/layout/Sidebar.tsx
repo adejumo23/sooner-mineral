@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon } from '../icons/Icons';
+import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon } from '../icons/Icons';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
@@ -14,6 +14,8 @@ const navigation = [
   { name: 'Mapping', href: '/mapping', icon: MapIcon },
   { name: 'Calendar & Tasks', href: '/calendar-tasks', icon: CheckListIcon },
   { name: 'Document Generation', href: '/document-generation', icon: DocumentIcon },
+  { name: 'Reporting', href: '/reporting', icon: ChartBarIcon },
+  { name: 'ESG Tracking', href: '/esg', icon: GlobeAltIcon },
   { name: 'Users', href: '/users', icon: UserGroupIcon },
   { name: 'Roles', href: '/roles', icon: ShieldCheckIcon },
   { name: 'Privileges', href: '/privileges', icon: KeyIcon },
@@ -21,12 +23,12 @@ const navigation = [
 
 const Sidebar: React.FC = () => {
   return (
-    <div className="w-64 bg-gradient-to-b from-orange-500 to-orange-600 h-full flex flex-col fixed top-0 left-0 border-r border-orange-700 shadow-lg">
+    <div className="w-64 bg-gradient-to-b from-orange-500 to-orange-600 h-screen flex flex-col fixed top-0 left-0 border-r border-orange-700 shadow-lg">
       <div className="flex items-center justify-center h-20 border-b border-orange-700 bg-orange-600">
         <BuildingIcon className="h-8 w-8 text-white" />
         <h1 className="text-2xl font-bold ml-2 text-white">Sooner Capital</h1>
       </div>
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
         {navigation.map((item) => (
           <NavLink
             key={item.name}

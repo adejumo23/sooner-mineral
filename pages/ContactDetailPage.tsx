@@ -26,6 +26,7 @@ import DocumentUploadForm from '../components/DocumentUploadForm';
 import DocumentDetails from '../components/DocumentDetails';
 import ContactMapTab from '../components/ContactMapTab';
 import CommunicationTab from '../components/CommunicationTab';
+import ESGTab from '../components/ESGTab';
 import { 
   ArrowLeftIcon, 
   PencilIcon, 
@@ -34,14 +35,15 @@ import {
   MapIcon,
   PhoneIcon,
   DocumentIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  GlobeAltIcon
 } from '../components/icons/Icons';
 
 const ContactDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [contact, setContact] = useState<ContactEnhanced | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tracts' | 'units' | 'map' | 'communication' | 'leads' | 'callLog' | 'documents'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tracts' | 'units' | 'map' | 'communication' | 'leads' | 'callLog' | 'documents' | 'esg'>('overview');
   const [loading, setLoading] = useState(true);
   const [tracts, setTracts] = useState<ContactTractOwnershipEnhanced[]>([]);
   const [units, setUnits] = useState<ContactUnitSummary[]>([]);
@@ -228,6 +230,7 @@ const ContactDetailPage: React.FC = () => {
     { id: 'leads', name: 'Leads', icon: ClipboardDocumentListIcon },
     { id: 'callLog', name: 'Call Log', icon: PhoneIcon },
     { id: 'documents', name: 'Documents', icon: DocumentIcon },
+    { id: 'esg', name: 'ESG', icon: GlobeAltIcon },
   ];
 
   if (loading) {
@@ -1420,6 +1423,13 @@ const ContactDetailPage: React.FC = () => {
               )}
             </div>
           </Card>
+        )}
+
+        {activeTab === 'esg' && (
+          <ESGTab 
+            currentUser={currentUser}
+            relatedTractId={tracts[0]?.tractId}
+          />
         )}
       </div>
 

@@ -1,4 +1,4 @@
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus, ContactCallLog, ContactDocument, DistressSignal, LeadEnhanced, LeadCallLog, MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, MapInteraction, MapExport } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus, ContactCallLog, ContactDocument, DistressSignal, LeadEnhanced, LeadCallLog, MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, MapInteraction, MapExport, ESGProfile, ESGRiskFlag, RegulatoryWatchlistEntry, ESGPortfolioSummary, ESGFilterCriteria, ESGReportRequest, ESGDataImport } from '../types';
 
 /*
 ================================================================================
@@ -3620,6 +3620,303 @@ const mockCalendarEvents: CalendarEvent[] = [
   }
 ];
 
+// ====== REPORTING & DASHBOARDS MODULE MOCK DATA ======
+
+// Mock data for lead conversion funnel
+const mockLeadConversionFunnel: LeadConversionFunnel = {
+  totalContacts: 1250,
+  contactsToLeads: 875,
+  leadsToLOI: 438,
+  loiToDeals: 219,
+  conversionRates: {
+    contactToLead: 70.0,
+    leadToLOI: 50.0,
+    loiToDeal: 50.0,
+    overallConversion: 17.5
+  },
+  breakdown: {
+    byBuyer: {
+      'user-1': {
+        contacts: 300,
+        leads: 210,
+        lois: 105,
+        deals: 52,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.0, loiToDeal: 49.5, overallConversion: 17.3 }
+      },
+      'user-2': {
+        contacts: 250,
+        leads: 175,
+        lois: 88,
+        deals: 44,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.3, loiToDeal: 50.0, overallConversion: 17.6 }
+      }
+    },
+    byCounty: {
+      'Oklahoma': {
+        contacts: 500,
+        leads: 350,
+        lois: 175,
+        deals: 88,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.0, loiToDeal: 50.3, overallConversion: 17.6 }
+      },
+      'Texas': {
+        contacts: 400,
+        leads: 280,
+        lois: 140,
+        deals: 70,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.0, loiToDeal: 50.0, overallConversion: 17.5 }
+      }
+    },
+    bySource: {
+      'Cold Call': {
+        contacts: 600,
+        leads: 420,
+        lois: 210,
+        deals: 105,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.0, loiToDeal: 50.0, overallConversion: 17.5 }
+      },
+      'Referral': {
+        contacts: 300,
+        leads: 210,
+        lois: 105,
+        deals: 53,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.0, loiToDeal: 50.5, overallConversion: 17.7 }
+      }
+    },
+    byTimePeriod: {
+      'Q1 2024': {
+        contacts: 300,
+        leads: 210,
+        lois: 105,
+        deals: 53,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.0, loiToDeal: 50.5, overallConversion: 17.7 }
+      },
+      'Q2 2024': {
+        contacts: 350,
+        leads: 245,
+        lois: 123,
+        deals: 61,
+        conversionRates: { contactToLead: 70.0, leadToLOI: 50.2, loiToDeal: 49.6, overallConversion: 17.4 }
+      }
+    }
+  }
+};
+
+// Mock data for outreach activity summary
+const mockOutreachActivitySummary: OutreachActivitySummary = {
+  totalActivities: 2847,
+  byType: {
+    emails: 1200,
+    calls: 950,
+    letters: 500,
+    sms: 197
+  },
+  byBuyer: {
+    'user-1': {
+      userId: 'user-1',
+      buyerName: 'John Smith',
+      totalActivities: 850,
+      emails: 400,
+      calls: 300,
+      letters: 100,
+      sms: 50,
+      responseRate: 68.5,
+      conversionRate: 22.3
+    },
+    'user-2': {
+      userId: 'user-2',
+      buyerName: 'Sarah Johnson',
+      totalActivities: 750,
+      emails: 350,
+      calls: 250,
+      letters: 120,
+      sms: 30,
+      responseRate: 71.2,
+      conversionRate: 24.1
+    }
+  },
+  byWeek: {
+    '2024-W01': {
+      weekStart: new Date('2024-01-01'),
+      totalActivities: 150,
+      emails: 65,
+      calls: 50,
+      letters: 25,
+      sms: 10,
+      responseRate: 65.0
+    },
+    '2024-W02': {
+      weekStart: new Date('2024-01-08'),
+      totalActivities: 165,
+      emails: 70,
+      calls: 55,
+      letters: 30,
+      sms: 10,
+      responseRate: 68.0
+    }
+  },
+  trends: {
+    weeklyGrowth: 12.5,
+    topPerformers: ['John Smith', 'Sarah Johnson'],
+    responseRates: { 'John Smith': 68.5, 'Sarah Johnson': 71.2 }
+  }
+};
+
+// Mock data for assignment performance metrics
+const mockAssignmentPerformanceMetrics: AssignmentPerformanceMetrics = {
+  totalAssignments: 450,
+  averagePriorityScore: 7.2,
+  averagePricePerAcre: 2850,
+  averageContactRate: 73.5,
+  averageDealCloseRate: 18.7,
+  byBuyer: {
+    'user-1': {
+      userId: 'user-1',
+      buyerName: 'John Smith',
+      assignments: 180,
+      averagePriorityScore: 7.5,
+      averagePricePerAcre: 2900,
+      contactRate: 75.0,
+      dealCloseRate: 20.0,
+      totalDealValue: 12500000
+    },
+    'user-2': {
+      userId: 'user-2',
+      buyerName: 'Sarah Johnson',
+      assignments: 150,
+      averagePriorityScore: 7.0,
+      averagePricePerAcre: 2800,
+      contactRate: 72.0,
+      dealCloseRate: 17.5,
+      totalDealValue: 9800000
+    }
+  },
+  correlations: {
+    priorityVsPrice: 0.65,
+    priorityVsContactRate: 0.72,
+    priorityVsCloseRate: 0.68,
+    priceVsCloseRate: 0.58
+  }
+};
+
+// Mock data for deal velocity metrics
+const mockDealVelocityMetrics: DealVelocityMetrics = {
+  totalDeals: 89,
+  totalNMA: 15420,
+  totalGrossValue: 43850000,
+  averagePricePerAcre: 2845,
+  averageDealSize: 492697,
+  byBuyer: {
+    'user-1': {
+      userId: 'user-1',
+      buyerName: 'John Smith',
+      deals: 35,
+      totalNMA: 6100,
+      totalValue: 17500000,
+      averagePricePerAcre: 2869,
+      averageDealSize: 500000,
+      closeRate: 20.0
+    },
+    'user-2': {
+      userId: 'user-2',
+      buyerName: 'Sarah Johnson',
+      deals: 28,
+      totalNMA: 4800,
+      totalValue: 13600000,
+      averagePricePerAcre: 2833,
+      averageDealSize: 485714,
+      closeRate: 17.5
+    }
+  },
+  byBasin: {
+    'Permian': {
+      basin: 'Permian',
+      deals: 45,
+      totalNMA: 7800,
+      totalValue: 22200000,
+      averagePricePerAcre: 2846,
+      averageDealSize: 493333
+    },
+    'Eagle Ford': {
+      basin: 'Eagle Ford',
+      deals: 32,
+      totalNMA: 5400,
+      totalValue: 15350000,
+      averagePricePerAcre: 2843,
+      averageDealSize: 479688
+    }
+  },
+  byStatus: {
+    'Closed': {
+      status: 'Closed',
+      deals: 89,
+      totalNMA: 15420,
+      totalValue: 43850000,
+      averagePricePerAcre: 2845
+    }
+  },
+  trends: {
+    monthlyGrowth: 8.5,
+    averageCloseTime: 45,
+    pipelineVelocity: 2.1
+  }
+};
+
+// Mock data for ESG compliance summary
+const mockESGComplianceSummary: ESGComplianceSummary = {
+  totalTracts: 1250,
+  regulatoryFlags: 125,
+  carbonScores: 875,
+  verifiedTitle: 1125,
+  complianceRates: {
+    regulatoryFlags: 90.0,
+    carbonScores: 70.0,
+    verifiedTitle: 90.0,
+    overallCompliance: 83.3
+  },
+  byBasin: {
+    'Permian': {
+      basin: 'Permian',
+      totalTracts: 600,
+      regulatoryFlags: 60,
+      carbonScores: 420,
+      verifiedTitle: 540,
+      complianceRate: 85.0
+    },
+    'Eagle Ford': {
+      basin: 'Eagle Ford',
+      totalTracts: 400,
+      regulatoryFlags: 40,
+      carbonScores: 280,
+      verifiedTitle: 360,
+      complianceRate: 85.0
+    }
+  },
+  byCounty: {
+    'Oklahoma': {
+      county: 'Oklahoma',
+      totalTracts: 500,
+      regulatoryFlags: 50,
+      carbonScores: 350,
+      verifiedTitle: 450,
+      complianceRate: 85.0
+    },
+    'Texas': {
+      county: 'Texas',
+      totalTracts: 400,
+      regulatoryFlags: 40,
+      carbonScores: 280,
+      verifiedTitle: 360,
+      complianceRate: 85.0
+    }
+  },
+  riskAssessment: {
+    highRisk: 125,
+    mediumRisk: 250,
+    lowRisk: 875
+  }
+};
+
 // ====== DOCUMENT GENERATION MODULE MOCK DATA ======
 
 // Mock data for document templates
@@ -4148,4 +4445,526 @@ export const exportDocument = async (documentId: string, format: 'pdf' | 'docx' 
     
     resolve(fileUrl);
   }, apiDelay));
+};
+
+// ====== REPORTING & DASHBOARDS API FUNCTIONS ======
+
+/**
+ * Fetch lead conversion funnel data
+ */
+export const fetchLeadConversionFunnel = async (filters?: ReportFilter): Promise<LeadConversionFunnel> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  // In a real app, this would apply filters and calculate metrics
+  return mockLeadConversionFunnel;
+};
+
+/**
+ * Fetch outreach activity summary
+ */
+export const fetchOutreachActivitySummary = async (filters?: ReportFilter): Promise<OutreachActivitySummary> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  // In a real app, this would apply filters and calculate metrics
+  return mockOutreachActivitySummary;
+};
+
+/**
+ * Fetch assignment performance metrics
+ */
+export const fetchAssignmentPerformanceMetrics = async (filters?: ReportFilter): Promise<AssignmentPerformanceMetrics> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  // In a real app, this would apply filters and calculate metrics
+  return mockAssignmentPerformanceMetrics;
+};
+
+/**
+ * Fetch deal velocity metrics
+ */
+export const fetchDealVelocityMetrics = async (filters?: ReportFilter): Promise<DealVelocityMetrics> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  // In a real app, this would apply filters and calculate metrics
+  return mockDealVelocityMetrics;
+};
+
+/**
+ * Fetch ESG compliance summary
+ */
+export const fetchESGComplianceSummary = async (filters?: ReportFilter): Promise<ESGComplianceSummary> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  // In a real app, this would apply filters and calculate metrics
+  return mockESGComplianceSummary;
+};
+
+/**
+ * Export dashboard data
+ */
+export const exportDashboardData = async (
+  reportTitle: string,
+  exportType: 'csv' | 'excel' | 'pdf',
+  filters: ReportFilter
+): Promise<DashboardExport> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const exportData: DashboardExport = {
+    id: `export-${Date.now()}`,
+    reportTitle,
+    exportType,
+    filters,
+    exportedBy: 'current-user', // In real app, get from auth context
+    exportedAt: new Date(),
+    fileUrl: `https://api.example.com/exports/${Date.now()}.${exportType}`,
+    fileSize: Math.floor(Math.random() * 1000000) + 100000 // Random file size
+  };
+  
+  return exportData;
+};
+
+/**
+ * Get available filter options
+ */
+export const getFilterOptions = async (): Promise<{
+  buyers: { id: string; name: string }[];
+  counties: string[];
+  basins: string[];
+  sources: string[];
+  statuses: string[];
+}> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  return {
+    buyers: [
+      { id: 'user-1', name: 'John Smith' },
+      { id: 'user-2', name: 'Sarah Johnson' }
+    ],
+    counties: ['Oklahoma', 'Texas', 'New Mexico', 'Louisiana'],
+    basins: ['Permian', 'Eagle Ford', 'Bakken', 'Haynesville'],
+    sources: ['Cold Call', 'Referral', 'Trade Show', 'Website', 'Social Media'],
+    statuses: ['New', 'Contacted', 'Qualified', 'LOI Sent', 'LOI Received', 'Under Contract', 'Closed', 'Lost']
+  };
+};
+
+// ====== ESG TRACKING MODULE MOCK DATA ======
+
+let mockESGProfiles: ESGProfile[] = [
+  {
+    id: 'esg1',
+    tractId: 't1',
+    carbonIntensity: 0.45,
+    emissionsData: {
+      scope1: 1250,
+      scope2: 320,
+      scope3: 890,
+      totalEmissions: 2460
+    },
+    environmentalFlags: ['High water usage', 'Air quality concerns'],
+    surfaceUseSensitivity: 'Agricultural land - seasonal restrictions',
+    landImpactNotes: 'Minimal surface disturbance, primarily pipeline access',
+    communityEngagement: 'Regular community meetings, local hiring',
+    socialFlags: ['Community support', 'Local economic benefits'],
+    titleVerificationStatus: 'Clean',
+    operatorComplianceScore: 4,
+    regulatoryCompliance: 'Full compliance with state and federal regulations',
+    governanceFlags: ['Strong environmental policies', 'Transparent reporting'],
+    overallRiskLevel: 'Low',
+    riskFactors: ['Low carbon intensity', 'Strong compliance record'],
+    dataCompleteness: 'Complete',
+    dataSource: 'API',
+    lastDataUpdate: new Date('2024-01-15'),
+    createdBy: 'u1',
+    createdAt: new Date('2024-01-01'),
+    lastModifiedBy: 'u1',
+    lastModifiedAt: new Date('2024-01-15'),
+    isActive: true
+  },
+  {
+    id: 'esg2',
+    tractId: 't2',
+    carbonIntensity: 0.78,
+    emissionsData: {
+      scope1: 2100,
+      scope2: 450,
+      scope3: 1200,
+      totalEmissions: 3750
+    },
+    environmentalFlags: ['Higher emissions', 'Water management concerns'],
+    surfaceUseSensitivity: 'Mixed use - residential and agricultural',
+    landImpactNotes: 'Moderate surface impact, access road construction',
+    communityEngagement: 'Limited community outreach',
+    socialFlags: ['Mixed community response'],
+    titleVerificationStatus: 'Pending',
+    operatorComplianceScore: 3,
+    regulatoryCompliance: 'Minor compliance issues, under review',
+    governanceFlags: ['Standard policies', 'Regular audits'],
+    overallRiskLevel: 'Medium',
+    riskFactors: ['Higher carbon intensity', 'Pending title verification'],
+    dataCompleteness: 'Partial',
+    dataSource: 'Manual',
+    lastDataUpdate: new Date('2024-01-10'),
+    createdBy: 'u2',
+    createdAt: new Date('2024-01-01'),
+    lastModifiedBy: 'u2',
+    lastModifiedAt: new Date('2024-01-10'),
+    isActive: true
+  },
+  {
+    id: 'esg3',
+    unitId: 'unit1',
+    carbonIntensity: 0.32,
+    emissionsData: {
+      scope1: 890,
+      scope2: 210,
+      scope3: 450,
+      totalEmissions: 1550
+    },
+    environmentalFlags: ['Low emissions', 'Efficient operations'],
+    surfaceUseSensitivity: 'Industrial zone - minimal restrictions',
+    landImpactNotes: 'Existing infrastructure, minimal new disturbance',
+    communityEngagement: 'Strong community partnerships',
+    socialFlags: ['High community support', 'Local job creation'],
+    titleVerificationStatus: 'Clean',
+    operatorComplianceScore: 5,
+    regulatoryCompliance: 'Exceeds regulatory requirements',
+    governanceFlags: ['Industry leading policies', 'Innovation focus'],
+    overallRiskLevel: 'Low',
+    riskFactors: ['Low carbon intensity', 'Excellent compliance'],
+    dataCompleteness: 'Complete',
+    dataSource: 'Operator Report',
+    lastDataUpdate: new Date('2024-01-20'),
+    createdBy: 'u1',
+    createdAt: new Date('2024-01-01'),
+    lastModifiedBy: 'u1',
+    lastModifiedAt: new Date('2024-01-20'),
+    isActive: true
+  }
+];
+
+let mockESGRiskFlags: ESGRiskFlag[] = [
+  {
+    id: 'flag1',
+    assetId: 't2',
+    assetType: 'tract',
+    riskType: 'Environmental',
+    riskLevel: 'Medium',
+    description: 'Higher than average carbon intensity',
+    impact: 'May affect deal valuation and LP requirements',
+    mitigationRequired: true,
+    requiresManagerOverride: false,
+    isResolved: false,
+    notes: 'Operator implementing efficiency improvements',
+    createdBy: 'u2',
+    createdAt: new Date('2024-01-10'),
+    lastModifiedBy: 'u2',
+    lastModifiedAt: new Date('2024-01-10')
+  },
+  {
+    id: 'flag2',
+    assetId: 't2',
+    assetType: 'tract',
+    riskType: 'Governance',
+    riskLevel: 'Medium',
+    description: 'Pending title verification',
+    impact: 'Delays deal closing, requires additional due diligence',
+    mitigationRequired: true,
+    requiresManagerOverride: false,
+    isResolved: false,
+    notes: 'Title company working on verification',
+    createdBy: 'u2',
+    createdAt: new Date('2024-01-10'),
+    lastModifiedBy: 'u2',
+    lastModifiedAt: new Date('2024-01-10')
+  }
+];
+
+let mockRegulatoryWatchlist: RegulatoryWatchlistEntry[] = [
+  {
+    id: 'watch1',
+    operatorName: 'Problematic Energy Co',
+    apiNumber: '42-123-45678',
+    violationType: 'Environmental',
+    violationDescription: 'Multiple air quality violations in 2023',
+    violationDate: new Date('2023-06-15'),
+    penaltyAmount: 250000,
+    resolutionStatus: 'Open',
+    repeatOffender: true,
+    riskLevel: 'High',
+    affectedTracts: ['t2'],
+    affectedUnits: ['unit1'],
+    reportedBy: 'u1',
+    reportedAt: new Date('2023-06-20'),
+    lastModifiedBy: 'u1',
+    lastModifiedAt: new Date('2023-06-20'),
+    isActive: true
+  },
+  {
+    id: 'watch2',
+    operatorName: 'Safety First Drilling',
+    apiNumber: '42-987-65432',
+    violationType: 'Safety',
+    violationDescription: 'Workplace safety violations',
+    violationDate: new Date('2023-11-10'),
+    penaltyAmount: 75000,
+    resolutionStatus: 'Resolved',
+    repeatOffender: false,
+    riskLevel: 'Medium',
+    affectedTracts: [],
+    affectedUnits: [],
+    reportedBy: 'u2',
+    reportedAt: new Date('2023-11-15'),
+    lastModifiedBy: 'u2',
+    lastModifiedAt: new Date('2023-11-15'),
+    isActive: true
+  }
+];
+
+let mockESGPortfolioSummary: ESGPortfolioSummary = {
+  id: 'portfolio1',
+  portfolioName: 'Sooner State Energy Portfolio',
+  totalTracts: 150,
+  totalUnits: 45,
+  tractsWithESGData: 120,
+  unitsWithESGData: 38,
+  lowRiskAssets: 95,
+  mediumRiskAssets: 45,
+  highRiskAssets: 8,
+  criticalRiskAssets: 2,
+  hbpPercentage: 78.5,
+  verifiedTitlePercentage: 85.2,
+  compliantOperatorPercentage: 92.1,
+  averageCarbonIntensity: 0.52,
+  highCarbonAssets: 12,
+  regulatoryRiskAssets: 6,
+  watchlistOperators: 3,
+  dataCompletenessPercentage: 80.0,
+  lastUpdated: new Date('2024-01-20'),
+  generatedBy: 'u1',
+  generatedAt: new Date('2024-01-20')
+};
+
+// ====== ESG TRACKING API FUNCTIONS ======
+
+/**
+ * Fetch ESG profiles with optional filters
+ */
+export const fetchESGProfiles = async (filters?: ESGFilterCriteria): Promise<ESGProfile[]> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  let filteredProfiles = [...mockESGProfiles];
+  
+  if (filters) {
+    if (filters.riskLevel && filters.riskLevel.length > 0) {
+      filteredProfiles = filteredProfiles.filter(profile => 
+        filters.riskLevel!.includes(profile.overallRiskLevel)
+      );
+    }
+    
+    if (filters.complianceScore && filters.complianceScore.length > 0) {
+      filteredProfiles = filteredProfiles.filter(profile => 
+        filters.complianceScore!.includes(profile.operatorComplianceScore)
+      );
+    }
+    
+    if (filters.titleStatus && filters.titleStatus.length > 0) {
+      filteredProfiles = filteredProfiles.filter(profile => 
+        filters.titleStatus!.includes(profile.titleVerificationStatus)
+      );
+    }
+    
+    if (filters.carbonIntensityRange) {
+      filteredProfiles = filteredProfiles.filter(profile => {
+        if (!profile.carbonIntensity) return false;
+        if (filters.carbonIntensityRange!.min && profile.carbonIntensity < filters.carbonIntensityRange!.min) return false;
+        if (filters.carbonIntensityRange!.max && profile.carbonIntensity > filters.carbonIntensityRange!.max) return false;
+        return true;
+      });
+    }
+    
+    if (filters.hasRiskFlags !== undefined) {
+      filteredProfiles = filteredProfiles.filter(profile => {
+        const hasFlags = mockESGRiskFlags.some(flag => 
+          flag.assetId === profile.tractId || flag.assetId === profile.unitId
+        );
+        return hasFlags === filters.hasRiskFlags;
+      });
+    }
+  }
+  
+  return filteredProfiles;
+};
+
+/**
+ * Fetch ESG profile by ID
+ */
+export const fetchESGProfileById = async (profileId: string): Promise<ESGProfile | null> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const profile = mockESGProfiles.find(p => p.id === profileId);
+  return profile || null;
+};
+
+/**
+ * Create new ESG profile
+ */
+export const createESGProfile = async (profileData: Omit<ESGProfile, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<ESGProfile> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const newProfile: ESGProfile = {
+    ...profileData,
+    id: `esg-${Date.now()}`,
+    createdAt: new Date(),
+    lastModifiedAt: new Date()
+  };
+  
+  mockESGProfiles.push(newProfile);
+  return newProfile;
+};
+
+/**
+ * Update ESG profile
+ */
+export const updateESGProfile = async (profileId: string, updates: Partial<ESGProfile>): Promise<ESGProfile> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const profileIndex = mockESGProfiles.findIndex(p => p.id === profileId);
+  if (profileIndex === -1) {
+    throw new Error('ESG profile not found');
+  }
+  
+  const updatedProfile = {
+    ...mockESGProfiles[profileIndex],
+    ...updates,
+    lastModifiedAt: new Date()
+  };
+  
+  mockESGProfiles[profileIndex] = updatedProfile;
+  return updatedProfile;
+};
+
+/**
+ * Fetch ESG risk flags
+ */
+export const fetchESGRiskFlags = async (assetId?: string): Promise<ESGRiskFlag[]> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  if (assetId) {
+    return mockESGRiskFlags.filter(flag => flag.assetId === assetId);
+  }
+  
+  return mockESGRiskFlags;
+};
+
+/**
+ * Create ESG risk flag
+ */
+export const createESGRiskFlag = async (flagData: Omit<ESGRiskFlag, 'id' | 'createdAt' | 'lastModifiedAt'>): Promise<ESGRiskFlag> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const newFlag: ESGRiskFlag = {
+    ...flagData,
+    id: `flag-${Date.now()}`,
+    createdAt: new Date(),
+    lastModifiedAt: new Date()
+  };
+  
+  mockESGRiskFlags.push(newFlag);
+  return newFlag;
+};
+
+/**
+ * Update ESG risk flag
+ */
+export const updateESGRiskFlag = async (flagId: string, updates: Partial<ESGRiskFlag>): Promise<ESGRiskFlag> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const flagIndex = mockESGRiskFlags.findIndex(f => f.id === flagId);
+  if (flagIndex === -1) {
+    throw new Error('ESG risk flag not found');
+  }
+  
+  const updatedFlag = {
+    ...mockESGRiskFlags[flagIndex],
+    ...updates,
+    lastModifiedAt: new Date()
+  };
+  
+  mockESGRiskFlags[flagIndex] = updatedFlag;
+  return updatedFlag;
+};
+
+/**
+ * Fetch regulatory watchlist
+ */
+export const fetchRegulatoryWatchlist = async (): Promise<RegulatoryWatchlistEntry[]> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  return mockRegulatoryWatchlist.filter(entry => entry.isActive);
+};
+
+/**
+ * Add operator to regulatory watchlist
+ */
+export const addToRegulatoryWatchlist = async (entryData: Omit<RegulatoryWatchlistEntry, 'id' | 'reportedAt' | 'lastModifiedAt'>): Promise<RegulatoryWatchlistEntry> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const newEntry: RegulatoryWatchlistEntry = {
+    ...entryData,
+    id: `watch-${Date.now()}`,
+    reportedAt: new Date(),
+    lastModifiedAt: new Date()
+  };
+  
+  mockRegulatoryWatchlist.push(newEntry);
+  return newEntry;
+};
+
+/**
+ * Fetch ESG portfolio summary
+ */
+export const fetchESGPortfolioSummary = async (): Promise<ESGPortfolioSummary> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  return mockESGPortfolioSummary;
+};
+
+/**
+ * Generate ESG report
+ */
+export const generateESGReport = async (request: ESGReportRequest): Promise<string> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  // In a real app, this would generate a report based on the request
+  const reportId = `report-${Date.now()}`;
+  return `https://api.example.com/reports/${reportId}.${request.format}`;
+};
+
+/**
+ * Import ESG data
+ */
+export const importESGData = async (file: File, importType: ESGDataImport['importType']): Promise<ESGDataImport> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  
+  const importRecord: ESGDataImport = {
+    id: `import-${Date.now()}`,
+    fileName: file.name,
+    importType,
+    recordsProcessed: Math.floor(Math.random() * 100) + 10,
+    recordsSuccess: Math.floor(Math.random() * 80) + 10,
+    recordsFailed: Math.floor(Math.random() * 20),
+    errors: [],
+    importedBy: 'current-user', // In real app, get from auth context
+    importedAt: new Date(),
+    status: 'Completed'
+  };
+  
+  return importRecord;
 };

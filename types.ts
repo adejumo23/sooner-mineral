@@ -43,6 +43,15 @@ export interface Tract {
   routingNotes?: string;
   heldByFund: boolean;
   isLocked: boolean;
+  
+  // ESG Tracking Fields
+  esgProfileId?: string;
+  esgRiskLevel?: ESGRiskLevel;
+  carbonIntensity?: number; // tons CO2e/BOE
+  operatorComplianceScore?: ESGComplianceScore;
+  titleVerificationStatus?: 'Clean' | 'Clouded' | 'Pending' | 'Unknown';
+  hasRiskFlags?: boolean;
+  lastESGUpdate?: Date;
 }
 
 export interface Contact {
@@ -390,6 +399,15 @@ export interface Unit {
   updatedBy: string;
   createdByUser?: User; // Populated from createdBy
   updatedByUser?: User; // Populated from updatedBy
+  
+  // ESG Tracking Fields
+  esgProfileId?: string;
+  esgRiskLevel?: ESGRiskLevel;
+  carbonIntensity?: number; // tons CO2e/BOE
+  operatorComplianceScore?: ESGComplianceScore;
+  regulatoryCompliance?: string;
+  hasRiskFlags?: boolean;
+  lastESGUpdate?: Date;
 }
 
 export interface UnitAssignment {
@@ -550,6 +568,13 @@ export interface Assignment {
   assignedById: string;
   updatedAt: string;
   
+  // ESG Tracking Fields
+  esgRiskLevel?: ESGRiskLevel;
+  requiresESGReview?: boolean;
+  esgReviewNotes?: string;
+  esgApprovedBy?: string;
+  esgApprovedAt?: Date;
+  
   // Populated fields
   assignedBuyer?: User;
   assignedBy?: User;
@@ -579,6 +604,14 @@ export interface AssignmentFilters {
   assignedDateFrom?: string;
   assignedDateTo?: string;
   search?: string;
+  
+  // ESG Filter Fields
+  esgRiskLevel?: ESGRiskLevel[];
+  maxCarbonIntensity?: number;
+  minOperatorComplianceScore?: ESGComplianceScore;
+  titleVerificationStatus?: string[];
+  hasRiskFlags?: boolean;
+  requiresESGReview?: boolean;
 }
 
 export interface CreateAssignmentData {
@@ -617,6 +650,12 @@ export interface LeadEnhanced {
   outreachCount: number;
   documentLinks?: string[]; // Array of document URLs
   assignmentId?: string; // Reference to the assignment that created this lead
+  
+  // ESG Tracking Fields
+  esgRiskLevel?: ESGRiskLevel;
+  requiresESGReview?: boolean;
+  esgReviewNotes?: string;
+  
   createdAt: string;
   updatedAt: string;
   
@@ -715,6 +754,14 @@ export interface Deal {
   value?: number;
   startDate?: string;
   endDate?: string;
+  
+  // ESG Tracking Fields
+  esgRiskLevel?: ESGRiskLevel;
+  requiresESGReview?: boolean;
+  esgReviewNotes?: string;
+  esgApprovedBy?: string;
+  esgApprovedAt?: Date;
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -1060,6 +1107,261 @@ export interface TaskStatistics {
   };
 }
 
+// ====== REPORTING & DASHBOARDS MODULE TYPES ======
+
+// Dashboard Widget
+export interface DashboardWidget {
+  id: string;
+  type: 'funnel' | 'bar' | 'line' | 'pie' | 'heatmap' | 'metric' | 'table';
+  title: string;
+  description?: string;
+  position: { x: number; y: number; w: number; h: number };
+  config: WidgetConfig;
+  data: any;
+  lastUpdated: Date;
+}
+
+// Widget Configuration
+export interface WidgetConfig {
+  dataSource: 'leads' | 'deals' | 'assignments' | 'communications' | 'esg' | 'contacts';
+  filters: ReportFilter;
+  refreshInterval?: number; // in seconds
+  exportFormats: ('csv' | 'excel' | 'pdf')[];
+}
+
+// Report Filter
+export interface ReportFilter {
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
+  buyers?: string[]; // User IDs
+  counties?: string[];
+  basins?: string[];
+  sources?: string[];
+  statuses?: string[];
+  customFilters?: Record<string, any>;
+}
+
+// Lead Conversion Funnel
+export interface LeadConversionFunnel {
+  totalContacts: number;
+  contactsToLeads: number;
+  leadsToLOI: number;
+  loiToDeals: number;
+  conversionRates: {
+    contactToLead: number;
+    leadToLOI: number;
+    loiToDeal: number;
+    overallConversion: number;
+  };
+  breakdown: {
+    byBuyer: Record<string, LeadConversionMetrics>;
+    byCounty: Record<string, LeadConversionMetrics>;
+    bySource: Record<string, LeadConversionMetrics>;
+    byTimePeriod: Record<string, LeadConversionMetrics>;
+  };
+}
+
+// Lead Conversion Metrics
+export interface LeadConversionMetrics {
+  contacts: number;
+  leads: number;
+  lois: number;
+  deals: number;
+  conversionRates: {
+    contactToLead: number;
+    leadToLOI: number;
+    loiToDeal: number;
+    overallConversion: number;
+  };
+}
+
+// Outreach Activity Summary
+export interface OutreachActivitySummary {
+  totalActivities: number;
+  byType: {
+    emails: number;
+    calls: number;
+    letters: number;
+    sms: number;
+  };
+  byBuyer: Record<string, BuyerOutreachMetrics>;
+  byWeek: Record<string, WeeklyOutreachMetrics>;
+  trends: {
+    weeklyGrowth: number;
+    topPerformers: string[];
+    responseRates: Record<string, number>;
+  };
+}
+
+// Buyer Outreach Metrics
+export interface BuyerOutreachMetrics {
+  userId: string;
+  buyerName: string;
+  totalActivities: number;
+  emails: number;
+  calls: number;
+  letters: number;
+  sms: number;
+  responseRate: number;
+  conversionRate: number;
+}
+
+// Weekly Outreach Metrics
+export interface WeeklyOutreachMetrics {
+  weekStart: Date;
+  totalActivities: number;
+  emails: number;
+  calls: number;
+  letters: number;
+  sms: number;
+  responseRate: number;
+}
+
+// Assignment Performance Metrics
+export interface AssignmentPerformanceMetrics {
+  totalAssignments: number;
+  averagePriorityScore: number;
+  averagePricePerAcre: number;
+  averageContactRate: number;
+  averageDealCloseRate: number;
+  byBuyer: Record<string, BuyerAssignmentMetrics>;
+  correlations: {
+    priorityVsPrice: number;
+    priorityVsContactRate: number;
+    priorityVsCloseRate: number;
+    priceVsCloseRate: number;
+  };
+}
+
+// Buyer Assignment Metrics
+export interface BuyerAssignmentMetrics {
+  userId: string;
+  buyerName: string;
+  assignments: number;
+  averagePriorityScore: number;
+  averagePricePerAcre: number;
+  contactRate: number;
+  dealCloseRate: number;
+  totalDealValue: number;
+}
+
+// Deal Velocity & NMA Metrics
+export interface DealVelocityMetrics {
+  totalDeals: number;
+  totalNMA: number;
+  totalGrossValue: number;
+  averagePricePerAcre: number;
+  averageDealSize: number;
+  byBuyer: Record<string, BuyerDealMetrics>;
+  byBasin: Record<string, BasinDealMetrics>;
+  byStatus: Record<string, StatusDealMetrics>;
+  trends: {
+    monthlyGrowth: number;
+    averageCloseTime: number;
+    pipelineVelocity: number;
+  };
+}
+
+// Buyer Deal Metrics
+export interface BuyerDealMetrics {
+  userId: string;
+  buyerName: string;
+  deals: number;
+  totalNMA: number;
+  totalValue: number;
+  averagePricePerAcre: number;
+  averageDealSize: number;
+  closeRate: number;
+}
+
+// Basin Deal Metrics
+export interface BasinDealMetrics {
+  basin: string;
+  deals: number;
+  totalNMA: number;
+  totalValue: number;
+  averagePricePerAcre: number;
+  averageDealSize: number;
+}
+
+// Status Deal Metrics
+export interface StatusDealMetrics {
+  status: string;
+  deals: number;
+  totalNMA: number;
+  totalValue: number;
+  averagePricePerAcre: number;
+}
+
+// ESG Compliance Summary
+export interface ESGComplianceSummary {
+  totalTracts: number;
+  regulatoryFlags: number;
+  carbonScores: number;
+  verifiedTitle: number;
+  complianceRates: {
+    regulatoryFlags: number;
+    carbonScores: number;
+    verifiedTitle: number;
+    overallCompliance: number;
+  };
+  byBasin: Record<string, BasinESGMetrics>;
+  byCounty: Record<string, CountyESGMetrics>;
+  riskAssessment: {
+    highRisk: number;
+    mediumRisk: number;
+    lowRisk: number;
+  };
+}
+
+// Basin ESG Metrics
+export interface BasinESGMetrics {
+  basin: string;
+  totalTracts: number;
+  regulatoryFlags: number;
+  carbonScores: number;
+  verifiedTitle: number;
+  complianceRate: number;
+}
+
+// County ESG Metrics
+export interface CountyESGMetrics {
+  county: string;
+  totalTracts: number;
+  regulatoryFlags: number;
+  carbonScores: number;
+  verifiedTitle: number;
+  complianceRate: number;
+}
+
+// Dashboard Export
+export interface DashboardExport {
+  id: string;
+  reportTitle: string;
+  exportType: 'csv' | 'excel' | 'pdf';
+  filters: ReportFilter;
+  exportedBy: string;
+  exportedAt: Date;
+  fileUrl?: string;
+  fileSize?: number;
+}
+
+// Dashboard Configuration
+export interface DashboardConfig {
+  id: string;
+  name: string;
+  description?: string;
+  layout: DashboardWidget[];
+  filters: ReportFilter;
+  refreshInterval: number;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isDefault: boolean;
+}
+
 // ====== DOCUMENT GENERATION MODULE TYPES ======
 
 // Document Template
@@ -1186,4 +1488,221 @@ export interface VariableMapping {
   source: 'contact' | 'lead' | 'deal' | 'user' | 'system';
   required: boolean;
   defaultValue?: string;
+}
+
+// ====== ESG TRACKING MODULE TYPES ======
+
+// ESG Risk Level
+export type ESGRiskLevel = 'Low' | 'Medium' | 'High' | 'Critical';
+
+// ESG Compliance Score (1-5 scale)
+export type ESGComplianceScore = 1 | 2 | 3 | 4 | 5;
+
+// ESG Data Source
+export type ESGDataSource = 'Manual' | 'Scraped' | 'API' | 'Operator Report' | 'Regulatory Database';
+
+// ESG Profile for Tracts and Units
+export interface ESGProfile {
+  id: string;
+  
+  // Asset Reference
+  tractId?: string;
+  unitId?: string;
+  dealId?: string;
+  
+  // Environmental Metrics
+  carbonIntensity?: number; // tons CO2e/BOE
+  emissionsData?: {
+    scope1?: number; // tons CO2e
+    scope2?: number; // tons CO2e
+    scope3?: number; // tons CO2e
+    totalEmissions?: number; // tons CO2e
+  };
+  environmentalFlags?: string[];
+  
+  // Social Metrics
+  surfaceUseSensitivity?: string;
+  landImpactNotes?: string;
+  communityEngagement?: string;
+  socialFlags?: string[];
+  
+  // Governance Metrics
+  titleVerificationStatus: 'Clean' | 'Clouded' | 'Pending' | 'Unknown';
+  operatorComplianceScore: ESGComplianceScore;
+  regulatoryCompliance?: string;
+  governanceFlags?: string[];
+  
+  // Risk Assessment
+  overallRiskLevel: ESGRiskLevel;
+  riskFactors: string[];
+  riskNotes?: string;
+  
+  // Data Quality
+  dataCompleteness: 'Complete' | 'Partial' | 'Incomplete';
+  dataSource: ESGDataSource;
+  lastDataUpdate: Date;
+  
+  // Metadata
+  createdBy: string;
+  createdAt: Date;
+  lastModifiedBy: string;
+  lastModifiedAt: Date;
+  isActive: boolean;
+}
+
+// ESG Risk Flag
+export interface ESGRiskFlag {
+  id: string;
+  assetId: string; // Tract ID or Unit ID
+  assetType: 'tract' | 'unit';
+  riskType: 'Environmental' | 'Social' | 'Governance' | 'Compliance' | 'Regulatory';
+  riskLevel: ESGRiskLevel;
+  description: string;
+  impact: string;
+  mitigationRequired: boolean;
+  requiresManagerOverride: boolean;
+  isResolved: boolean;
+  resolvedBy?: string;
+  resolvedAt?: Date;
+  notes?: string;
+  
+  // Metadata
+  createdBy: string;
+  createdAt: Date;
+  lastModifiedBy: string;
+  lastModifiedAt: Date;
+}
+
+// Regulatory Watchlist Entry
+export interface RegulatoryWatchlistEntry {
+  id: string;
+  operatorName: string;
+  apiNumber?: string;
+  violationType: 'Environmental' | 'Safety' | 'Compliance' | 'Financial' | 'Other';
+  violationDescription: string;
+  violationDate: Date;
+  penaltyAmount?: number;
+  resolutionStatus: 'Open' | 'Resolved' | 'Appealed' | 'Dismissed';
+  resolutionDate?: Date;
+  repeatOffender: boolean;
+  riskLevel: ESGRiskLevel;
+  
+  // Related Assets
+  affectedTracts?: string[];
+  affectedUnits?: string[];
+  
+  // Metadata
+  reportedBy: string;
+  reportedAt: Date;
+  lastModifiedBy: string;
+  lastModifiedAt: Date;
+  isActive: boolean;
+}
+
+// ESG Portfolio Summary
+export interface ESGPortfolioSummary {
+  id: string;
+  portfolioName: string;
+  
+  // Asset Counts
+  totalTracts: number;
+  totalUnits: number;
+  tractsWithESGData: number;
+  unitsWithESGData: number;
+  
+  // Risk Distribution
+  lowRiskAssets: number;
+  mediumRiskAssets: number;
+  highRiskAssets: number;
+  criticalRiskAssets: number;
+  
+  // Compliance Metrics
+  hbpPercentage: number; // % under HBP
+  verifiedTitlePercentage: number;
+  compliantOperatorPercentage: number;
+  
+  // Environmental Metrics
+  averageCarbonIntensity: number;
+  highCarbonAssets: number;
+  
+  // Regulatory Metrics
+  regulatoryRiskAssets: number;
+  watchlistOperators: number;
+  
+  // Data Quality
+  dataCompletenessPercentage: number;
+  lastUpdated: Date;
+  
+  // Metadata
+  generatedBy: string;
+  generatedAt: Date;
+}
+
+// ESG Dashboard Widget
+export interface ESGDashboardWidget {
+  id: string;
+  title: string;
+  type: 'chart' | 'metric' | 'table' | 'alert';
+  data: any;
+  refreshInterval?: number; // seconds
+  lastUpdated: Date;
+}
+
+// ESG Filter Criteria
+export interface ESGFilterCriteria {
+  riskLevel?: ESGRiskLevel[];
+  complianceScore?: ESGComplianceScore[];
+  titleStatus?: string[];
+  operatorCompliance?: ESGComplianceScore[];
+  carbonIntensityRange?: {
+    min?: number;
+    max?: number;
+  };
+  hasRiskFlags?: boolean;
+  dataCompleteness?: string[];
+  lastUpdateFrom?: Date;
+  lastUpdateTo?: Date;
+}
+
+// ESG Report Request
+export interface ESGReportRequest {
+  reportType: 'Portfolio Summary' | 'Risk Assessment' | 'Compliance Report' | 'Regulatory Watchlist' | 'Custom';
+  filters: ESGFilterCriteria;
+  format: 'pdf' | 'excel' | 'csv';
+  includeCharts: boolean;
+  includeRecommendations: boolean;
+}
+
+// ESG Data Import
+export interface ESGDataImport {
+  id: string;
+  fileName: string;
+  importType: 'Bulk Update' | 'New Records' | 'Replacement';
+  recordsProcessed: number;
+  recordsSuccess: number;
+  recordsFailed: number;
+  errors: string[];
+  
+  // Metadata
+  importedBy: string;
+  importedAt: Date;
+  status: 'In Progress' | 'Completed' | 'Failed' | 'Partially Completed';
+}
+
+// ESG Audit Log
+export interface ESGAuditLog {
+  id: string;
+  assetId: string;
+  assetType: 'tract' | 'unit' | 'deal';
+  action: 'Created' | 'Updated' | 'Deleted' | 'Risk Flag Added' | 'Risk Flag Resolved' | 'Data Imported';
+  fieldName?: string;
+  oldValue?: any;
+  newValue?: any;
+  reason?: string;
+  
+  // Metadata
+  performedBy: string;
+  performedAt: Date;
+  ipAddress?: string;
+  userAgent?: string;
 }
