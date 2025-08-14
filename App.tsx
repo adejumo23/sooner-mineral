@@ -20,6 +20,7 @@ import ContactsPage from './pages/ContactsPage';
 import ContactDetailPage from './pages/ContactDetailPage';
 import MessageCenterPage from './pages/MessageCenterPage';
 import MappingPage from './pages/MappingPage';
+import CalendarTaskPage from './pages/CalendarTaskPage';
 import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
@@ -63,8 +64,9 @@ function App() {
           <Route path="/contacts/new" element={<LeadFormPage />} />
           <Route path="/contacts/:id" element={<ContactDetailPage />} />
           <Route path="/contacts/:id/edit" element={<LeadFormPage />} />
-          <Route path="/communication" element={<MessageCenterPage />} />
-          <Route path="/mapping" element={<MappingPage />} />
+                  <Route path="/communication" element={<MessageCenterPage />} />
+        <Route path="/mapping" element={<MappingPage />} />
+        <Route path="/calendar-tasks" element={<CalendarTaskPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />

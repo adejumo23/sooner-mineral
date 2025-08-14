@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon } from '../icons/Icons';
+import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon } from '../icons/Icons';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Contacts', href: '/contacts', icon: UserIcon },
   { name: 'Message Center', href: '/communication', icon: EnvelopeIcon },
   { name: 'Mapping', href: '/mapping', icon: MapIcon },
+  { name: 'Calendar & Tasks', href: '/calendar-tasks', icon: CheckListIcon },
   { name: 'Users', href: '/users', icon: UserGroupIcon },
   { name: 'Roles', href: '/roles', icon: ShieldCheckIcon },
   { name: 'Privileges', href: '/privileges', icon: KeyIcon },

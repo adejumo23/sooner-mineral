@@ -3289,3 +3289,333 @@ export const getMapFilterOptions = async () => {
     });
   }, apiDelay));
 };
+
+// ====== TASK MANAGEMENT API FUNCTIONS ======
+
+/**
+ * Fetch tasks with optional filtering
+ */
+export const fetchTasks = async (filters?: TaskFilter): Promise<Task[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    let filteredTasks = [...mockTasks];
+    
+    if (filters) {
+      if (filters.userId) {
+        filteredTasks = filteredTasks.filter(task => task.userId === filters.userId);
+      }
+      if (filters.taskType) {
+        filteredTasks = filteredTasks.filter(task => task.taskType === filters.taskType);
+      }
+      if (filters.status) {
+        filteredTasks = filteredTasks.filter(task => task.status === filters.status);
+      }
+      if (filters.priority) {
+        filteredTasks = filteredTasks.filter(task => task.priority === filters.priority);
+      }
+      if (filters.dueDateFrom) {
+        filteredTasks = filteredTasks.filter(task => new Date(task.dueDate) >= filters.dueDateFrom!);
+      }
+      if (filters.dueDateTo) {
+        filteredTasks = filteredTasks.filter(task => new Date(task.dueDate) <= filters.dueDateTo!);
+      }
+      if (filters.relatedContactId) {
+        filteredTasks = filteredTasks.filter(task => task.relatedContactId === filters.relatedContactId);
+      }
+      if (filters.relatedLeadId) {
+        filteredTasks = filteredTasks.filter(task => task.relatedLeadId === filters.relatedLeadId);
+      }
+      if (filters.relatedDealId) {
+        filteredTasks = filteredTasks.filter(task => task.relatedDealId === filters.relatedDealId);
+      }
+      if (filters.relatedAssignmentId) {
+        filteredTasks = filteredTasks.filter(task => task.relatedAssignmentId === filters.relatedAssignmentId);
+      }
+    }
+    
+    resolve(filteredTasks);
+  }, apiDelay));
+};
+
+/**
+ * Fetch a single task by ID
+ */
+export const fetchTaskById = async (taskId: string): Promise<Task | null> => {
+  return new Promise(resolve => setTimeout(() => {
+    const task = mockTasks.find(task => task.id === taskId);
+    resolve(task || null);
+  }, apiDelay));
+};
+
+/**
+ * Create a new task
+ */
+export const createTask = async (taskData: CreateTaskRequest): Promise<Task> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newTask: Task = {
+      id: `task-${Date.now()}`,
+      ...taskData,
+      status: 'Open',
+      createdBy: 'current-user', // In real app, get from auth context
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    mockTasks.push(newTask);
+    resolve(newTask);
+  }, apiDelay));
+};
+
+/**
+ * Update an existing task
+ */
+export const updateTask = async (taskId: string, updates: UpdateTaskRequest): Promise<Task> => {
+  return new Promise(resolve => setTimeout(() => {
+    const taskIndex = mockTasks.findIndex(task => task.id === taskId);
+    if (taskIndex === -1) {
+      throw new Error('Task not found');
+    }
+    
+    const updatedTask = {
+      ...mockTasks[taskIndex],
+      ...updates,
+      updatedAt: new Date()
+    };
+    
+    // Handle completion
+    if (updates.status === 'Complete') {
+      updatedTask.completedAt = new Date();
+    }
+    
+    mockTasks[taskIndex] = updatedTask;
+    resolve(updatedTask);
+  }, apiDelay));
+};
+
+/**
+ * Delete a task
+ */
+export const deleteTask = async (taskId: string): Promise<void> => {
+  return new Promise(resolve => setTimeout(() => {
+    const taskIndex = mockTasks.findIndex(task => task.id === taskId);
+    if (taskIndex === -1) {
+      throw new Error('Task not found');
+    }
+    
+    mockTasks.splice(taskIndex, 1);
+    resolve();
+  }, apiDelay));
+};
+
+/**
+ * Fetch task statistics
+ */
+export const fetchTaskStatistics = async (userId?: string): Promise<TaskStatistics> => {
+  return new Promise(resolve => setTimeout(() => {
+    let tasks = mockTasks;
+    if (userId) {
+      tasks = tasks.filter(task => task.userId === userId);
+    }
+    
+    const total = tasks.length;
+    const open = tasks.filter(t => t.status === 'Open').length;
+    const inProgress = tasks.filter(t => t.status === 'In Progress').length;
+    const complete = tasks.filter(t => t.status === 'Complete').length;
+    const overdue = tasks.filter(t => {
+      const dueDate = new Date(t.dueDate);
+      const now = new Date();
+      return t.status !== 'Complete' && dueDate < now;
+    }).length;
+    
+    const byPriority = {
+      low: tasks.filter(t => t.priority === 'Low').length,
+      medium: tasks.filter(t => t.priority === 'Medium').length,
+      high: tasks.filter(t => t.priority === 'High').length
+    };
+    
+    const byType = {
+      call: tasks.filter(t => t.taskType === 'Call').length,
+      email: tasks.filter(t => t.taskType === 'Email').length,
+      internal: tasks.filter(t => t.taskType === 'Internal').length,
+      deadline: tasks.filter(t => t.taskType === 'Deadline').length,
+      reminder: tasks.filter(t => t.taskType === 'Reminder').length
+    };
+    
+    resolve({
+      total,
+      open,
+      inProgress,
+      complete,
+      overdue,
+      byPriority,
+      byType
+    });
+  }, apiDelay));
+};
+
+// ====== CALENDAR API FUNCTIONS ======
+
+/**
+ * Fetch calendar events for a date range
+ */
+export const fetchCalendarEvents = async (startDate: Date, endDate: Date, userId?: string): Promise<CalendarEvent[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    let events = [...mockCalendarEvents];
+    
+    if (userId) {
+      events = events.filter(event => event.userId === userId);
+    }
+    
+    // Filter by date range
+    events = events.filter(event => {
+      const eventStart = new Date(event.startDate);
+      const eventEnd = new Date(event.endDate);
+      return eventStart <= endDate && eventEnd >= startDate;
+    });
+    
+    resolve(events);
+  }, apiDelay));
+};
+
+/**
+ * Create a new calendar event
+ */
+export const createCalendarEvent = async (eventData: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newEvent: CalendarEvent = {
+      id: `event-${Date.now()}`,
+      ...eventData
+    };
+    
+    mockCalendarEvents.push(newEvent);
+    resolve(newEvent);
+  }, apiDelay));
+};
+
+// Mock data for tasks
+const mockTasks: Task[] = [
+  {
+    id: 'task-1',
+    userId: 'user-1',
+    taskType: 'Call',
+    subject: 'Follow up on LOI expiration',
+    description: 'Contact John Smith regarding LOI that expires next week',
+    dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+    dueTime: '14:00',
+    status: 'Open',
+    priority: 'High',
+    notes: 'LOI expires on Friday',
+    relatedContactId: 'contact-1',
+    relatedLeadId: 'lead-1',
+    createdBy: 'user-1',
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000)
+  },
+  {
+    id: 'task-2',
+    userId: 'user-2',
+    taskType: 'Email',
+    subject: 'Send property valuation report',
+    description: 'Email the updated valuation report to the client',
+    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day from now
+    dueTime: '10:00',
+    status: 'In Progress',
+    priority: 'Medium',
+    notes: 'Include recent comps',
+    relatedContactId: 'contact-2',
+    relatedDealId: 'deal-1',
+    createdBy: 'user-2',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000)
+  },
+  {
+    id: 'task-3',
+    userId: 'user-1',
+    taskType: 'Deadline',
+    subject: 'LOI submission deadline',
+    description: 'Submit LOI for the Johnson property',
+    dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+    dueTime: '17:00',
+    status: 'Open',
+    priority: 'High',
+    notes: 'Final review needed before submission',
+    relatedLeadId: 'lead-2',
+    createdBy: 'user-1',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  },
+  {
+    id: 'task-4',
+    userId: 'user-3',
+    taskType: 'Internal',
+    subject: 'Review title chain documents',
+    description: 'Review and validate title chain for the Williams tract',
+    dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago (overdue)
+    dueTime: '16:00',
+    status: 'Overdue',
+    priority: 'Medium',
+    notes: 'Waiting for additional documents',
+    relatedAssignmentId: 'assignment-1',
+    createdBy: 'user-3',
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000)
+  },
+  {
+    id: 'task-5',
+    userId: 'user-2',
+    taskType: 'Reminder',
+    subject: 'Schedule site visit',
+    description: 'Schedule site visit for the new acquisition',
+    dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+    dueTime: '11:00',
+    status: 'Open',
+    priority: 'Low',
+    notes: 'Coordinate with engineering team',
+    relatedDealId: 'deal-2',
+    createdBy: 'user-2',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  }
+];
+
+// Mock data for calendar events
+const mockCalendarEvents: CalendarEvent[] = [
+  {
+    id: 'event-1',
+    title: 'Follow up on LOI expiration',
+    description: 'Contact John Smith regarding LOI that expires next week',
+    startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    endDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000),
+    allDay: false,
+    taskId: 'task-1',
+    relatedObjectId: 'contact-1',
+    relatedObjectType: 'Contact',
+    color: '#EF4444', // Red for high priority
+    userId: 'user-1'
+  },
+  {
+    id: 'event-2',
+    title: 'Send property valuation report',
+    description: 'Email the updated valuation report to the client',
+    startDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000 + 15 * 60 * 1000),
+    allDay: false,
+    taskId: 'task-2',
+    relatedObjectId: 'contact-2',
+    relatedObjectType: 'Contact',
+    color: '#F59E0B', // Yellow for medium priority
+    userId: 'user-2'
+  },
+  {
+    id: 'event-3',
+    title: 'LOI submission deadline',
+    description: 'Submit LOI for the Johnson property',
+    startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    endDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    allDay: true,
+    taskId: 'task-3',
+    relatedObjectId: 'lead-2',
+    relatedObjectType: 'Lead',
+    color: '#EF4444', // Red for high priority
+    userId: 'user-1'
+  }
+];

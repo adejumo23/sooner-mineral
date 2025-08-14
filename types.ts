@@ -950,3 +950,112 @@ export interface MapExport {
   status: 'Processing' | 'Completed' | 'Failed';
   errorMessage?: string;
 }
+
+// Task Types
+export type TaskType = 'Call' | 'Email' | 'Internal' | 'Deadline' | 'Reminder';
+export type TaskStatus = 'Open' | 'In Progress' | 'Complete' | 'Overdue';
+export type TaskPriority = 'Low' | 'Medium' | 'High';
+
+// Task Interface
+export interface Task {
+  id: string;
+  userId: string;
+  taskType: TaskType;
+  subject: string;
+  description?: string;
+  dueDate: Date;
+  dueTime?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  notes?: string;
+  relatedContactId?: string;
+  relatedLeadId?: string;
+  relatedDealId?: string;
+  relatedAssignmentId?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  completionNotes?: string;
+}
+
+// Task Creation Request
+export interface CreateTaskRequest {
+  userId: string;
+  taskType: TaskType;
+  subject: string;
+  description?: string;
+  dueDate: Date;
+  dueTime?: string;
+  priority: TaskPriority;
+  notes?: string;
+  relatedContactId?: string;
+  relatedLeadId?: string;
+  relatedDealId?: string;
+  relatedAssignmentId?: string;
+}
+
+// Task Update Request
+export interface UpdateTaskRequest {
+  subject?: string;
+  description?: string;
+  dueDate?: Date;
+  dueTime?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  notes?: string;
+  completionNotes?: string;
+}
+
+// Task Filter
+export interface TaskFilter {
+  userId?: string;
+  taskType?: TaskType;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  dueDateFrom?: Date;
+  dueDateTo?: Date;
+  relatedContactId?: string;
+  relatedLeadId?: string;
+  relatedDealId?: string;
+  relatedAssignmentId?: string;
+}
+
+// Calendar Event
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  startDate: Date;
+  endDate: Date;
+  allDay: boolean;
+  taskId?: string;
+  relatedObjectId?: string;
+  relatedObjectType?: 'Contact' | 'Lead' | 'Deal' | 'Assignment';
+  color: string;
+  userId: string;
+}
+
+// Calendar View Type
+export type CalendarViewType = 'month' | 'week' | 'agenda';
+
+// Task Statistics
+export interface TaskStatistics {
+  total: number;
+  open: number;
+  inProgress: number;
+  complete: number;
+  overdue: number;
+  byPriority: {
+    low: number;
+    high: number;
+    medium: number;
+  };
+  byType: {
+    call: number;
+    email: number;
+    internal: number;
+    deadline: number;
+    reminder: number;
+  };
+}
