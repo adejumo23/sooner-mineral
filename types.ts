@@ -1059,3 +1059,131 @@ export interface TaskStatistics {
     reminder: number;
   };
 }
+
+// ====== DOCUMENT GENERATION MODULE TYPES ======
+
+// Document Template
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category: 'LOI' | 'Call Script' | 'Due Diligence' | 'Mail Merge' | 'Contract' | 'Other';
+  content: string;
+  variables: string[]; // Array of variable tags like ["{{Contact Name}}", "{{Tract ID}}"]
+  fileType: 'docx' | 'pdf' | 'html';
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+}
+
+// Generated Document
+export interface GeneratedDocument {
+  id: string;
+  templateId: string;
+  templateName: string;
+  documentName: string;
+  content: string;
+  variables: Record<string, string>; // Key-value pairs of populated variables
+  fileType: 'docx' | 'pdf' | 'html';
+  status: 'draft' | 'final' | 'signed' | 'shared';
+  isFinalVersion: boolean;
+  version: number;
+  
+  // Related CRM objects
+  relatedContactId?: string;
+  relatedLeadId?: string;
+  relatedDealId?: string;
+  
+  // Metadata
+  generatedBy: string;
+  generatedAt: Date;
+  lastModifiedAt: Date;
+  lastModifiedBy: string;
+  finalVersionAt?: Date;
+  finalVersionBy?: string;
+  
+  // File storage
+  fileUrl?: string;
+  fileSize?: number;
+  checksum?: string;
+}
+
+// Document Generation Request
+export interface GenerateDocumentRequest {
+  templateId: string;
+  documentName: string;
+  variables: Record<string, string>;
+  relatedContactId?: string;
+  relatedLeadId?: string;
+  relatedDealId?: string;
+  fileType: 'docx' | 'pdf' | 'html';
+}
+
+// Document Update Request
+export interface UpdateDocumentRequest {
+  content?: string;
+  variables?: Record<string, string>;
+  status?: 'draft' | 'final' | 'signed' | 'shared';
+  isFinalVersion?: boolean;
+}
+
+// Document Template Creation Request
+export interface CreateTemplateRequest {
+  name: string;
+  description?: string;
+  category: 'LOI' | 'Call Script' | 'Due Diligence' | 'Mail Merge' | 'Contract' | 'Other';
+  content: string;
+  fileType: 'docx' | 'pdf' | 'html';
+}
+
+// Document Template Update Request
+export interface UpdateTemplateRequest {
+  name?: string;
+  description?: string;
+  category?: 'LOI' | 'Call Script' | 'Due Diligence' | 'Mail Merge' | 'Contract' | 'Other';
+  content?: string;
+  fileType?: 'docx' | 'pdf' | 'html';
+  isActive?: boolean;
+}
+
+// Document Filter
+export interface DocumentFilter {
+  templateId?: string;
+  category?: string;
+  status?: string;
+  relatedContactId?: string;
+  relatedLeadId?: string;
+  relatedDealId?: string;
+  generatedBy?: string;
+  generatedAtFrom?: Date;
+  generatedAtTo?: Date;
+  isFinalVersion?: boolean;
+}
+
+// Document Template Filter
+export interface TemplateFilter {
+  category?: string;
+  isActive?: boolean;
+  createdBy?: string;
+}
+
+// Document Generation Context
+export interface DocumentContext {
+  contact?: ContactEnhanced;
+  lead?: LeadEnhanced;
+  deal?: Deal;
+  currentUser: User;
+  availableVariables: string[];
+}
+
+// Document Variable Mapping
+export interface VariableMapping {
+  variable: string; // e.g., "{{Contact Name}}"
+  displayName: string; // e.g., "Contact Name"
+  description: string; // e.g., "Full name of the contact"
+  source: 'contact' | 'lead' | 'deal' | 'user' | 'system';
+  required: boolean;
+  defaultValue?: string;
+}

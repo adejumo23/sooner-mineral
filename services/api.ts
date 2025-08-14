@@ -3619,3 +3619,533 @@ const mockCalendarEvents: CalendarEvent[] = [
     userId: 'user-1'
   }
 ];
+
+// ====== DOCUMENT GENERATION MODULE MOCK DATA ======
+
+// Mock data for document templates
+const mockDocumentTemplates: DocumentTemplate[] = [
+  {
+    id: 'template-1',
+    name: 'Standard LOI Template',
+    description: 'Letter of Intent template for property acquisitions',
+    category: 'LOI',
+    content: `Dear {{Contact Name}},
+
+We are pleased to submit our Letter of Intent (LOI) for the acquisition of {{Tract ID}} located in {{County}}, {{State}}.
+
+Key Terms:
+- Purchase Price: {{Price Cap}}
+- Closing Date: {{LOI Expiration Date}}
+- Due Diligence Period: 30 days
+
+Please review and let us know if you have any questions.
+
+Best regards,
+{{Buyer Name}}
+{{Company Name}}`,
+    variables: ['{{Contact Name}}', '{{Tract ID}}', '{{County}}', '{{State}}', '{{Price Cap}}', '{{LOI Expiration Date}}', '{{Buyer Name}}', '{{Company Name}}'],
+    fileType: 'docx',
+    isActive: true,
+    createdBy: 'user-1',
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    version: 1
+  },
+  {
+    id: 'template-2',
+    name: 'Call Script - Initial Contact',
+    description: 'Script for first contact with landowners',
+    category: 'Call Script',
+    content: `Hello {{Contact Name}}, this is {{Buyer Name}} calling from {{Company Name}}.
+
+I'm reaching out regarding your property {{Tract ID}} in {{County}}, {{State}}. We're interested in discussing potential opportunities and would love to learn more about your situation.
+
+Are you available for a brief conversation about {{Property Type}}?
+
+Key points to discuss:
+- Current ownership status
+- Any existing leases or agreements
+- Your timeline and goals
+- Potential acquisition or partnership opportunities
+
+Please let me know when would be a good time to call back.
+
+Thank you for your time!`,
+    variables: ['{{Contact Name}}', '{{Buyer Name}}', '{{Company Name}}', '{{Tract ID}}', '{{County}}', '{{State}}', '{{Property Type}}'],
+    fileType: 'docx',
+    isActive: true,
+    createdBy: 'user-1',
+    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    version: 1
+  },
+  {
+    id: 'template-3',
+    name: 'Due Diligence Checklist',
+    description: 'Comprehensive checklist for property due diligence',
+    category: 'Due Diligence',
+    content: `DUE DILIGENCE CHECKLIST
+Property: {{Tract ID}}
+Contact: {{Contact Name}}
+Date: {{Current Date}}
+
+LEGAL REVIEW:
+□ Title search and chain of title
+□ Survey and boundary verification
+□ Zoning and land use restrictions
+□ Environmental assessments
+□ Existing liens or encumbrances
+
+TECHNICAL REVIEW:
+□ Geological and engineering data
+□ Production history analysis
+□ Infrastructure and access review
+□ Regulatory compliance status
+
+FINANCIAL REVIEW:
+□ Revenue and expense analysis
+□ Tax assessment review
+□ Insurance requirements
+□ Operating cost estimates
+
+ACTION ITEMS:
+□ Schedule site visit
+□ Request additional documentation
+□ Conduct market analysis
+□ Prepare offer terms
+
+Notes: {{Additional Notes}}`,
+    variables: ['{{Tract ID}}', '{{Contact Name}}', '{{Current Date}}', '{{Additional Notes}}'],
+    fileType: 'docx',
+    isActive: true,
+    createdBy: 'user-2',
+    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    version: 1
+  }
+];
+
+// Mock data for generated documents
+const mockGeneratedDocuments: GeneratedDocument[] = [
+  {
+    id: 'doc-1',
+    templateId: 'template-1',
+    templateName: 'Standard LOI Template',
+    documentName: 'LOI - Johnson Property',
+    content: `Dear John Smith,
+
+We are pleased to submit our Letter of Intent (LOI) for the acquisition of Tract-001 located in Oklahoma County, Oklahoma.
+
+Key Terms:
+- Purchase Price: $2,500/acre
+- Closing Date: 2024-02-15
+- Due Diligence Period: 30 days
+
+Please review and let us know if you have any questions.
+
+Best regards,
+Alice Admin
+Sooner State Energy Capital`,
+    variables: {
+      '{{Contact Name}}': 'John Smith',
+      '{{Tract ID}}': 'Tract-001',
+      '{{County}}': 'Oklahoma County',
+      '{{State}}': 'Oklahoma',
+      '{{Price Cap}}': '$2,500/acre',
+      '{{LOI Expiration Date}}': '2024-02-15',
+      '{{Buyer Name}}': 'Alice Admin',
+      '{{Company Name}}': 'Sooner State Energy Capital'
+    },
+    fileType: 'docx',
+    status: 'final',
+    isFinalVersion: true,
+    version: 1,
+    relatedContactId: 'contact-1',
+    relatedLeadId: 'lead-1',
+    generatedBy: 'user-1',
+    generatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    lastModifiedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    lastModifiedBy: 'user-1',
+    finalVersionAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    finalVersionBy: 'user-1',
+    fileUrl: '/documents/loi-johnson-property.docx',
+    fileSize: 24576,
+    checksum: 'abc123def456'
+  },
+  {
+    id: 'doc-2',
+    templateId: 'template-2',
+    templateName: 'Call Script - Initial Contact',
+    documentName: 'Call Script - Williams Property',
+    content: `Hello Sarah Williams, this is Bob Buyer calling from Sooner State Energy Capital.
+
+I'm reaching out regarding your property Tract-002 in Tulsa County, Oklahoma. We're interested in discussing potential opportunities and would love to learn more about your situation.
+
+Are you available for a brief conversation about mineral rights?
+
+Key points to discuss:
+- Current ownership status
+- Any existing leases or agreements
+- Your timeline and goals
+- Potential acquisition or partnership opportunities
+
+Please let me know when would be a good time to call back.
+
+Thank you for your time!`,
+    variables: {
+      '{{Contact Name}}': 'Sarah Williams',
+      '{{Buyer Name}}': 'Bob Buyer',
+      '{{Company Name}}': 'Sooner State Energy Capital',
+      '{{Tract ID}}': 'Tract-002',
+      '{{County}}': 'Tulsa County',
+      '{{State}}': 'Oklahoma',
+      '{{Property Type}}': 'mineral rights'
+    },
+    fileType: 'docx',
+    status: 'draft',
+    isFinalVersion: false,
+    version: 1,
+    relatedContactId: 'contact-2',
+    generatedBy: 'user-2',
+    generatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    lastModifiedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    lastModifiedBy: 'user-2'
+  }
+];
+
+// ====== DOCUMENT GENERATION API FUNCTIONS ======
+
+/**
+ * Fetch all document templates with optional filtering
+ */
+export const fetchDocumentTemplates = async (filters?: TemplateFilter): Promise<DocumentTemplate[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    let filteredTemplates = [...mockDocumentTemplates];
+    
+    if (filters?.category) {
+      filteredTemplates = filteredTemplates.filter(t => t.category === filters.category);
+    }
+    
+    if (filters?.isActive !== undefined) {
+      filteredTemplates = filteredTemplates.filter(t => t.isActive === filters.isActive);
+    }
+    
+    if (filters?.createdBy) {
+      filteredTemplates = filteredTemplates.filter(t => t.createdBy === filters.createdBy);
+    }
+    
+    resolve(filteredTemplates);
+  }, apiDelay));
+};
+
+/**
+ * Fetch a single document template by ID
+ */
+export const fetchDocumentTemplateById = async (templateId: string): Promise<DocumentTemplate | null> => {
+  return new Promise(resolve => setTimeout(() => {
+    const template = mockDocumentTemplates.find(t => t.id === templateId);
+    resolve(template || null);
+  }, apiDelay));
+};
+
+/**
+ * Create a new document template
+ */
+export const createDocumentTemplate = async (templateData: CreateTemplateRequest): Promise<DocumentTemplate> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newTemplate: DocumentTemplate = {
+      ...templateData,
+      id: `template-${Date.now()}`,
+      variables: extractVariablesFromContent(templateData.content),
+      isActive: true,
+      createdBy: 'user-1', // In real app, this would come from auth context
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1
+    };
+    
+    mockDocumentTemplates.push(newTemplate);
+    resolve(newTemplate);
+  }, apiDelay));
+};
+
+/**
+ * Update an existing document template
+ */
+export const updateDocumentTemplate = async (templateId: string, updates: UpdateTemplateRequest): Promise<DocumentTemplate> => {
+  return new Promise(resolve => setTimeout(() => {
+    const templateIndex = mockDocumentTemplates.findIndex(t => t.id === templateId);
+    if (templateIndex === -1) throw new Error("Template not found");
+    
+    const updatedTemplate = { ...mockDocumentTemplates[templateIndex], ...updates };
+    
+    if (updates.content) {
+      updatedTemplate.variables = extractVariablesFromContent(updates.content);
+      updatedTemplate.version += 1;
+    }
+    
+    updatedTemplate.updatedAt = new Date();
+    mockDocumentTemplates[templateIndex] = updatedTemplate;
+    
+    resolve(updatedTemplate);
+  }, apiDelay));
+};
+
+/**
+ * Delete a document template
+ */
+export const deleteDocumentTemplate = async (templateId: string): Promise<void> => {
+  return new Promise(resolve => setTimeout(() => {
+    const templateIndex = mockDocumentTemplates.findIndex(t => t.id === templateId);
+    if (templateIndex === -1) throw new Error("Template not found");
+    
+    mockDocumentTemplates.splice(templateIndex, 1);
+    resolve();
+  }, apiDelay));
+};
+
+/**
+ * Fetch generated documents with optional filtering
+ */
+export const fetchGeneratedDocuments = async (filters?: DocumentFilter): Promise<GeneratedDocument[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    let filteredDocs = [...mockGeneratedDocuments];
+    
+    if (filters?.templateId) {
+      filteredDocs = filteredDocs.filter(d => d.templateId === filters.templateId);
+    }
+    
+    if (filters?.category) {
+      filteredDocs = filteredDocs.filter(d => {
+        const template = mockDocumentTemplates.find(t => t.id === d.templateId);
+        return template?.category === filters.category;
+      });
+    }
+    
+    if (filters?.status) {
+      filteredDocs = filteredDocs.filter(d => d.status === filters.status);
+    }
+    
+    if (filters?.relatedContactId) {
+      filteredDocs = filteredDocs.filter(d => d.relatedContactId === filters.relatedContactId);
+    }
+    
+    if (filters?.relatedLeadId) {
+      filteredDocs = filteredDocs.filter(d => d.relatedLeadId === filters.relatedLeadId);
+    }
+    
+    if (filters?.relatedDealId) {
+      filteredDocs = filteredDocs.filter(d => d.relatedDealId === filters.relatedDealId);
+    }
+    
+    if (filters?.generatedBy) {
+      filteredDocs = filteredDocs.filter(d => d.generatedBy === filters.generatedBy);
+    }
+    
+    if (filters?.isFinalVersion !== undefined) {
+      filteredDocs = filteredDocs.filter(d => d.isFinalVersion === filters.isFinalVersion);
+    }
+    
+    resolve(filteredDocs);
+  }, apiDelay));
+};
+
+/**
+ * Fetch a single generated document by ID
+ */
+export const fetchGeneratedDocumentById = async (documentId: string): Promise<GeneratedDocument | null> => {
+  return new Promise(resolve => setTimeout(() => {
+    const document = mockGeneratedDocuments.find(d => d.id === documentId);
+    resolve(document || null);
+  }, apiDelay));
+};
+
+/**
+ * Generate a new document from a template
+ */
+export const generateDocument = async (request: GenerateDocumentRequest): Promise<GeneratedDocument> => {
+  return new Promise(resolve => setTimeout(() => {
+    const template = mockDocumentTemplates.find(t => t.id === request.templateId);
+    if (!template) throw new Error("Template not found");
+    
+    // Populate template content with variables
+    let populatedContent = template.content;
+    Object.entries(request.variables).forEach(([key, value]) => {
+      populatedContent = populatedContent.replace(new RegExp(key, 'g'), value);
+    });
+    
+    const newDocument: GeneratedDocument = {
+      id: `doc-${Date.now()}`,
+      templateId: request.templateId,
+      templateName: template.name,
+      documentName: request.documentName,
+      content: populatedContent,
+      variables: request.variables,
+      fileType: request.fileType,
+      status: 'draft',
+      isFinalVersion: false,
+      version: 1,
+      relatedContactId: request.relatedContactId,
+      relatedLeadId: request.relatedLeadId,
+      relatedDealId: request.relatedDealId,
+      generatedBy: 'user-1', // In real app, this would come from auth context
+      generatedAt: new Date(),
+      lastModifiedAt: new Date(),
+      lastModifiedBy: 'user-1'
+    };
+    
+    mockGeneratedDocuments.push(newDocument);
+    resolve(newDocument);
+  }, apiDelay));
+};
+
+/**
+ * Update an existing generated document
+ */
+export const updateGeneratedDocument = async (documentId: string, updates: UpdateDocumentRequest): Promise<GeneratedDocument> => {
+  return new Promise(resolve => setTimeout(() => {
+    const documentIndex = mockGeneratedDocuments.findIndex(d => d.id === documentId);
+    if (documentIndex === -1) throw new Error("Document not found");
+    
+    const updatedDocument = { ...mockGeneratedDocuments[documentIndex], ...updates };
+    
+    if (updates.isFinalVersion) {
+      updatedDocument.finalVersionAt = new Date();
+      updatedDocument.finalVersionBy = 'user-1'; // In real app, this would come from auth context
+    }
+    
+    updatedDocument.lastModifiedAt = new Date();
+    updatedDocument.lastModifiedBy = 'user-1';
+    
+    mockGeneratedDocuments[documentIndex] = updatedDocument;
+    resolve(updatedDocument);
+  }, apiDelay));
+};
+
+/**
+ * Delete a generated document
+ */
+export const deleteGeneratedDocument = async (documentId: string): Promise<void> => {
+  return new Promise(resolve => setTimeout(() => {
+    const documentIndex = mockGeneratedDocuments.findIndex(d => d.id === documentId);
+    if (documentIndex === -1) throw new Error("Document not found");
+    
+    mockGeneratedDocuments.splice(documentIndex, 1);
+    resolve();
+  }, apiDelay));
+};
+
+/**
+ * Get available variables for a specific context
+ */
+export const getAvailableVariables = async (context: DocumentContext): Promise<VariableMapping[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    const variables: VariableMapping[] = [
+      // Contact variables
+      {
+        variable: '{{Contact Name}}',
+        displayName: 'Contact Name',
+        description: 'Full name of the contact',
+        source: 'contact',
+        required: true
+      },
+      {
+        variable: '{{Contact Email}}',
+        displayName: 'Contact Email',
+        description: 'Email address of the contact',
+        source: 'contact',
+        required: false
+      },
+      {
+        variable: '{{Contact Phone}}',
+        displayName: 'Contact Phone',
+        description: 'Phone number of the contact',
+        source: 'contact',
+        required: false
+      },
+      
+      // Lead variables
+      {
+        variable: '{{Lead Status}}',
+        displayName: 'Lead Status',
+        description: 'Current status of the lead',
+        source: 'lead',
+        required: false
+      },
+      {
+        variable: '{{Lead Source}}',
+        displayName: 'Lead Source',
+        description: 'Source of the lead',
+        source: 'lead',
+        required: false
+      },
+      
+      // Deal variables
+      {
+        variable: '{{Deal Value}}',
+        displayName: 'Deal Value',
+        description: 'Total value of the deal',
+        source: 'deal',
+        required: false
+      },
+      {
+        variable: '{{Deal Stage}}',
+        displayName: 'Deal Stage',
+        description: 'Current stage of the deal',
+        source: 'deal',
+        required: false
+      },
+      
+      // System variables
+      {
+        variable: '{{Current Date}}',
+        displayName: 'Current Date',
+        description: 'Current date in MM/DD/YYYY format',
+        source: 'system',
+        required: false,
+        defaultValue: new Date().toLocaleDateString()
+      },
+      {
+        variable: '{{Current Time}}',
+        displayName: 'Current Time',
+        description: 'Current time in HH:MM format',
+        source: 'system',
+        required: false,
+        defaultValue: new Date().toLocaleTimeString()
+      }
+    ];
+    
+    resolve(variables);
+  }, apiDelay));
+};
+
+/**
+ * Extract variable tags from template content
+ */
+const extractVariablesFromContent = (content: string): string[] => {
+  const variableRegex = /\{\{([^}]+)\}\}/g;
+  const variables: string[] = [];
+  let match;
+  
+  while ((match = variableRegex.exec(content)) !== null) {
+    variables.push(match[0]);
+  }
+  
+  return [...new Set(variables)]; // Remove duplicates
+};
+
+/**
+ * Export document to different formats
+ */
+export const exportDocument = async (documentId: string, format: 'pdf' | 'docx' | 'html'): Promise<string> => {
+  return new Promise(resolve => setTimeout(() => {
+    const document = mockGeneratedDocuments.find(d => d.id === documentId);
+    if (!document) throw new Error("Document not found");
+    
+    // In a real app, this would generate the actual file
+    const fileName = `${document.documentName}.${format}`;
+    const fileUrl = `/exports/${fileName}`;
+    
+    resolve(fileUrl);
+  }, apiDelay));
+};
