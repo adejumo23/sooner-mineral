@@ -22,6 +22,10 @@ const navigation = [
 ];
 
 const Sidebar: React.FC = () => {
+  // Debug logging
+  console.log('Sidebar rendering with navigation items:', navigation.length);
+  console.log('Privileges item:', navigation.find(item => item.name === 'Privileges'));
+
   return (
     <div className="w-64 bg-gradient-to-b from-orange-500 to-orange-600 h-screen flex flex-col fixed top-0 left-0 border-r border-orange-700 shadow-lg">
       <div className="flex items-center justify-center h-20 border-b border-orange-700 bg-orange-600">
@@ -29,23 +33,26 @@ const Sidebar: React.FC = () => {
         <h1 className="text-2xl font-bold ml-2 text-white">Sooner Capital</h1>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-        {navigation.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.href}
-            end={item.href === '/'}
-            className={({ isActive }) =>
-              `flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-colors duration-200 ${
-                isActive
-                  ? 'bg-orange-700 text-white shadow-md'
-                  : 'text-white hover:bg-orange-600/80 hover:text-white'
-              }`
-            }
-          >
-            <item.icon className="h-5 w-5 mr-3" />
-            {item.name}
-          </NavLink>
-        ))}
+        {navigation.map((item) => {
+          console.log(`Rendering navigation item: ${item.name}`);
+          return (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              end={item.href === '/'}
+              className={({ isActive }) =>
+                `flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                  isActive
+                    ? 'bg-orange-700 text-white shadow-md'
+                    : 'text-white hover:bg-orange-600/80 hover:text-white'
+                }`
+              }
+            >
+              <item.icon className="h-5 w-5 mr-3" />
+              {item.name}
+            </NavLink>
+          );
+        })}
       </nav>
     </div>
   );

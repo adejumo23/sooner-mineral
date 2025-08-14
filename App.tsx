@@ -28,6 +28,7 @@ import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
 import { useAuth } from './hooks/useAuth';
+import LPPortalPage from './pages/LPPortalPage';
 
 function App() {
   const { user, loading } = useAuth();
@@ -73,6 +74,7 @@ function App() {
         <Route path="/document-generation" element={<DocumentGenerationPage />} />
         <Route path="/reporting" element={<ReportingPage />} />
         <Route path="/esg" element={<ESGPage />} />
+        <Route path="/lp-portal" element={<LPPortalPage />} />
         <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
