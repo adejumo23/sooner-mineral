@@ -344,6 +344,113 @@ export const createContactMapView = async (
   return view;
 };
 
+// Create general map view for mapping dashboard
+export const createMapView = async (container: HTMLElement) => {
+  // Create a new map
+  const map = new Map({
+    basemap: ARCGIS_CONFIG.basemapId,
+    spatialReference: ARCGIS_CONFIG.spatialReference
+  });
+
+  // Create map view
+  const view = new MapView({
+    container,
+    map,
+    center: ARCGIS_CONFIG.center,
+    zoom: ARCGIS_CONFIG.zoom,
+    spatialReference: ARCGIS_CONFIG.spatialReference
+  });
+
+  return view;
+};
+
+// Add layer to map view
+export const addLayerToMap = async (view: any, layer: any) => {
+  if (view && view.map && layer) {
+    view.map.add(layer);
+  }
+};
+
+// Create tract layer for mapping dashboard
+export const createTractLayerForMap = async (tractAssets: any[]) => {
+  const layer = new GraphicsLayer({
+    id: 'tracts-map',
+    title: 'Tracts'
+  });
+
+  tractAssets.forEach(asset => {
+    if (asset.geometry && asset.geometry.coordinates) {
+      const geometry = new Polygon({
+        rings: asset.geometry.coordinates,
+        spatialReference: SpatialReference.WGS84
+      });
+
+      const symbol = new SimpleFillSymbol({
+        color: [59, 130, 246, 0.7], // Blue
+        outline: {
+          color: [30, 64, 175, 1], // Darker blue
+          width: 2
+        }
+      });
+
+      const graphic = new Graphic({
+        geometry,
+        symbol,
+        attributes: {
+          tractId: asset.id,
+          name: asset.asset.tractName || asset.asset.name,
+          status: asset.status,
+          assignedBuyer: asset.assignedBuyerId
+        }
+      });
+
+      layer.add(graphic);
+    }
+  });
+
+  return layer;
+};
+
+// Create unit layer for mapping dashboard
+export const createUnitLayerForMap = async (unitAssets: any[]) => {
+  const layer = new GraphicsLayer({
+    id: 'units-map',
+    title: 'Units'
+  });
+
+  unitAssets.forEach(asset => {
+    if (asset.geometry && asset.geometry.coordinates) {
+      const geometry = new Polygon({
+        rings: asset.geometry.coordinates,
+        spatialReference: SpatialReference.WGS84
+      });
+
+      const symbol = new SimpleFillSymbol({
+        color: [139, 92, 246, 0.6], // Purple
+        outline: {
+          color: [109, 40, 217, 1], // Darker purple
+          width: 2
+        }
+      });
+
+      const graphic = new Graphic({
+        geometry,
+        symbol,
+        attributes: {
+          unitId: asset.id,
+          name: asset.asset.unitName || asset.asset.name,
+          status: asset.status,
+          assignedBuyer: asset.assignedBuyerId
+        }
+      });
+
+      layer.add(graphic);
+    }
+  });
+
+  return layer;
+};
+
 // Create tract layer
 export const createTractLayer = async (tractSpatialData: any[], options: any = {}) => {
   const layer = new GraphicsLayer({

@@ -25,6 +25,7 @@ import CallLogDetails from '../components/CallLogDetails';
 import DocumentUploadForm from '../components/DocumentUploadForm';
 import DocumentDetails from '../components/DocumentDetails';
 import ContactMapTab from '../components/ContactMapTab';
+import CommunicationTab from '../components/CommunicationTab';
 import { 
   ArrowLeftIcon, 
   PencilIcon, 
@@ -40,7 +41,7 @@ const ContactDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [contact, setContact] = useState<ContactEnhanced | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tracts' | 'units' | 'map' | 'leads' | 'callLog' | 'documents'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tracts' | 'units' | 'map' | 'communication' | 'leads' | 'callLog' | 'documents'>('overview');
   const [loading, setLoading] = useState(true);
   const [tracts, setTracts] = useState<ContactTractOwnershipEnhanced[]>([]);
   const [units, setUnits] = useState<ContactUnitSummary[]>([]);
@@ -223,6 +224,7 @@ const ContactDetailPage: React.FC = () => {
     { id: 'tracts', name: 'Linked Tracts', icon: MapIcon },
     { id: 'units', name: 'Linked Units', icon: ClipboardDocumentListIcon },
     { id: 'map', name: 'Map', icon: MapIcon },
+    { id: 'communication', name: 'Communication', icon: EnvelopeIcon },
     { id: 'leads', name: 'Leads', icon: ClipboardDocumentListIcon },
     { id: 'callLog', name: 'Call Log', icon: PhoneIcon },
     { id: 'documents', name: 'Documents', icon: DocumentIcon },
@@ -747,6 +749,16 @@ const ContactDetailPage: React.FC = () => {
               tracts={tracts}
               units={units}
               distressSignals={distressSignals}
+            />
+          </div>
+        )}
+
+        {activeTab === 'communication' && (
+          <div className="h-96">
+            <CommunicationTab
+              contactId={id!}
+              contact={contact}
+              currentUser={currentUser}
             />
           </div>
         )}

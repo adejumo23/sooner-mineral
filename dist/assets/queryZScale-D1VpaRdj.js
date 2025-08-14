@@ -1,1 +1,0 @@
-import{cy as a}from"./index-BVM8f7e_.js";function u(o,f,e){if(!(e!=null&&e.features)||!e.hasZ)return;const t=a(e.geometryType,f,o.outSpatialReference);if(t!=null)for(const n of e.features)t(n.geometry)}export{u as t};

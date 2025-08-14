@@ -1,4 +1,4 @@
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus, ContactCallLog, ContactDocument, DistressSignal } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus, ContactCallLog, ContactDocument, DistressSignal, LeadEnhanced, LeadCallLog, MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, MapInteraction, MapExport } from '../types';
 
 /*
 ================================================================================
@@ -2514,7 +2514,7 @@ export const createBulkAssignments = async (data: CreateAssignmentData[]): Promi
 // ====== LEAD MANAGEMENT ENDPOINTS ======
 
 // Mock lead data
-let mockLeads: Lead[] = [
+let mockLeads: LeadEnhanced[] = [
     {
         id: 'lead1',
         linkedContactId: 'c1',
@@ -2960,10 +2960,10 @@ export const fetchUnitContactsAggregated = async (unitId: string): Promise<UnitC
                  lead.linkedUnitIds.includes(unitId))
             );
             
-            const hasActiveLeads = unitLeads.some(lead => lead.status === 'Open' || lead.status === 'In Progress');
-            const leadStatus: 'Open' | 'Closed' | 'Unassigned' = 
-                hasActiveLeads ? 'Open' : 
-                unitLeads.length > 0 ? 'Closed' : 'Unassigned';
+                    const hasActiveLeads = unitLeads.some(lead => lead.status === 'Uncontacted' || lead.status === 'Spoke' || lead.status === 'Interested');
+        const leadStatus: 'Open' | 'Closed' | 'Unassigned' = 
+            hasActiveLeads ? 'Open' : 
+            unitLeads.length > 0 ? 'Closed' : 'Unassigned';
             
             // Get last outreach date from lead notes or contact logs
             let lastOutreach: string | undefined;
@@ -2998,4 +2998,294 @@ export const fetchUnitContactsAggregated = async (unitId: string): Promise<UnitC
         
         resolve(populatedContacts);
     }, apiDelay));
+};
+
+// Mapping Integration Module API Functions
+
+/**
+ * Fetch map assets (tracts and units) with geometry data
+ */
+export const fetchMapAssets = async (filters?: MapFilter): Promise<MapAsset[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    // Convert tracts to map assets
+    const tractAssets: MapAsset[] = mockTracts.map(tract => ({
+      id: `tract-${tract.id}`,
+      assetType: 'Tract' as const,
+      asset: tract,
+      geometry: {
+        type: 'Polygon' as const,
+        coordinates: [[
+          [tract.latitude || -96.5, tract.longitude || 35.5],
+          [tract.latitude || -96.4, tract.longitude || 35.5],
+          [tract.latitude || -96.4, tract.longitude || 35.4],
+          [tract.latitude || -96.5, tract.longitude || 35.4],
+          [tract.latitude || -96.5, tract.longitude || 35.5]
+        ]]
+      },
+      status: tract.assignedBuyerId ? 'Assigned' : 'Unassigned',
+      assignedBuyerId: tract.assignedBuyerId,
+      assignedBuyer: tract.assignedBuyer,
+      priceCapUsd: tract.nraCapUsd,
+      county: tract.county,
+      state: tract.state,
+      grossAcres: tract.grossAcres,
+      netAcres: tract.netMineralAcres,
+      titleStatus: tract.titleStatus,
+      lastActivity: tract.updatedAt
+    }));
+
+    // Convert units to map assets
+    const unitAssets: MapAsset[] = mockUnits.map(unit => ({
+      id: `unit-${unit.id}`,
+      assetType: 'Unit' as const,
+      asset: unit,
+      geometry: {
+        type: 'Polygon' as const,
+        coordinates: [[
+          [unit.latitude || -96.5, unit.longitude || 35.5],
+          [unit.latitude || -96.4, unit.longitude || 35.5],
+          [unit.latitude || -96.4, unit.longitude || 35.4],
+          [unit.latitude || -96.5, unit.longitude || 35.4],
+          [unit.latitude || -96.5, unit.longitude || 35.5]
+        ]]
+      },
+      status: unit.assignedBuyerId ? 'Assigned' : 'Unassigned',
+      assignedBuyerId: unit.assignedBuyerId,
+      assignedBuyer: unit.assignedBuyer,
+      operator: unit.operator,
+      formation: unit.targetFormations[0],
+      county: unit.county,
+      state: unit.state,
+      grossAcres: unit.estimatedGrossAcres,
+      netAcres: unit.estimatedNetAcres,
+      lastActivity: unit.updatedAt
+    }));
+
+    let allAssets = [...tractAssets, ...unitAssets];
+
+    // Apply filters if provided
+    if (filters) {
+      if (filters.county) {
+        allAssets = allAssets.filter(asset => asset.county === filters.county);
+      }
+      if (filters.state) {
+        allAssets = allAssets.filter(asset => asset.state === filters.state);
+      }
+      if (filters.operator) {
+        allAssets = allAssets.filter(asset => asset.operator === filters.operator);
+      }
+      if (filters.assignmentStatus && filters.assignmentStatus !== 'All') {
+        allAssets = allAssets.filter(asset => asset.status === filters.assignmentStatus);
+      }
+      if (filters.assetType && filters.assetType !== 'All') {
+        allAssets = allAssets.filter(asset => asset.assetType === filters.assetType);
+      }
+      if (filters.priceCapMin) {
+        allAssets = allAssets.filter(asset => (asset.priceCapUsd || 0) >= filters.priceCapMin!);
+      }
+      if (filters.priceCapMax) {
+        allAssets = allAssets.filter(asset => (asset.priceCapUsd || 0) <= filters.priceCapMax!);
+      }
+    }
+
+    resolve(allAssets);
+  }, apiDelay));
+};
+
+/**
+ * Fetch map layer configurations
+ */
+export const fetchMapLayerConfigs = async (): Promise<MapLayerConfig[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    const configs: MapLayerConfig[] = [
+      {
+        id: 'basemap-streets',
+        name: 'streets',
+        displayName: 'Streets',
+        type: 'basemap',
+        isVisible: true,
+        opacity: 1.0,
+        order: 1,
+        source: 'ArcGIS',
+        metadata: {
+          description: 'Street map base layer',
+          attribution: 'Esri',
+          updateFrequency: 'Weekly'
+        }
+      },
+      {
+        id: 'basemap-satellite',
+        name: 'satellite',
+        displayName: 'Satellite',
+        type: 'basemap',
+        isVisible: false,
+        opacity: 1.0,
+        order: 2,
+        source: 'ArcGIS',
+        metadata: {
+          description: 'Satellite imagery base layer',
+          attribution: 'Esri',
+          updateFrequency: 'Monthly'
+        }
+      },
+      {
+        id: 'overlay-counties',
+        name: 'counties',
+        displayName: 'County Boundaries',
+        type: 'overlay',
+        isVisible: true,
+        opacity: 0.3,
+        order: 3,
+        source: 'ArcGIS',
+        metadata: {
+          description: 'County boundary lines',
+          attribution: 'US Census Bureau',
+          updateFrequency: 'Annually'
+        }
+      },
+      {
+        id: 'overlay-townships',
+        name: 'townships',
+        displayName: 'Township Lines',
+        type: 'overlay',
+        isVisible: false,
+        opacity: 0.2,
+        order: 4,
+        source: 'ArcGIS',
+        metadata: {
+          description: 'PLSS township and range lines',
+          attribution: 'BLM',
+          updateFrequency: 'Annually'
+        }
+      }
+    ];
+    resolve(configs);
+  }, apiDelay));
+};
+
+/**
+ * Fetch map overlays (heatmaps, clustering, etc.)
+ */
+export const fetchMapOverlays = async (): Promise<MapOverlay[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    const overlays: MapOverlay[] = [
+      {
+        id: 'heatmap-permits',
+        name: 'Permit Activity',
+        type: 'heatmap',
+        data: mockPermits.map(permit => ({
+          latitude: permit.latitude,
+          longitude: permit.longitude,
+          value: 1,
+          status: permit.status
+        })),
+        isVisible: false,
+        opacity: 0.7,
+        colorScheme: 'red',
+        legend: {
+          title: 'Permit Activity Heatmap',
+          items: [
+            { label: 'Low Activity', color: '#ffebee', value: 1 },
+            { label: 'Medium Activity', color: '#ef5350', value: 5 },
+            { label: 'High Activity', color: '#c62828', value: 10 }
+          ]
+        }
+      },
+      {
+        id: 'heatmap-production',
+        name: 'Production Activity',
+        type: 'heatmap',
+        data: mockProducingWells.map(well => ({
+          latitude: well.latitude,
+          longitude: well.longitude,
+          value: 1,
+          status: well.status
+        })),
+        isVisible: false,
+        opacity: 0.7,
+        colorScheme: 'green',
+        legend: {
+          title: 'Production Activity Heatmap',
+          items: [
+            { label: 'Low Production', color: '#e8f5e8', value: 1 },
+            { label: 'Medium Production', color: '#66bb6a', value: 5 },
+            { label: 'High Production', color: '#2e7d32', value: 10 }
+          ]
+        }
+      }
+    ];
+    resolve(overlays);
+  }, apiDelay));
+};
+
+/**
+ * Create a new map selection
+ */
+export const createMapSelection = async (selection: Omit<MapSelection, 'id' | 'createdAt'>): Promise<MapSelection> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newSelection: MapSelection = {
+      ...selection,
+      id: `selection-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    resolve(newSelection);
+  }, apiDelay));
+};
+
+/**
+ * Log map interaction
+ */
+export const logMapInteraction = async (interaction: Omit<MapInteraction, 'id' | 'timestamp'>): Promise<MapInteraction> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newInteraction: MapInteraction = {
+      ...interaction,
+      id: `interaction-${Date.now()}`,
+      timestamp: new Date().toISOString()
+    };
+    resolve(newInteraction);
+  }, apiDelay));
+};
+
+/**
+ * Export map data
+ */
+export const exportMapData = async (exportData: Omit<MapExport, 'id' | 'exportDate' | 'status'>): Promise<MapExport> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newExport: MapExport = {
+      ...exportData,
+      id: `export-${Date.now()}`,
+      exportDate: new Date().toISOString(),
+      status: 'Processing'
+    };
+    
+    // Simulate processing delay
+    setTimeout(() => {
+      newExport.status = 'Completed';
+      newExport.downloadUrl = `/api/exports/${newExport.id}/download`;
+    }, 2000);
+    
+    resolve(newExport);
+  }, apiDelay));
+};
+
+/**
+ * Get available filter options for mapping
+ */
+export const getMapFilterOptions = async () => {
+  return new Promise(resolve => setTimeout(() => {
+    const counties = [...new Set(mockTracts.map(t => t.county))];
+    const states = [...new Set(mockTracts.map(t => t.state))];
+    const operators = [...new Set(mockUnits.map(u => u.operator))];
+    const formations = [...new Set(mockUnits.flatMap(u => u.targetFormations))];
+    
+    resolve({
+      counties,
+      states,
+      operators,
+      formations,
+      basins: ['Anadarko', 'Permian', 'Eagle Ford', 'Haynesville'],
+      assignmentStatuses: ['Unassigned', 'Assigned', 'In Negotiation', 'Under Review', 'Completed'],
+      assetTypes: ['Tract', 'Unit']
+    });
+  }, apiDelay));
 };

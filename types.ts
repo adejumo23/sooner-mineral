@@ -65,8 +65,6 @@ export interface ContactEnhanced extends Contact {
   // Core contact information
   role: 'Seller' | 'Landowner' | 'Heir' | 'Attorney-in-Fact' | 'Unknown';
   ownershipType: 'Mineral' | 'Royalty' | 'NPRI' | 'ORRI' | 'Working Interest';
-  preferredContactMethod: 'Call' | 'Email' | 'Text' | 'Do Not Contact';
-  lastContactedDate?: string;
   source: string; // Where/how the contact was first discovered
   origination: string; // Additional source details
   
@@ -81,6 +79,18 @@ export interface ContactEnhanced extends Contact {
   linkedTractCount: number;
   linkedUnitCount: number;
   activeLeadCount: number;
+
+  // Communication preferences
+  preferredContactMethod: 'Call' | 'Email' | 'Text' | 'Do Not Contact';
+  preferredContactTime?: string; // Time of day preference
+  doNotContactUntil?: string; // Date until which contact is restricted
+  optOutDate?: string; // When they opted out of communications
+  
+  // Communication history
+  lastContactedDate?: string;
+  lastContactMethod?: CommunicationMethod;
+  lastContactOutcome?: CommunicationOutcome;
+  totalCommunications: number;
 }
 
 // Distress and Intent Signal interface
@@ -262,6 +272,14 @@ export interface Lead {
   tract?: Tract;
   assignedToUser?: User;
   createdByUser?: User;
+
+  // Communication tracking
+  lastOutreachDate?: string;
+  lastOutreachMethod?: CommunicationMethod;
+  lastOutreachOutcome?: CommunicationOutcome;
+  totalOutreachAttempts: number;
+  nextFollowUpDate?: string;
+  followUpNotes?: string;
 }
 
 export interface TractLead {
@@ -682,4 +700,253 @@ export interface CreateLeadNoteData {
   leadId: string;
   noteText: string;
   noteType?: LeadNote['noteType'];
+}
+
+// Deal interface for communication integration
+export interface Deal {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'Draft' | 'Active' | 'Pending' | 'Closed' | 'Cancelled';
+  contactId: string;
+  contact?: Contact;
+  leadId?: string;
+  lead?: Lead;
+  value?: number;
+  startDate?: string;
+  endDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Communication Integration Module Types
+export type CommunicationMethod = 'Email' | 'Call' | 'SMS' | 'Mail';
+
+export type CommunicationOutcome = 
+  | 'No Answer' 
+  | 'Left Voicemail' 
+  | 'Sent' 
+  | 'Bounced' 
+  | 'Replied' 
+  | 'Delivered' 
+  | 'Read' 
+  | 'Failed' 
+  | 'Opted Out';
+
+export interface Communication {
+  id: string;
+  userId: string; // Sender/caller
+  user?: User; // Populated from userId
+  contactId: string; // Recipient
+  contact?: Contact; // Populated from contactId
+  leadId?: string; // If applicable
+  lead?: Lead; // Populated from leadId
+  method: CommunicationMethod;
+  timestamp: string;
+  outcome: CommunicationOutcome;
+  subject?: string; // For emails
+  messageSnippet?: string; // For calls, SMS, mail
+  attachments?: string[]; // File paths or URLs
+  relatedDealId?: string; // If in active negotiations
+  deal?: Deal; // Populated from relatedDealId
+  campaignId?: string; // If part of a campaign
+  campaign?: CommunicationCampaign; // Populated from campaignId
+  sequenceStep?: number; // For multi-step campaigns
+  optOutDate?: string; // When contact opted out
+  failureReason?: string; // For failed communications
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommunicationCampaign {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'Email Sequence' | 'Call Campaign' | 'SMS Campaign' | 'Direct Mail' | 'Multi-Channel';
+  status: 'Draft' | 'Active' | 'Paused' | 'Completed' | 'Cancelled';
+  createdBy: string; // User ID
+  createdByUser?: User; // Populated from createdBy
+  targetAudience: 'All Contacts' | 'Specific Leads' | 'Custom List' | 'Geographic';
+  targetCriteria?: Record<string, any>; // JSON criteria for targeting
+  startDate?: string;
+  endDate?: string;
+  totalRecipients: number;
+  successfulDeliveries: number;
+  responses: number;
+  optOuts: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailSequence {
+  id: string;
+  campaignId: string;
+  campaign?: CommunicationCampaign;
+  name: string;
+  steps: EmailSequenceStep[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailSequenceStep {
+  id: string;
+  sequenceId: string;
+  stepNumber: number;
+  subject: string;
+  body: string;
+  delayDays: number; // Days after previous step
+  delayHours?: number; // Additional hours
+  conditions?: Record<string, any>; // JSON conditions for sending
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DirectMailLog {
+  id: string;
+  campaignId?: string;
+  campaign?: CommunicationCampaign;
+  contactId: string;
+  contact?: Contact;
+  leadId?: string;
+  lead?: Lead;
+  mailType: 'Letter' | 'Postcard' | 'Brochure' | 'Other';
+  status: 'Scheduled' | 'Sent' | 'Delivered' | 'Returned' | 'Failed';
+  scheduledDate?: string;
+  sentDate?: string;
+  deliveredDate?: string;
+  returnedDate?: string;
+  trackingNumber?: string;
+  cost?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommunicationTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'Email' | 'SMS' | 'Call Script' | 'Mail Letter';
+  subject?: string; // For emails
+  content: string; // Body content
+  variables?: string[]; // Available template variables
+  isActive: boolean;
+  createdBy: string; // User ID
+  createdByUser?: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Mapping Integration Module Types
+export interface MapAsset {
+  id: string;
+  assetType: 'Tract' | 'Unit';
+  asset: Tract | Unit;
+  geometry: {
+    type: 'Polygon' | 'Point';
+    coordinates: number[][][] | number[]; // GeoJSON format
+  };
+  status: 'Unassigned' | 'Assigned' | 'In Negotiation' | 'Under Review' | 'Completed';
+  assignedBuyerId?: string;
+  assignedBuyer?: User;
+  priceCapUsd?: number;
+  county: string;
+  state: string;
+  operator?: string; // For units
+  formation?: string; // For units
+  grossAcres: number;
+  netAcres?: number;
+  titleStatus?: TitleStatus;
+  lastActivity?: string;
+}
+
+export interface MapFilter {
+  basin?: string;
+  county?: string;
+  state?: string;
+  operator?: string;
+  permittingActivity?: 'Active' | 'Inactive' | 'All';
+  priceCapMin?: number;
+  priceCapMax?: number;
+  assignmentStatus?: 'Unassigned' | 'Assigned' | 'In Negotiation' | 'Under Review' | 'Completed' | 'All';
+  assetType?: 'Tract' | 'Unit' | 'All';
+  formation?: string;
+  hasESGFlags?: boolean;
+  hasProduction?: boolean;
+}
+
+export interface MapSelection {
+  id: string;
+  type: 'polygon' | 'rectangle' | 'freehand';
+  coordinates: number[][];
+  selectedAssets: MapAsset[];
+  createdAt: string;
+  createdBy: string;
+  createdByUser?: User;
+}
+
+export interface MapOverlay {
+  id: string;
+  name: string;
+  type: 'heatmap' | 'clustering' | 'symbol';
+  data: any[];
+  isVisible: boolean;
+  opacity: number;
+  colorScheme?: string;
+  legend?: {
+    title: string;
+    items: Array<{
+      label: string;
+      color: string;
+      value?: number;
+    }>;
+  };
+}
+
+export interface MapLayerConfig {
+  id: string;
+  name: string;
+  displayName: string;
+  type: 'basemap' | 'overlay' | 'analysis';
+  isVisible: boolean;
+  opacity: number;
+  order: number;
+  source: 'ArcGIS' | 'Custom' | 'External';
+  metadata?: {
+    description?: string;
+    attribution?: string;
+    updateFrequency?: string;
+  };
+}
+
+export interface MapInteraction {
+  id: string;
+  userId: string;
+  user?: User;
+  action: 'pan' | 'zoom' | 'select' | 'filter' | 'export' | 'assign';
+  details?: string;
+  timestamp: string;
+  mapBounds?: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+    zoom: number;
+  };
+  selectedAssets?: string[];
+}
+
+export interface MapExport {
+  id: string;
+  userId: string;
+  user?: User;
+  exportType: 'excel' | 'csv' | 'pdf' | 'assignment-list';
+  filters: MapFilter;
+  selectedAssets: string[];
+  exportDate: string;
+  downloadUrl?: string;
+  status: 'Processing' | 'Completed' | 'Failed';
+  errorMessage?: string;
 }

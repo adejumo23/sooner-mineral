@@ -1,16 +1,18 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon } from '../icons/Icons';
+import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon } from '../icons/Icons';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Tracts', href: '/tracts', icon: MapIcon },
   { name: 'Units', href: '/units', icon: CubeIcon },
-      { name: 'Assignments', href: '/assignments', icon: ClipboardDocumentListIcon },
-    { name: 'Leads', href: '/leads', icon: UserIcon },
-    { name: 'Contacts', href: '/contacts', icon: UserIcon },
-    { name: 'Users', href: '/users', icon: UserGroupIcon },
+  { name: 'Assignments', href: '/assignments', icon: ClipboardDocumentListIcon },
+  { name: 'Leads', href: '/leads', icon: UserIcon },
+  { name: 'Contacts', href: '/contacts', icon: UserIcon },
+  { name: 'Message Center', href: '/communication', icon: EnvelopeIcon },
+  { name: 'Mapping', href: '/mapping', icon: MapIcon },
+  { name: 'Users', href: '/users', icon: UserGroupIcon },
   { name: 'Roles', href: '/roles', icon: ShieldCheckIcon },
   { name: 'Privileges', href: '/privileges', icon: KeyIcon },
 ];
