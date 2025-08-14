@@ -1,4 +1,4 @@
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus } from '../types';
 
 /*
 ================================================================================
@@ -1019,6 +1019,9 @@ let mockUnitAssignments: UnitAssignment[] = [
         assignedBy: 'u1',
         assignedAt: '2024-01-15T10:00:00Z',
         notes: 'Initial assignment for acquisition campaign',
+        assignmentStatus: 'In Progress',
+        valuationCapUsd: 2500,
+        autoGenerateLeads: true,
     },
     {
         id: 'ua2',
@@ -1027,6 +1030,9 @@ let mockUnitAssignments: UnitAssignment[] = [
         assignedBy: 'u2',
         assignedAt: '2024-01-16T11:00:00Z',
         notes: 'Assignment for due diligence review',
+        assignmentStatus: 'Under Review',
+        valuationCapUsd: 3000,
+        autoGenerateLeads: false,
     }
 ];
 
@@ -1443,10 +1449,16 @@ export const fetchUnitAssignments = async (unitId: string): Promise<UnitAssignme
 
 /*
  * POST /api/units/:id/assign
- * Body: { buyerId: string, notes?: string }
+ * Body: { buyerId: string, notes?: string, assignmentStatus: string, valuationCapUsd: number, autoGenerateLeads: boolean }
  * Response: UnitAssignment
  */
-export const assignUnit = async (unitId: string, data: { buyerId: string; notes?: string }): Promise<UnitAssignment> => {
+export const assignUnit = async (unitId: string, data: { 
+  buyerId: string; 
+  notes?: string; 
+  assignmentStatus?: string;
+  valuationCapUsd?: number;
+  autoGenerateLeads?: boolean;
+}): Promise<UnitAssignment> => {
     return new Promise(resolve => setTimeout(() => {
         // Create new assignment
         const newAssignment: UnitAssignment = {
@@ -1456,6 +1468,9 @@ export const assignUnit = async (unitId: string, data: { buyerId: string; notes?
             assignedBy: 'u1', // Mock current user
             assignedAt: new Date().toISOString(),
             notes: data.notes,
+            assignmentStatus: (data.assignmentStatus as any) || 'In Progress',
+            valuationCapUsd: data.valuationCapUsd || 2500,
+            autoGenerateLeads: data.autoGenerateLeads !== false, // Default to true
         };
         mockUnitAssignments.push(newAssignment);
         
@@ -1519,15 +1534,79 @@ export const fetchUnitTracts = async (unitId: string): Promise<UnitTract[]> => {
 };
 
 /*
- * GET /api/units/:id/contacts
- * Response: UnitContact[]
+ * GET /api/units/:id/tracts/enhanced
+ * Response: UnitTractEnhanced[]
+ * Enhanced version with comprehensive tract information for Linked Tracts tab
  */
-export const fetchUnitContacts = async (unitId: string): Promise<UnitContact[]> => {
+export const fetchUnitTractsEnhanced = async (unitId: string): Promise<UnitTractEnhanced[]> => {
     return new Promise(resolve => setTimeout(() => {
-        const unitContacts = mockUnitContacts
-            .filter(uc => uc.unitId === unitId)
-            .map(populateUnitContact);
-        resolve(unitContacts);
+        const unitTracts = mockUnitTracts.filter(ut => ut.unitId === unitId);
+        
+        const enhancedTracts: UnitTractEnhanced[] = unitTracts.map(ut => {
+            const tract = mockTracts.find(t => t.id === ut.tractId);
+            if (!tract) {
+                // Return minimal data if tract not found
+                return {
+                    id: ut.id,
+                    unitId: ut.unitId,
+                    tractId: ut.tractId,
+                    tractName: 'Unknown Tract',
+                    grossAcres: 0,
+                    titleStatus: 'Unmapped' as TitleStatus,
+                    hasTitleChain: false,
+                    hasContacts: false,
+                    allocationPercentage: ut.allocationPercentage,
+                    createdAt: ut.createdAt,
+                };
+            }
+            
+            // Get last activity from leads and notes
+            let lastActivity: string | undefined;
+            const tractLeads = mockLeads.filter(lead => lead.tractId === tract.id);
+            const tractNotes = mockContactNotes.filter(note => note.tractId === tract.id);
+            
+            if (tractLeads.length > 0 || tractNotes.length > 0) {
+                const allActivities = [
+                    ...tractLeads.map(lead => ({ date: lead.updatedAt, type: 'lead' })),
+                    ...tractNotes.map(note => ({ date: note.createdAt, type: 'note' }))
+                ];
+                
+                const sortedActivities = allActivities.sort((a, b) => 
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+                
+                if (sortedActivities.length > 0) {
+                    lastActivity = sortedActivities[0].date;
+                }
+            }
+            
+            // Check if title chain and contacts exist
+            const hasTitleChain = tract.titleStatus !== 'Unmapped';
+            const hasContacts = mockContactTractOwnership.some(cto => cto.tractId === tract.id);
+            
+            return {
+                id: ut.id,
+                unitId: ut.unitId,
+                tractId: ut.tractId,
+                tract,
+                tractName: tract.tractName,
+                str: tract.str,
+                grossAcres: tract.grossAcres,
+                netMineralAcres: tract.netMineralAcres,
+                royalty: tract.royalty,
+                nra: tract.nra,
+                titleStatus: tract.titleStatus,
+                assignedBuyerId: tract.assignedBuyerId,
+                assignedBuyer: tract.assignedBuyerId ? mockUsers.find(u => u.id === tract.assignedBuyerId) : undefined,
+                lastActivity,
+                hasTitleChain,
+                hasContacts,
+                allocationPercentage: ut.allocationPercentage,
+                createdAt: ut.createdAt,
+            };
+        });
+        
+        resolve(enhancedTracts);
     }, apiDelay));
 };
 
@@ -2285,5 +2364,121 @@ export const createLeadNote = async (leadId: string, data: CreateLeadNoteData): 
         };
         mockLeadNotes.push(newNote);
         resolve(populateLeadNote(newNote));
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id/contacts
+ * Response: UnitContact[]
+ */
+export const fetchUnitContacts = async (unitId: string): Promise<UnitContact[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        const unitContacts = mockUnitContacts
+            .filter(uc => uc.unitId === unitId)
+            .map(populateUnitContact);
+        resolve(unitContacts);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/units/:id/contacts/aggregated
+ * Response: UnitContactAggregated[]
+ * Returns aggregated contact data with economic interest and outreach status
+ */
+export const fetchUnitContactsAggregated = async (unitId: string): Promise<UnitContactAggregated[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Get all unit contacts for this unit
+        const unitContacts = mockUnitContacts.filter(uc => uc.unitId === unitId);
+        
+        // Get all tracts linked to this unit
+        const unitTracts = mockUnitTracts.filter(ut => ut.unitId === unitId);
+        const tractIds = unitTracts.map(ut => ut.tractId);
+        
+        // Get all contact-tract ownership records for tracts in this unit
+        const ownershipRecords = mockContactTractOwnership.filter(cto => 
+            tractIds.includes(cto.tractId)
+        );
+        
+        // Group ownership records by contact
+        const contactOwnershipMap = new Map<string, typeof ownershipRecords>();
+        ownershipRecords.forEach(cto => {
+            if (!contactOwnershipMap.has(cto.contactId)) {
+                contactOwnershipMap.set(cto.contactId, []);
+            }
+            contactOwnershipMap.get(cto.contactId)!.push(cto);
+        });
+        
+        // Create aggregated contact data
+        const aggregatedContacts: UnitContactAggregated[] = Array.from(contactOwnershipMap.entries()).map(([contactId, ownerships]) => {
+            // Calculate weighted averages and totals
+            let totalNMA = 0;
+            let totalOwnershipWeighted = 0;
+            let totalRoyaltyWeighted = 0;
+            let totalNRA = 0;
+            const tractsOwned: string[] = [];
+            
+            ownerships.forEach(ownership => {
+                const tract = mockTracts.find(t => t.id === ownership.tractId);
+                if (tract) {
+                    const nma = (ownership.nma || 0);
+                    totalNMA += nma;
+                    totalOwnershipWeighted += nma * (ownership.ownershipPercentage || 0);
+                    totalRoyaltyWeighted += nma * (ownership.royaltyPercentage || 0);
+                    totalNRA += (ownership.nra || 0);
+                    
+                    if (!tractsOwned.includes(ownership.tractId)) {
+                        tractsOwned.push(ownership.tractId);
+                    }
+                }
+            });
+            
+            // Calculate weighted percentages
+            const ownershipPercentageWeighted = totalNMA > 0 ? totalOwnershipWeighted / totalNMA : 0;
+            const royaltyPercentageWeighted = totalNMA > 0 ? totalRoyaltyWeighted / totalNMA : 0;
+            
+            // Determine lead status and last outreach
+            const unitLeads = mockLeads.filter(lead => 
+                lead.linkedContactId === contactId && 
+                (lead.linkedTractIds.some(tractId => tractIds.includes(tractId)) || 
+                 lead.linkedUnitIds.includes(unitId))
+            );
+            
+            const hasActiveLeads = unitLeads.some(lead => lead.status === 'Open' || lead.status === 'In Progress');
+            const leadStatus: 'Open' | 'Closed' | 'Unassigned' = 
+                hasActiveLeads ? 'Open' : 
+                unitLeads.length > 0 ? 'Closed' : 'Unassigned';
+            
+            // Get last outreach date from lead notes or contact logs
+            let lastOutreach: string | undefined;
+            if (unitLeads.length > 0) {
+                const sortedLeads = unitLeads.sort((a, b) => 
+                    new Date(b.lastContactDate || 0).getTime() - new Date(a.lastContactDate || 0).getTime()
+                );
+                lastOutreach = sortedLeads[0].lastContactDate;
+            }
+            
+            return {
+                id: `uca${contactId}`,
+                unitId,
+                contactId,
+                ownershipPercentageWeighted,
+                royaltyPercentageWeighted,
+                totalNMA,
+                totalNRA,
+                tractsOwned,
+                lastOutreach,
+                leadStatus,
+                hasActiveLeads,
+                createdAt: new Date().toISOString(),
+            };
+        });
+        
+        // Populate contact information
+        const populatedContacts = aggregatedContacts.map(contact => ({
+            ...contact,
+            contact: mockContacts.find(c => c.id === contact.contactId),
+        }));
+        
+        resolve(populatedContacts);
     }, apiDelay));
 };

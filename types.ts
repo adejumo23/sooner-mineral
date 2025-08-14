@@ -224,6 +224,20 @@ export interface UnitAssignment {
   removedByUser?: User; // Populated from removedBy
   removedAt?: string;
   notes?: string;
+  // New fields per specifications
+  assignmentStatus: 'In Progress' | 'Under Review' | 'Closed' | 'Rejected';
+  valuationCapUsd: number; // $/NRA target price per normalized royalty acre
+  autoGenerateLeads: boolean; // Option to auto-create leads for contacts tied to linked tracts
+}
+
+// New interface for assignment comment thread
+export interface AssignmentComment {
+  id: string;
+  assignmentId: string;
+  commentText: string;
+  authorId: string;
+  author?: User; // Populated from authorId
+  timestamp: string;
 }
 
 export interface UnitTract {
@@ -235,11 +249,67 @@ export interface UnitTract {
   createdAt: string;
 }
 
+// New interface for enhanced unit tract data with comprehensive information
+export interface UnitTractEnhanced {
+  id: string;
+  unitId: string;
+  tractId: string;
+  tract?: Tract; // Populated from tractId
+  
+  // Core tract information
+  tractName: string;
+  str?: string; // Spatial/geographic anchor in PLSS format
+  grossAcres: number;
+  netMineralAcres?: number;
+  royalty?: number;
+  nra?: number; // NRA (1/8 Normalized)
+  
+  // Title and assignment information
+  titleStatus: TitleStatus;
+  assignedBuyerId?: string;
+  assignedBuyer?: User;
+  
+  // Activity tracking
+  lastActivity?: string; // Date of most recent activity (lead, note, etc.)
+  
+  // Quick action links
+  hasTitleChain: boolean; // Whether title chain data exists
+  hasContacts: boolean; // Whether contact data exists for this tract
+  
+  // Unit-specific allocation
+  allocationPercentage?: number;
+  createdAt: string;
+}
+
 export interface UnitContact {
   id: string;
   unitId: string;
   contactId: string;
   contact?: Contact; // Populated from contactId
+  createdAt: string;
+}
+
+// New interface for aggregated unit contact data with economic interest and outreach status
+export interface UnitContactAggregated {
+  id: string;
+  unitId: string;
+  contactId: string;
+  contact?: Contact; // Populated from contactId
+  
+  // Economic interest fields (aggregated across all linked tracts)
+  ownershipPercentageWeighted: number; // Pro rata share across all linked tracts
+  royaltyPercentageWeighted: number; // Weighted average royalty across linked tracts
+  totalNMA: number; // Sum of net mineral acres across all tracts
+  totalNRA: number; // NMA × (Royalty % ÷ 0.125) - 1/8 normalized
+  
+  // Tract ownership details
+  tractsOwned: string[]; // List of tract IDs the contact appears in within the unit
+  
+  // Outreach and lead information
+  lastOutreach?: string; // Date of most recent buyer contact note or email
+  leadStatus: 'Open' | 'Closed' | 'Unassigned'; // Derived from lead status
+  hasActiveLeads: boolean; // Whether contact has active leads tied to unit tracts
+  
   createdAt: string;
 }
 

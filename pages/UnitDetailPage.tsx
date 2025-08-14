@@ -3,7 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   fetchUnit, 
   fetchUnitTracts, 
+  fetchUnitTractsEnhanced,
   fetchUnitContacts, 
+  fetchUnitContactsAggregated,
   fetchUnitNotes, 
   fetchUnitAssignments,
   fetchUsers,
@@ -13,7 +15,7 @@ import {
   createUnitNote,
   deleteUnit
 } from '../services/api';
-import { Unit, UnitTract, UnitContact, UnitNote, UnitAssignment, User } from '../types';
+import { Unit, UnitTract, UnitTractEnhanced, UnitContact, UnitContactAggregated, UnitNote, UnitAssignment, User, TitleStatus } from '../types';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -35,7 +37,9 @@ const UnitDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [unit, setUnit] = useState<Unit | null>(null);
   const [unitTracts, setUnitTracts] = useState<UnitTract[]>([]);
+  const [unitTractsEnhanced, setUnitTractsEnhanced] = useState<UnitTractEnhanced[]>([]);
   const [unitContacts, setUnitContacts] = useState<UnitContact[]>([]);
+  const [unitContactsAggregated, setUnitContactsAggregated] = useState<UnitContactAggregated[]>([]);
   const [unitNotes, setUnitNotes] = useState<UnitNote[]>([]);
   const [unitAssignments, setUnitAssignments] = useState<UnitAssignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -66,6 +70,7 @@ const UnitDetailPage: React.FC = () => {
         unitData, 
         tractsData, 
         contactsData, 
+        contactsAggregatedData,
         notesData, 
         assignmentsData,
         usersData
@@ -73,6 +78,7 @@ const UnitDetailPage: React.FC = () => {
         fetchUnit(id),
         fetchUnitTracts(id),
         fetchUnitContacts(id),
+        fetchUnitContactsAggregated(id),
         fetchUnitNotes(id),
         fetchUnitAssignments(id),
         fetchUsers()
@@ -80,7 +86,9 @@ const UnitDetailPage: React.FC = () => {
       
       setUnit(unitData);
       setUnitTracts(tractsData);
+      setUnitTractsEnhanced(await fetchUnitTractsEnhanced(id)); // Fetch enhanced tracts
       setUnitContacts(contactsData);
+      setUnitContactsAggregated(contactsAggregatedData);
       setUnitNotes(notesData);
       setUnitAssignments(assignmentsData);
       setUsers(usersData);
@@ -172,6 +180,17 @@ const UnitDetailPage: React.FC = () => {
       case 'Hold': return 'text-blue-600 bg-blue-100';
       case 'Flip': return 'text-yellow-600 bg-yellow-100';
       case 'LP Buyout': return 'text-purple-600 bg-purple-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getTitleStatusColor = (status: TitleStatus) => {
+    switch (status) {
+      case 'Verified': return 'text-green-600 bg-green-100';
+      case 'In Progress': return 'text-blue-600 bg-blue-100';
+      case 'Failed': return 'text-red-600 bg-red-100';
+      case 'Verified with Curative Requirements': return 'text-yellow-600 bg-yellow-100';
+      case 'Unmapped': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -397,85 +416,333 @@ const UnitDetailPage: React.FC = () => {
         )}
 
         {activeTab === 'tracts' && (
-          <Card>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Linked Tracts</h3>
-              {unitTracts.length === 0 ? (
-                <p className="text-gray-500">No tracts linked to this unit</p>
-              ) : (
-                <div className="space-y-4">
-                  {unitTracts.map((unitTract) => (
-                    <div key={unitTract.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {unitTract.tract?.tractName || 'Unknown Tract'}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {unitTract.tract?.county}, {unitTract.tract?.state}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Gross: {unitTract.tract?.grossAcres.toLocaleString()} acres
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          {unitTract.allocationPercentage && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {unitTract.allocationPercentage * 100}% Allocation
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+          <div className="space-y-6">
+            {/* Header Bar */}
+            <Card>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Linked Tracts in This Unit</h3>
+                  <div className="flex space-x-3">
+                    <Button variant="outline" size="sm">
+                      Search
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Sort
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Filter
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </Card>
+                
+                {unitTractsEnhanced.length === 0 ? (
+                  <p className="text-gray-500">No tracts linked to this unit</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tract ID
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            STR
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Gross Acres
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Net Acres (NMA)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Royalty %
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NRA (1/8 Normalized)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Title Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Assignment
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Last Activity
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Quick Links
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {unitTractsEnhanced.map((tract) => (
+                          <tr key={tract.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {tract.tractName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {tract.tract?.county}, {tract.tract?.state}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {tract.str || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {tract.grossAcres.toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {tract.netMineralAcres ? tract.netMineralAcres.toLocaleString() : 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {tract.royalty ? `${(tract.royalty * 100).toFixed(2)}%` : 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {tract.nra ? tract.nra.toLocaleString() : 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTitleStatusColor(tract.titleStatus)}`}>
+                                {tract.titleStatus}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {tract.assignedBuyer ? tract.assignedBuyer.name : 'Unassigned'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {tract.lastActivity ? new Date(tract.lastActivity).toLocaleDateString() : 'No activity'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!tract.hasTitleChain}
+                                  className="text-xs"
+                                >
+                                  View Title Chain
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!tract.hasContacts}
+                                  className="text-xs"
+                                >
+                                  View Contacts
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
         )}
 
         {activeTab === 'contacts' && (
-          <Card>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Unit Contacts</h3>
-              {unitContacts.length === 0 ? (
-                <p className="text-gray-500">No contacts linked to this unit</p>
-              ) : (
-                <div className="space-y-4">
-                  {unitContacts.map((unitContact) => (
-                    <div key={unitContact.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {unitContact.contact?.name || 'Unknown Contact'}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {unitContact.contact?.entityType}
-                          </p>
-                          {unitContact.contact?.email && (
-                            <p className="text-sm text-gray-600">
-                              {unitContact.contact.email}
-                            </p>
-                          )}
-                          {unitContact.contact?.phone && (
-                            <p className="text-sm text-gray-600">
-                              {unitContact.contact.phone}
-                            </p>
-                          )}
-                        </div>
-                        <Link
-                          to={`/contacts/${unitContact.contactId}`}
-                          className="text-sc-blue hover:text-sc-blue-dark text-sm font-medium"
-                        >
-                          View Contact
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+          <div className="space-y-6">
+            {/* Header with Actions */}
+            <Card>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Unit Contacts</h3>
+                  <div className="flex space-x-3">
+                    <Button variant="outline" size="sm">
+                      Filter & Sort
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Bulk Actions
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          </Card>
+                
+                {unitContactsAggregated.length === 0 ? (
+                  <p className="text-gray-500">No contacts linked to this unit</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Contact Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ownership % (Weighted)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Royalty % (Weighted)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NMA (Total)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NRA (1/8 Normalized)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tracts Owned
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Last Outreach
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Lead Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {unitContactsAggregated.map((contact) => (
+                          <tr key={contact.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {contact.contact?.name?.charAt(0) || '?'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    <Link 
+                                      to={`/contacts/${contact.contactId}`}
+                                      className="text-primary hover:text-primary-600"
+                                    >
+                                      {contact.contact?.name || 'Unknown Contact'}
+                                    </Link>
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {contact.contact?.contactType || 'Unknown Type'}
+                                  </div>
+                                  {contact.contact?.email && (
+                                    <div className="text-xs text-gray-400">
+                                      {contact.contact.email}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(contact.ownershipPercentageWeighted * 100).toFixed(1)}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(contact.royaltyPercentageWeighted * 100).toFixed(1)}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {contact.totalNMA.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {contact.totalNRA.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex flex-wrap gap-1">
+                                {contact.tractsOwned.map((tractId) => {
+                                  const tract = unitTracts.find(ut => ut.tractId === tractId)?.tract;
+                                  return (
+                                    <span 
+                                      key={tractId}
+                                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                      title={tract?.tractName || tractId}
+                                    >
+                                      {tract?.tractName || tractId}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {contact.lastOutreach ? (
+                                <span>{new Date(contact.lastOutreach).toLocaleDateString()}</span>
+                              ) : (
+                                <span className="text-gray-400">No outreach</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                contact.leadStatus === 'Open' ? 'bg-green-100 text-green-800' :
+                                contact.leadStatus === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {contact.leadStatus}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex space-x-2">
+                                {!contact.hasActiveLeads ? (
+                                  <Button size="sm" variant="outline">
+                                    Create Lead
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="outline">
+                                    View Leads
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="outline">
+                                  <PencilIcon className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Contact Summary Statistics */}
+            <Card>
+              <div className="p-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Contact Summary</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.length}
+                    </div>
+                    <div className="text-sm text-gray-500">Total Contacts</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.filter(c => c.leadStatus === 'Open').length}
+                    </div>
+                    <div className="text-sm text-gray-500">Active Leads</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.reduce((sum, c) => sum + c.totalNMA, 0).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500">Total NMA</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.reduce((sum, c) => sum + c.totalNRA, 0).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500">Total NRA</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
         )}
 
         {activeTab === 'mapping' && (
@@ -499,27 +766,111 @@ const UnitDetailPage: React.FC = () => {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Current Assignment</h3>
-                  {!unit.assignedBuyer && (
+                  {!unit.assignedBuyer ? (
                     <Button onClick={() => setShowAssignmentModal(true)}>
-                      Assign Buyer
+                      Assign Unit
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setShowAssignmentModal(true)}>
+                      Reassign Buyer
                     </Button>
                   )}
                 </div>
                 
                 {unit.assignedBuyer ? (
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex justify-between items-start">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="font-medium text-gray-900">{unit.assignedBuyer.name}</h4>
-                        <p className="text-sm text-gray-600">{unit.assignedBuyer.email}</p>
-                        <p className="text-sm text-gray-600">Role: {unit.assignedBuyer.role.name}</p>
+                        <h4 className="font-medium text-gray-900 mb-2">Assignment Details</h4>
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Assigned Buyer</dt>
+                            <dd className="text-sm text-gray-900">{unit.assignedBuyer.name}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Email</dt>
+                            <dd className="text-sm text-gray-600">{unit.assignedBuyer.email}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Role</dt>
+                            <dd className="text-sm text-gray-600">{unit.assignedBuyer.role.name}</dd>
+                          </div>
+                        </dl>
                       </div>
+                      
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Assignment Status</h4>
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Status</dt>
+                            <dd className="text-sm">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                In Progress
+                              </span>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Assignment Date</dt>
+                            <dd className="text-sm text-gray-600">
+                              {unitAssignments.length > 0 ? new Date(unitAssignments[0].assignedAt).toLocaleDateString() : 'N/A'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Assigned By</dt>
+                            <dd className="text-sm text-gray-600">
+                              {unitAssignments.length > 0 ? unitAssignments[0].assignedByUser?.name : 'N/A'}
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Valuation Cap ($/NRA)
+                          </label>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl font-bold text-gray-900">$2,500</span>
+                            <Button variant="outline" size="sm">
+                              <PencilIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Target price per normalized royalty acre for underwriting
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Auto-Generate Leads
+                          </label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="autoGenerateLeads"
+                              defaultChecked={true}
+                              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                            />
+                            <label htmlFor="autoGenerateLeads" className="text-sm text-gray-700">
+                              Create leads for contacts tied to linked tracts
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Optional checkbox to suppress auto-lead creation
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-200">
                       <Button
                         variant="outline"
                         onClick={handleUnassignUnit}
                         className="text-red-600 hover:text-red-700"
                       >
-                        Unassign
+                        Unassign Unit
                       </Button>
                     </div>
                   </div>
@@ -574,6 +925,52 @@ const UnitDetailPage: React.FC = () => {
               </div>
             </Card>
 
+            {/* Comment Thread */}
+            <Card>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Comment Thread</h3>
+                  <Button onClick={() => setShowNoteModal(true)}>
+                    Add Comment
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="border-l-4 border-blue-200 pl-4 py-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          Initial assignment made for acquisition campaign. Unit shows strong potential with multiple target formations.
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Alice Admin • {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Assignment
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="border-l-4 border-green-200 pl-4 py-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          Valuation cap set at $2,500/NRA based on recent comparable sales in the area.
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Bob Manager • {new Date(Date.now() - 86400000).toLocaleDateString()} {new Date(Date.now() - 86400000).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Valuation
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
             {/* Unit Notes */}
             <Card>
               <div className="p-6">
@@ -620,7 +1017,7 @@ const UnitDetailPage: React.FC = () => {
       <Modal
         isOpen={showAssignmentModal}
         onClose={() => setShowAssignmentModal(false)}
-        title="Assign Unit to Buyer"
+        title={unit.assignedBuyer ? "Reassign Unit to Buyer" : "Assign Unit to Buyer"}
       >
         <div className="space-y-4">
           <div>
@@ -630,15 +1027,66 @@ const UnitDetailPage: React.FC = () => {
             <select
               value={selectedBuyer}
               onChange={(e) => setSelectedBuyer(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">Choose a buyer...</option>
-              {users.filter(u => u.role.name === 'Buyer').map(user => (
+              {users.filter(u => u.role.name === 'Buyer' || u.role.name === 'Manager').map(user => (
                 <option key={user.id} value={user.id}>
-                  {user.name} ({user.email})
+                  {user.name} ({user.email}) - {user.role.name}
                 </option>
               ))}
             </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Assignment Status
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value="In Progress">In Progress</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Closed">Closed</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Valuation Cap ($/NRA)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2 text-gray-500">$</span>
+              <input
+                type="number"
+                placeholder="2500"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Target price per normalized royalty acre for underwriting
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Auto-Generate Leads
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="modalAutoGenerateLeads"
+                defaultChecked={true}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              />
+              <label htmlFor="modalAutoGenerateLeads" className="text-sm text-gray-700">
+                Create leads for contacts tied to linked tracts
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Optional checkbox to suppress auto-lead creation (for review-only assignments)
+            </p>
           </div>
           
           <div>
@@ -649,7 +1097,7 @@ const UnitDetailPage: React.FC = () => {
               value={assignmentNotes}
               onChange={(e) => setAssignmentNotes(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Add any notes about this assignment..."
             />
           </div>
@@ -660,7 +1108,7 @@ const UnitDetailPage: React.FC = () => {
             Cancel
           </Button>
           <Button onClick={handleAssignUnit} disabled={!selectedBuyer}>
-            Assign Unit
+            {unit.assignedBuyer ? 'Reassign Unit' : 'Assign Unit'}
           </Button>
         </div>
       </Modal>

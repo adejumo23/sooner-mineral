@@ -15,11 +15,11 @@ export default defineConfig(({ mode }) => {
         }
       },
       optimizeDeps: {
-        include: ['@arcgis/core']
+        // include: ['@arcgis/core'] // Temporarily disabled to resolve server startup issue
       },
       build: {
         rollupOptions: {
-          external: ['@arcgis/core/assets/*']
+          // external: ['@arcgis/core/assets/*'] // Temporarily disabled
         }
       }
     };
