@@ -16,6 +16,8 @@ import AssignmentFormPage from './pages/AssignmentFormPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import LeadFormPage from './pages/LeadFormPage';
+import ContactsPage from './pages/ContactsPage';
+import ContactDetailPage from './pages/ContactDetailPage';
 import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
@@ -55,6 +57,10 @@ function App() {
           <Route path="/leads/new" element={<LeadFormPage />} />
           <Route path="/leads/:id" element={<LeadDetailPage />} />
           <Route path="/leads/:id/edit" element={<LeadFormPage />} />
+          <Route path="/contacts" element={<ContactsPage />} />
+          <Route path="/contacts/new" element={<LeadFormPage />} />
+          <Route path="/contacts/:id" element={<ContactDetailPage />} />
+          <Route path="/contacts/:id/edit" element={<LeadFormPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />

@@ -1,4 +1,4 @@
-import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus } from '../types';
+import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus, ContactCallLog, ContactDocument, DistressSignal } from '../types';
 
 /*
 ================================================================================
@@ -629,12 +629,65 @@ export const createContactNote = async (contactId: string, data: { noteText: str
  * GET /api/contacts/:id/leads
  * Response: Lead[]
  */
-export const fetchContactLeads = async (contactId: string, tractId: string): Promise<Lead[]> => {
+export const fetchContactLeads = async (contactId: string): Promise<any[]> => {
     return new Promise(resolve => setTimeout(() => {
-        const leads = mockLeads
-            .filter(lead => lead.contactId === contactId && lead.tractId === tractId)
-            .map(populateLead);
-        resolve(leads);
+        // Mock data for contact leads with enhanced fields
+        const mockContactLeads = [
+            {
+                id: 'lead1',
+                contactId: contactId,
+                tractId: 't1',
+                status: 'Open',
+                assignedBuyer: 'John Smith',
+                lastContacted: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                leadSource: 'Inbound',
+                outcomeSummary: 'Initial contact made, contact expressed interest in learning more about mineral rights acquisition',
+                notes: 'Contacted about mineral rights acquisition. Showed interest in learning more about the offer.',
+                createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+                id: 'lead2',
+                contactId: contactId,
+                tractId: 't2',
+                status: 'In Progress',
+                assignedBuyer: 'Jane Doe',
+                lastContacted: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+                leadSource: 'Scraped',
+                outcomeSummary: 'LOI sent, awaiting response from contact',
+                notes: 'LOI sent with competitive offer. Contact reviewing terms and conditions.',
+                createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+                id: 'lead3',
+                contactId: contactId,
+                tractId: 't1',
+                status: 'Closed Won',
+                assignedBuyer: 'Mike Johnson',
+                lastContacted: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+                leadSource: 'Brokered',
+                outcomeSummary: 'Successfully closed deal for 160 NMA at competitive price',
+                notes: 'Deal closed successfully. All documentation completed and funds transferred.',
+                createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+                id: 'lead4',
+                contactId: contactId,
+                tractId: 't3',
+                status: 'Closed Lost',
+                assignedBuyer: 'Sarah Wilson',
+                lastContacted: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+                leadSource: 'Auction',
+                outcomeSummary: 'Contact decided to hold onto mineral rights for now',
+                notes: 'Contact decided not to proceed with sale. Will follow up in 6 months.',
+                createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+            }
+        ];
+        
+        resolve(mockContactLeads);
     }, apiDelay));
 };
 
@@ -646,25 +699,337 @@ export const fetchContactLeads = async (contactId: string, tractId: string): Pro
  */
 export const fetchContacts = async (): Promise<Contact[]> => {
     return new Promise(resolve => setTimeout(() => {
-        resolve([...mockContacts]);
+        resolve(mockContacts);
     }, apiDelay));
 };
 
 /*
- * POST /api/contacts
- * Body: { name: string, email?: string, phone?: string, address?: string, entityType: string, legalName: string }
+ * GET /api/contacts/:id
  * Response: Contact
  */
-export const createContact = async (data: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>): Promise<Contact> => {
+export const fetchContact = async (id: string): Promise<Contact> => {
     return new Promise(resolve => setTimeout(() => {
-        const newContact: Contact = {
-            ...data,
-            id: `c${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        };
-        mockContacts.push(newContact);
-        resolve(newContact);
+        const contact = mockContacts.find(c => c.id === id);
+        if (!contact) {
+            throw new Error('Contact not found');
+        }
+        resolve(contact);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/contacts/:id/tract-ownership
+ * Response: ContactTractOwnership[]
+ */
+export const fetchContactTractOwnership = async (contactId: string): Promise<ContactTractOwnership[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Mock data - in real implementation this would query the database
+        const mockOwnership: ContactTractOwnership[] = [
+            {
+                id: 'cto1',
+                contactId,
+                tractId: 't1',
+                ownershipPercentage: 0.25,
+                royaltyPercentage: 0.25,
+                sourceOfTitle: 'Deed',
+                contact: mockContacts.find(c => c.id === contactId),
+                tract: mockTracts[0],
+                nma: 160, // 640 * 0.25
+                nra: 320, // 160 * 0.25 / 0.125
+            }
+        ];
+        resolve(mockOwnership);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/contacts/:id/units
+ * Response: ContactUnitSummary[]
+ */
+export const fetchContactUnits = async (contactId: string): Promise<any[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Mock data for contact units with enhanced fields
+        const mockContactUnits = [
+            {
+                id: 'unit1',
+                unitName: 'Bowman 22-27 1306-6N4W',
+                operator: 'ExxonMobil',
+                status: 'Producing',
+                formation: 'Wolfcamp',
+                county: 'Reeves',
+                state: 'TX',
+                assignedBuyer: 'Joe Buyer',
+                totalNMA: 320,
+                totalNRA: 640,
+                tracts: [
+                    {
+                        id: 'tract1',
+                        tractId: 't1',
+                        tract: {
+                            tractName: 'Bowman 22-27 1306-6N4W',
+                            str: '22-27 1306-6N4W',
+                            county: 'Reeves',
+                            state: 'TX'
+                        },
+                        nma: 160,
+                        royaltyPercentage: 0.1875,
+                        status: 'Under Review',
+                        assignedBuyer: 'Joe Buyer'
+                    },
+                    {
+                        id: 'tract2',
+                        tractId: 't2',
+                        tract: {
+                            tractName: 'Munson 2-21 1403-6N4W',
+                            str: '2-21 1403-6N4W',
+                            county: 'Reeves',
+                            state: 'TX'
+                        },
+                        nma: 160,
+                        royaltyPercentage: 0.1875,
+                        status: 'Under Review',
+                        assignedBuyer: 'Joe Buyer'
+                    }
+                ]
+            },
+            {
+                id: 'unit2',
+                unitName: 'Munson 2-21 1403-6N4W',
+                operator: 'Chevron',
+                status: 'Permitted',
+                formation: 'Bone Spring',
+                county: 'Reeves',
+                state: 'TX',
+                assignedBuyer: 'Sarah Wilson',
+                totalNMA: 240,
+                totalNRA: 480,
+                tracts: [
+                    {
+                        id: 'tract3',
+                        tractId: 't3',
+                        tract: {
+                            tractName: 'Munson 2-21 1403-6N4W',
+                            str: '2-21 1403-6N4W',
+                            county: 'Reeves',
+                            state: 'TX'
+                        },
+                        nma: 120,
+                        royaltyPercentage: 0.1250,
+                        status: 'Unassigned',
+                        assignedBuyer: null
+                    },
+                    {
+                        id: 'tract4',
+                        tractId: 't4',
+                        tract: {
+                            tractName: 'Bowman 22-27 1306-6N4W',
+                            str: '22-27 1306-6N4W',
+                            county: 'Reeves',
+                            state: 'TX'
+                        },
+                        nma: 120,
+                        royaltyPercentage: 0.1250,
+                        status: 'Assigned',
+                        assignedBuyer: 'Sarah Wilson'
+                    }
+                ]
+            },
+            {
+                id: 'unit3',
+                unitName: 'Pecos 15-18 1201-5N3W',
+                operator: 'ConocoPhillips',
+                status: 'Drilling',
+                formation: 'Wolfcamp',
+                county: 'Pecos',
+                state: 'TX',
+                assignedBuyer: 'Mike Johnson',
+                totalNMA: 180,
+                totalNRA: 360,
+                tracts: [
+                    {
+                        id: 'tract5',
+                        tractId: 't5',
+                        tract: {
+                            tractName: 'Pecos 15-18 1201-5N3W',
+                            str: '15-18 1201-5N3W',
+                            county: 'Pecos',
+                            state: 'TX'
+                        },
+                        nma: 180,
+                        royaltyPercentage: 0.2000,
+                        status: 'Assigned',
+                        assignedBuyer: 'Mike Johnson'
+                    }
+                ]
+            }
+        ];
+        
+        resolve(mockContactUnits);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/contacts/:id/call-logs
+ * Response: ContactCallLog[]
+ */
+export const fetchContactCallLogs = async (contactId: string): Promise<ContactCallLog[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Mock data
+        const mockCallLogs: ContactCallLog[] = [
+            {
+                id: 'cl1',
+                contactId,
+                callDate: new Date().toISOString(),
+                callTime: '14:30',
+                caller: 'John Smith',
+                callType: 'Outbound',
+                callStatus: 'Completed',
+                notes: 'Contacted about mineral rights acquisition. Showed interest in learning more about the offer. Discussed tract T-001 and unit U-001.',
+                followUpFlag: true,
+                followUpDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                associatedLeadId: 'l1',
+                tractIds: ['t1'],
+                unitIds: ['u1'],
+                duration: 180,
+                outcome: 'Interested',
+                nextAction: 'Send follow-up email with proposal',
+                nextActionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                createdBy: 'u1',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+            {
+                id: 'cl2',
+                contactId,
+                callDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                callTime: '10:15',
+                caller: 'Jane Doe',
+                callType: 'Inbound',
+                callStatus: 'Completed',
+                notes: 'Returned call about mineral rights. Asked for more information about the acquisition process.',
+                followUpFlag: false,
+                duration: 120,
+                outcome: 'Interested',
+                nextAction: 'Send information packet',
+                nextActionDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+                createdBy: 'u2',
+                createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+                id: 'cl3',
+                contactId,
+                callDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                callTime: '16:45',
+                caller: 'Mike Johnson',
+                callType: 'Follow-up',
+                callStatus: 'Left Message',
+                notes: 'Left voicemail about follow-up meeting. No response yet.',
+                followUpFlag: true,
+                followUpDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+                duration: 0,
+                outcome: 'Left Message',
+                nextAction: 'Try calling again tomorrow',
+                createdBy: 'u1',
+                createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            }
+        ];
+        resolve(mockCallLogs);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/contacts/:id/documents
+ * Response: ContactDocument[]
+ */
+export const fetchContactDocuments = async (contactId: string): Promise<ContactDocument[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Mock data
+        const mockDocuments: ContactDocument[] = [
+            {
+                id: 'doc1',
+                contactId,
+                documentName: 'Mineral Rights Deed - Tract T-001',
+                fileType: 'PDF',
+                category: 'Deed',
+                redFlagStatus: false,
+                versionHistory: ['v1.0'],
+                dateUploaded: new Date().toISOString(),
+                uploadedBy: 'John Smith',
+                notes: 'Original title deed for mineral rights in Section 15',
+                linkedTracts: ['t1'],
+                fileSize: 2048576,
+                fileUrl: '/documents/title_deed.pdf',
+                originalFileName: 'title_deed.pdf',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+            {
+                id: 'doc2',
+                contactId,
+                documentName: 'Lease Agreement - 2024',
+                fileType: 'DOCX',
+                category: 'Lease',
+                redFlagStatus: true,
+                versionHistory: ['v1.0', 'v1.1'],
+                dateUploaded: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                uploadedBy: 'Jane Doe',
+                notes: 'Current lease agreement requiring legal review',
+                linkedTracts: ['t1', 't2'],
+                fileSize: 1048576,
+                fileUrl: '/documents/lease_agreement.docx',
+                originalFileName: 'lease_agreement.docx',
+                createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+                id: 'doc3',
+                contactId,
+                documentName: 'Title Opinion - Legal Review',
+                fileType: 'PDF',
+                category: 'Title Opinion',
+                redFlagStatus: false,
+                versionHistory: ['v1.0'],
+                dateUploaded: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                uploadedBy: 'Mike Johnson',
+                notes: 'Attorney title opinion for mineral rights verification',
+                linkedTracts: ['t1'],
+                fileSize: 3145728,
+                fileUrl: '/documents/title_opinion.pdf',
+                originalFileName: 'title_opinion.pdf',
+                createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+            }
+        ];
+        resolve(mockDocuments);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/contacts/:id/distress-signals
+ * Response: DistressSignal[]
+ */
+export const fetchDistressSignals = async (contactId: string): Promise<DistressSignal[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        // Mock data
+        const mockSignals: DistressSignal[] = [
+            {
+                id: 'ds1',
+                contactId,
+                signalType: 'Tax Lien',
+                signalSource: 'County Court Records',
+                dateFlagged: new Date().toISOString(),
+                matchConfidence: 95.5,
+                matchingAlgorithm: 'Fuzzy name + address matching',
+                signalStatus: 'Open',
+                riskLevel: 'High',
+                internalNotes: 'Tax lien filed for $15,000 in unpaid property taxes',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }
+        ];
+        resolve(mockSignals);
     }, apiDelay));
 };
 
@@ -1226,14 +1591,9 @@ export const fetchNearbyRigs = async (latitude: number, longitude: number, radiu
  */
 export const fetchNearbyUnits = async (latitude: number, longitude: number, radius: number = 10): Promise<Unit[]> => {
     return new Promise(resolve => setTimeout(() => {
-        const units = mockUnits.filter(unit => {
-            const distance = Math.sqrt(
-                Math.pow(unit.latitude - latitude, 2) + 
-                Math.pow(unit.longitude - longitude, 2)
-            ) * 69;
-            return distance <= radius;
-        });
-        resolve(units);
+        // TODO: Implement proper spatial distance calculation when Unit interface includes coordinates
+        // For now, return all units since we don't have lat/lng in the Unit interface
+        resolve(mockUnits.map(populateUnit));
     }, apiDelay));
 };
 
@@ -1276,6 +1636,163 @@ export const updateMapLayerPreference = async (layerName: string, data: { isVisi
             };
             resolve(mockMapLayerPreferences[prefIndex]);
         }
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/producing-wells
+ * Response: ProducingWell[]
+ */
+export const fetchProducingWells = async (): Promise<ProducingWell[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        resolve([
+            {
+                id: 'w1',
+                apiNumber: '42-123-12345',
+                wellName: 'Smith #1',
+                operator: 'Pioneer Natural Resources',
+                latitude: 31.9686,
+                longitude: -102.0776,
+                status: 'Producing',
+                totalDepth: 12000,
+                spudDate: '2023-01-15',
+                completionDate: '2023-03-20',
+                createdAt: '2023-01-15T00:00:00Z',
+                updatedAt: '2023-03-20T00:00:00Z'
+            },
+            {
+                id: 'w2',
+                apiNumber: '42-123-12346',
+                wellName: 'Johnson #2',
+                operator: 'Devon Energy',
+                latitude: 33.9137,
+                longitude: -97.0965,
+                status: 'Producing',
+                totalDepth: 11500,
+                spudDate: '2023-02-10',
+                completionDate: '2023-04-15',
+                createdAt: '2023-02-10T00:00:00Z',
+                updatedAt: '2023-04-15T00:00:00Z'
+            },
+            {
+                id: 'w3',
+                apiNumber: '42-123-12347',
+                wellName: 'Wilson #3',
+                operator: 'EOG Resources',
+                latitude: 32.7767,
+                longitude: -96.7970,
+                status: 'Producing',
+                totalDepth: 12500,
+                spudDate: '2023-01-20',
+                completionDate: '2023-03-25',
+                createdAt: '2023-01-20T00:00:00Z',
+                updatedAt: '2023-03-25T00:00:00Z'
+            }
+        ]);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/permits
+ * Response: Permit[]
+ */
+export const fetchPermits = async (): Promise<Permit[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        resolve([
+            {
+                id: 'p1',
+                permitNumber: 'P-001',
+                operator: 'Pioneer Natural Resources',
+                latitude: 31.9686,
+                longitude: -102.0776,
+                permitType: 'Drilling',
+                status: 'Approved',
+                targetFormation: 'Wolfcamp A',
+                totalDepth: 12000,
+                permitDate: '2023-01-10',
+                createdAt: '2023-01-10T00:00:00Z',
+                updatedAt: '2023-01-10T00:00:00Z'
+            },
+            {
+                id: 'p2',
+                permitNumber: 'P-002',
+                operator: 'Devon Energy',
+                latitude: 33.9137,
+                longitude: -97.0965,
+                permitType: 'Drilling',
+                status: 'Pending',
+                targetFormation: 'Woodford',
+                totalDepth: 11500,
+                permitDate: '2023-02-05',
+                createdAt: '2023-02-05T00:00:00Z',
+                updatedAt: '2023-02-05T00:00:00Z'
+            },
+            {
+                id: 'p3',
+                permitNumber: 'P-003',
+                operator: 'EOG Resources',
+                latitude: 32.7767,
+                longitude: -96.7970,
+                permitType: 'Drilling',
+                status: 'Approved',
+                targetFormation: 'Eagle Ford',
+                totalDepth: 12500,
+                permitDate: '2023-01-15',
+                createdAt: '2023-01-15T00:00:00Z',
+                updatedAt: '2023-01-15T00:00:00Z'
+            }
+        ]);
+    }, apiDelay));
+};
+
+/*
+ * GET /api/mapping/rigs
+ * Response: Rig[]
+ */
+export const fetchRigs = async (): Promise<Rig[]> => {
+    return new Promise(resolve => setTimeout(() => {
+        resolve([
+            {
+                id: 'r1',
+                rigName: 'Rig Alpha',
+                operator: 'Pioneer Natural Resources',
+                latitude: 31.9686,
+                longitude: -102.0776,
+                status: 'Active',
+                rigType: 'Land',
+                totalDepth: 8000,
+                spudDate: '2023-01-15',
+                targetCompletion: '2023-03-20',
+                createdAt: '2023-01-15T00:00:00Z',
+                updatedAt: '2023-01-15T00:00:00Z'
+            },
+            {
+                id: 'r2',
+                rigName: 'Rig Beta',
+                operator: 'Devon Energy',
+                latitude: 33.9137,
+                longitude: -97.0965,
+                status: 'Moving',
+                rigType: 'Land',
+                totalDepth: 0,
+                createdAt: '2023-02-10T00:00:00Z',
+                updatedAt: '2023-02-10T00:00:00Z'
+            },
+            {
+                id: 'r3',
+                rigName: 'Rig Gamma',
+                operator: 'EOG Resources',
+                latitude: 32.7767,
+                longitude: -96.7970,
+                status: 'Active',
+                rigType: 'Land',
+                totalDepth: 6000,
+                spudDate: '2023-01-20',
+                targetCompletion: '2023-03-25',
+                createdAt: '2023-01-20T00:00:00Z',
+                updatedAt: '2023-01-20T00:00:00Z'
+            }
+        ]);
     }, apiDelay));
 };
 
@@ -2110,7 +2627,7 @@ let mockLeadNotes: LeadNote[] = [
         leadId: 'lead1',
         noteText: 'Landowner has 160 net mineral acres in high-value area',
         noteType: 'Important',
-        createdById: 'u4',
+        createdBy: 'u4',
         createdAt: '2024-01-15T10:00:00Z',
     },
     {
@@ -2118,7 +2635,7 @@ let mockLeadNotes: LeadNote[] = [
         leadId: 'lead2',
         noteText: 'Direct contact - no broker fees involved',
         noteType: 'General',
-        createdById: 'u4',
+        createdBy: 'u4',
         createdAt: '2024-01-16T11:00:00Z',
     },
     {
@@ -2126,7 +2643,7 @@ let mockLeadNotes: LeadNote[] = [
         leadId: 'lead3',
         noteText: 'Premium unit with proven production history',
         noteType: 'Important',
-        createdById: 'u4',
+        createdBy: 'u4',
         createdAt: '2024-01-17T12:00:00Z',
     },
     {
@@ -2134,7 +2651,7 @@ let mockLeadNotes: LeadNote[] = [
         leadId: 'lead4',
         noteText: 'Development opportunity - needs due diligence',
         noteType: 'General',
-        createdById: 'u4',
+        createdBy: 'u4',
         createdAt: '2024-01-18T13:00:00Z',
     }
 ];

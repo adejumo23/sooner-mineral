@@ -1,1 +1,0 @@
-import{bz as c,bA as e}from"./index-OcDhJqbg.js";import"./vec42-BWU0Wln9.js";import"./vec4f64-CvoGn1-Y.js";const u=2.4;function p(n){return e(n*u)}function s(n){return c(n)/u}function m(n,t,r){const o=Math.sqrt(n**2+t**2)/r;return o>1?0:3/(Math.PI*r**2)*(1-o**2)**2}function b(n){return typeof n=="function"?n:n?t=>+t[n]:()=>1}export{s as a,u as c,p as e,m as l,b as u};

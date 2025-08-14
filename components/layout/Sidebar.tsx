@@ -9,6 +9,7 @@ const navigation = [
   { name: 'Units', href: '/units', icon: CubeIcon },
       { name: 'Assignments', href: '/assignments', icon: ClipboardDocumentListIcon },
     { name: 'Leads', href: '/leads', icon: UserIcon },
+    { name: 'Contacts', href: '/contacts', icon: UserIcon },
     { name: 'Users', href: '/users', icon: UserGroupIcon },
   { name: 'Roles', href: '/roles', icon: ShieldCheckIcon },
   { name: 'Privileges', href: '/privileges', icon: KeyIcon },

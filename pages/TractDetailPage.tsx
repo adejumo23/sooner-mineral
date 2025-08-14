@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import type { Tract, User } from '../types';
 import * as api from '../services/api';
 import ContactsTab from '../components/ContactsTab';
@@ -10,6 +10,7 @@ import Button from '../components/ui/Button';
 const TractDetailPage: React.FC = () => {
   const { tractId } = useParams<{ tractId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [tract, setTract] = useState<Tract | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,6 +21,14 @@ const TractDetailPage: React.FC = () => {
       fetchTractData();
     }
   }, [tractId]);
+
+  useEffect(() => {
+    // Check if there's a tab query parameter and set the active tab
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['overview', 'contacts', 'mapping', 'title-chain', 'leads'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
 
   const fetchTractData = async () => {
     setIsLoading(true);

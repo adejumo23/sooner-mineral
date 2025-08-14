@@ -310,4 +310,287 @@ export const filterByDistance = (features: any[], centerLat: number, centerLon: 
     const distance = calculateDistance(centerLat, centerLon, feature.latitude, feature.longitude);
     return distance <= maxDistance;
   });
+};
+
+// Load ArcGIS modules
+export const loadModules = async () => {
+  // ArcGIS modules are already imported at the top
+  // This function exists for compatibility with existing code
+  return Promise.resolve();
+};
+
+// Create contact map view
+export const createContactMapView = async (
+  container: HTMLElement, 
+  contact: any, 
+  tracts: any[], 
+  units: any[]
+) => {
+  // Create a new map
+  const map = new Map({
+    basemap: ARCGIS_CONFIG.basemapId,
+    spatialReference: ARCGIS_CONFIG.spatialReference
+  });
+
+  // Create map view
+  const view = new MapView({
+    container,
+    map,
+    center: ARCGIS_CONFIG.center,
+    zoom: ARCGIS_CONFIG.zoom,
+    spatialReference: ARCGIS_CONFIG.spatialReference
+  });
+
+  return view;
+};
+
+// Create tract layer
+export const createTractLayer = async (tractSpatialData: any[], options: any = {}) => {
+  const layer = new GraphicsLayer({
+    id: 'tracts',
+    title: 'Tracts'
+  });
+
+  tractSpatialData.forEach(tract => {
+    if (tract.geometryData) {
+      let geometry;
+      if (tract.geometryType === 'Polygon' && tract.geometryData.coordinates) {
+        geometry = new Polygon({
+          rings: tract.geometryData.coordinates,
+          spatialReference: SpatialReference.WGS84
+        });
+      } else if (tract.geometryType === 'Point' && tract.geometryData.coordinates) {
+        geometry = new Point({
+          longitude: tract.geometryData.coordinates[0],
+          latitude: tract.geometryData.coordinates[1],
+          spatialReference: SpatialReference.WGS84
+        });
+      }
+
+      if (geometry) {
+        const symbol = new SimpleFillSymbol({
+          color: [59, 130, 246, options.opacity || 0.7], // Blue
+          outline: {
+            color: [30, 64, 175, 1], // Darker blue
+            width: 2
+          }
+        });
+
+        const graphic = new Graphic({
+          geometry,
+          symbol,
+          attributes: {
+            tractId: tract.tractId,
+            name: tract.tractName,
+            status: tract.titleStatus,
+            assignedBuyer: tract.assignedBuyerId
+          }
+        });
+
+        layer.add(graphic);
+      }
+    }
+  });
+
+  return layer;
+};
+
+// Create unit layer
+export const createUnitLayer = async (unitData: any[], options: any = {}) => {
+  const layer = new GraphicsLayer({
+    id: 'units',
+    title: 'Units'
+  });
+
+  unitData.forEach(unit => {
+    if (unit.geometryData && unit.geometryData.coordinates) {
+      const geometry = new Polygon({
+        rings: unit.geometryData.coordinates,
+        spatialReference: SpatialReference.WGS84
+      });
+
+      const symbol = new SimpleFillSymbol({
+        color: [139, 92, 246, options.opacity || 0.6], // Purple
+        outline: {
+          color: [109, 40, 217, 1], // Darker purple
+          width: 2
+        }
+      });
+
+      const graphic = new Graphic({
+        geometry,
+        symbol,
+        attributes: {
+          unitId: unit.id,
+          name: unit.unitName,
+          status: unit.status,
+          assignedBuyer: unit.assignedBuyer
+        }
+      });
+
+      layer.add(graphic);
+    }
+  });
+
+  return layer;
+};
+
+// Create wells layer
+export const createWellsLayer = async (wells: any[]) => {
+  const layer = new GraphicsLayer({
+    id: 'wells',
+    title: 'Producing Wells'
+  });
+
+  wells.forEach(well => {
+    const geometry = new Point({
+      longitude: well.longitude,
+      latitude: well.latitude,
+      spatialReference: SpatialReference.WGS84
+    });
+
+    const symbol = new SimpleMarkerSymbol({
+      color: [76, 175, 80, 0.8], // Green
+      size: 8,
+      outline: {
+        color: [255, 255, 255, 0.8],
+        width: 1
+      }
+    });
+
+    const graphic = new Graphic({
+      geometry,
+      symbol,
+      attributes: {
+        name: well.wellName,
+        operator: well.operator,
+        status: well.status
+      }
+    });
+
+    layer.add(graphic);
+  });
+
+  return layer;
+};
+
+// Create permits layer
+export const createPermitsLayer = async (permits: any[]) => {
+  const layer = new GraphicsLayer({
+    id: 'permits',
+    title: 'Permits'
+  });
+
+  permits.forEach(permit => {
+    const geometry = new Point({
+      longitude: permit.longitude,
+      latitude: permit.latitude,
+      spatialReference: SpatialReference.WGS84
+    });
+
+    const symbol = new SimpleMarkerSymbol({
+      color: [255, 193, 7, 0.8], // Yellow
+      size: 10,
+      style: 'square',
+      outline: {
+        color: [255, 255, 255, 0.8],
+        width: 1
+      }
+    });
+
+    const graphic = new Graphic({
+      geometry,
+      symbol,
+      attributes: {
+        name: permit.permitNumber,
+        operator: permit.operator,
+        status: permit.status
+      }
+    });
+
+    layer.add(graphic);
+  });
+
+  return layer;
+};
+
+// Create rigs layer
+export const createRigsLayer = async (rigs: any[]) => {
+  const layer = new GraphicsLayer({
+    id: 'rigs',
+    title: 'Rigs'
+  });
+
+  rigs.forEach(rig => {
+    const geometry = new Point({
+      longitude: rig.longitude,
+      latitude: rig.latitude,
+      spatialReference: SpatialReference.WGS84
+    });
+
+    const symbol = new SimpleMarkerSymbol({
+      color: [233, 30, 99, 0.8], // Pink
+      size: 12,
+      style: 'diamond',
+      outline: {
+        color: [255, 255, 255, 0.8],
+        width: 1
+      }
+    });
+
+    const graphic = new Graphic({
+      geometry,
+      symbol,
+      attributes: {
+        name: rig.rigName,
+        operator: rig.operator,
+        status: rig.status
+      }
+    });
+
+    layer.add(graphic);
+  });
+
+  return layer;
+};
+
+// Create distress signals layer
+export const createDistressSignalsLayer = async (signals: any[], options: any = {}) => {
+  const layer = new GraphicsLayer({
+    id: 'distressSignals',
+    title: 'Distress Signals'
+  });
+
+  signals.forEach(signal => {
+    // For distress signals, we'll place them at the contact's location
+    // In a real implementation, you'd get the actual coordinates
+    const geometry = new Point({
+      longitude: -102.0776, // Default to Midland, TX
+      latitude: 31.9686,
+      spatialReference: SpatialReference.WGS84
+    });
+
+    const symbol = new SimpleMarkerSymbol({
+      color: [239, 68, 68, 0.8], // Red
+      size: options.size || 12,
+      outline: {
+        color: [255, 255, 255, 0.8],
+        width: 2
+      }
+    });
+
+    const graphic = new Graphic({
+      geometry,
+      symbol,
+      attributes: {
+        signalType: signal.signalType,
+        riskLevel: signal.riskLevel,
+        status: signal.signalStatus
+      }
+    });
+
+    layer.add(graphic);
+  });
+
+  return layer;
 }; 

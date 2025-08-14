@@ -60,6 +60,168 @@ export interface Contact {
   updatedAt: string;
 }
 
+// Enhanced Contact interface for the Contact Management module
+export interface ContactEnhanced extends Contact {
+  // Core contact information
+  role: 'Seller' | 'Landowner' | 'Heir' | 'Attorney-in-Fact' | 'Unknown';
+  ownershipType: 'Mineral' | 'Royalty' | 'NPRI' | 'ORRI' | 'Working Interest';
+  preferredContactMethod: 'Call' | 'Email' | 'Text' | 'Do Not Contact';
+  lastContactedDate?: string;
+  source: string; // Where/how the contact was first discovered
+  origination: string; // Additional source details
+  
+  // Calculated fields
+  totalNMA: number; // Total net mineral acres across all tracts
+  totalNRA: number; // Total NRA (1/8 normalized) across all tracts
+  
+  // Distress and intent signals
+  distressSignals: DistressSignal[];
+  
+  // Linked data counts
+  linkedTractCount: number;
+  linkedUnitCount: number;
+  activeLeadCount: number;
+}
+
+// Distress and Intent Signal interface
+export interface DistressSignal {
+  id: string;
+  contactId: string;
+  signalType: 'Death' | 'Bankruptcy' | 'Tax Lien' | 'Judgment' | 'Criminal' | 'Indebtedness' | 'Divorce' | 'Foreclosure' | 'Other';
+  signalSource: string; // County, court, enrichment service, etc.
+  dateFlagged: string;
+  matchConfidence: number; // Percentage likelihood the record matches this contact
+  matchingAlgorithm: string; // Description of how the match was made
+  signalStatus: 'Open' | 'Cleared' | 'Under Review' | 'Verified';
+  internalNotes?: string;
+  riskLevel: 'Low' | 'Medium' | 'High' | 'Critical';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Contact Tract Ownership with enhanced fields
+export interface ContactTractOwnershipEnhanced extends ContactTractOwnership {
+  // Core ownership information
+  ownershipPercentage: number; // e.g., 0.25 for 25%
+  royaltyPercentage: number; // e.g., 0.25 for 25%
+  sourceOfTitle?: string;
+  
+  // Calculated fields
+  nma: number; // Net Mineral Acres = Gross Acres × Ownership %
+  nra: number; // NRA (1/8 normalized) = NMA × (Royalty % ÷ 0.125)
+  
+  // Tract information
+  tract: Tract;
+  
+  // Unit information (if tract is part of a unit)
+  unitId?: string;
+  unitName?: string;
+  unitOperator?: string;
+  unitFormation?: string;
+  
+  // Lead information
+  hasActiveLead: boolean;
+  leadStatus?: string;
+  assignedBuyer?: User;
+  
+  // Activity tracking
+  lastActivity?: string;
+}
+
+// Contact Unit Summary interface
+export interface ContactUnitSummary {
+  id: string;
+  unitId: string;
+  unitName: string;
+  operator: string;
+  county: string;
+  state: string;
+  formation: string;
+  totalNMA: number; // Sum of NMA across all tracts in this unit
+  totalNRA: number; // Sum of NRA across all tracts in this unit
+  tractCount: number; // Number of tracts owned in this unit
+  tracts: ContactTractOwnershipEnhanced[]; // Detailed tract breakdown
+  hasActiveLead: boolean;
+  leadStatus?: string;
+  assignedBuyer?: User;
+}
+
+// Contact Call Log interface
+export interface ContactCallLog {
+  id: string;
+  contactId: string;
+  
+  // Core data fields
+  callDate: string;
+  callTime: string; // Time of day the call was made
+  caller: string; // Who made/received the call
+  callType: 'Outbound' | 'Inbound' | 'Follow-up' | 'Meeting' | 'Other';
+  callStatus: 'Completed' | 'No Answer' | 'Left Message' | 'Busy' | 'Disconnected' | 'Scheduled';
+  notes: string;
+  followUpFlag: boolean; // Whether follow-up is required
+  followUpDate?: string; // When to follow up
+  
+  // Associated data
+  associatedLeadId?: string; // Link to specific lead
+  associatedLead?: LeadEnhanced; // Populated from associatedLeadId
+  tractIds?: string[]; // Associated tracts discussed
+  unitIds?: string[]; // Associated units discussed
+  
+  // Call details
+  duration: number; // Call duration in seconds
+  outcome: 'No Answer' | 'Left Message' | 'Spoke' | 'Scheduled Follow-up' | 'Not Interested' | 'Interested' | 'Qualified' | 'Disqualified';
+  nextAction?: string;
+  nextActionDate?: string;
+  
+  // Metadata
+  createdBy: string;
+  createdByUser?: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Contact Document interface
+export interface ContactDocument {
+  id: string;
+  contactId: string;
+  
+  // Core data fields
+  documentName: string; // User-assigned or auto-generated name
+  fileType: string; // PDF, DOCX, CSV, PNG, etc.
+  category: 'Lease' | 'Conveyance' | 'Title Opinion' | 'Deed' | 'Contract' | 'Correspondence' | 'Legal' | 'Financial' | 'Research' | 'Other';
+  redFlagStatus: boolean; // Toggle for legal/internal review
+  versionHistory: string[]; // Array of version IDs
+  dateUploaded: string; // Timestamp when document was added
+  uploadedBy: string; // Username or initials of uploading team member
+  notes?: string; // Optional description or summary relevance
+  linkedTracts?: string[]; // Associated tract IDs
+  
+  // File metadata
+  fileSize: number;
+  fileUrl: string;
+  originalFileName: string;
+  
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Contact Management Filters
+export interface ContactFilters {
+  search?: string;
+  role?: ContactEnhanced['role'];
+  ownershipType?: ContactEnhanced['ownershipType'];
+  contactType?: Contact['contactType'];
+  state?: string;
+  county?: string;
+  hasDistressSignals?: boolean;
+  distressSignalType?: DistressSignal['signalType'];
+  riskLevel?: DistressSignal['riskLevel'];
+  hasActiveLeads?: boolean;
+  lastContactedDate?: string;
+  preferredContactMethod?: ContactEnhanced['preferredContactMethod'];
+}
+
 export interface ContactTractOwnership {
   id: string;
   contactId: string;
@@ -421,8 +583,8 @@ export interface UpdateAssignmentData {
   notes?: string;
 }
 
-// Lead Management Module Types
-export interface Lead {
+// Lead Management Module Types - Enhanced Lead interface
+export interface LeadEnhanced {
   id: string;
   linkedContactId: string;
   linkedTractIds: string[]; // Array of tract IDs
@@ -466,15 +628,15 @@ export interface LeadNote {
   leadId: string;
   noteText: string;
   noteType: 'General' | 'Follow Up' | 'Important' | 'Internal';
-  createdById: string;
+  createdBy: string;
   createdAt: string;
   
   // Populated fields
-  createdBy?: User;
+  createdByUser?: User;
 }
 
 export interface LeadFilters {
-  status?: Lead['status'];
+  status?: LeadEnhanced['status'];
   county?: string;
   tractId?: string;
   unitId?: string;
@@ -501,7 +663,7 @@ export interface CreateLeadData {
 }
 
 export interface UpdateLeadData {
-  status?: Lead['status'];
+  status?: LeadEnhanced['status'];
   priorityScore?: number;
   lastContactDate?: string;
   nextFollowUpDate?: string;

@@ -54,6 +54,9 @@ const UnitDetailPage: React.FC = () => {
   const [lockNotes, setLockNotes] = useState('');
   const [noteText, setNoteText] = useState('');
   const [noteType, setNoteType] = useState<UnitNote['noteType']>('Internal');
+  const [tractSearchTerm, setTractSearchTerm] = useState('');
+  const [tractSortBy, setTractSortBy] = useState('tractName');
+  const [tractFilterStatus, setTractFilterStatus] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -218,6 +221,33 @@ const UnitDetailPage: React.FC = () => {
     { id: 'mapping', name: 'Mapping Preview', icon: MapIcon },
     { id: 'assignment', name: 'Assignment', icon: CogIcon },
   ];
+
+  const filteredAndSortedTracts = unitTractsEnhanced
+    .filter(tract => 
+      tract.tractName.toLowerCase().includes(tractSearchTerm.toLowerCase()) ||
+      tract.str?.toLowerCase().includes(tractSearchTerm.toLowerCase()) ||
+      tract.tract?.county?.toLowerCase().includes(tractSearchTerm.toLowerCase()) ||
+      tract.tract?.state?.toLowerCase().includes(tractSearchTerm.toLowerCase())
+    )
+    .filter(tract => tractFilterStatus ? tract.titleStatus === tractFilterStatus : true)
+    .sort((a, b) => {
+      if (tractSortBy === 'tractName') return a.tractName.localeCompare(b.tractName);
+      if (tractSortBy === 'grossAcres') return b.grossAcres - a.grossAcres;
+      if (tractSortBy === 'netMineralAcres') return (b.netMineralAcres || 0) - (a.netMineralAcres || 0);
+      if (tractSortBy === 'titleStatus') return a.titleStatus.localeCompare(b.titleStatus);
+      if (tractSortBy === 'lastActivity') return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+      return 0;
+    });
+
+  const handleViewTitleChain = (tract: UnitTractEnhanced) => {
+    // Navigate to tract detail page with title-chain tab active
+    navigate(`/tracts/${tract.tractId}?tab=title-chain`);
+  };
+
+  const handleViewContacts = (tract: UnitTractEnhanced) => {
+    // Navigate to tract detail page with contacts tab active
+    navigate(`/tracts/${tract.tractId}?tab=contacts`);
+  };
 
   return (
     <div className="p-6">
@@ -423,19 +453,47 @@ const UnitDetailPage: React.FC = () => {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Linked Tracts in This Unit</h3>
                   <div className="flex space-x-3">
-                    <Button variant="outline" size="sm">
-                      Search
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Sort
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Filter
-                    </Button>
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        placeholder="Search tracts..."
+                        value={tractSearchTerm}
+                        onChange={(e) => setTractSearchTerm(e.target.value)}
+                        className="w-64 pl-8"
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <select
+                      value={tractSortBy}
+                      onChange={(e) => setTractSortBy(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
+                    >
+                      <option value="tractName">Sort by Tract Name</option>
+                      <option value="grossAcres">Sort by Gross Acres</option>
+                      <option value="netMineralAcres">Sort by Net Acres</option>
+                      <option value="titleStatus">Sort by Title Status</option>
+                      <option value="lastActivity">Sort by Last Activity</option>
+                    </select>
+                    <select
+                      value={tractFilterStatus}
+                      onChange={(e) => setTractFilterStatus(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
+                    >
+                      <option value="">All Title Statuses</option>
+                      <option value="Verified">Verified</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Failed">Failed</option>
+                      <option value="Verified with Curative Requirements">Curative Required</option>
+                      <option value="Unmapped">Unmapped</option>
+                    </select>
                   </div>
                 </div>
                 
-                {unitTractsEnhanced.length === 0 ? (
+                {filteredAndSortedTracts.length === 0 ? (
                   <p className="text-gray-500">No tracts linked to this unit</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -475,8 +533,12 @@ const UnitDetailPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {unitTractsEnhanced.map((tract) => (
-                          <tr key={tract.id} className="hover:bg-gray-50">
+                        {filteredAndSortedTracts.map((tract) => (
+                          <tr 
+                            key={tract.id} 
+                            className="hover:bg-gray-50 transition-colors duration-150"
+                            title={`${tract.tractName} - ${tract.tract?.county}, ${tract.tract?.state}`}
+                          >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
                                 {tract.tractName}
@@ -486,12 +548,12 @@ const UnitDetailPage: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
+                              <div className="text-sm text-gray-900 font-mono">
                                 {tract.str || 'N/A'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
+                              <div className="text-sm text-gray-900 font-medium">
                                 {tract.grossAcres.toLocaleString()}
                               </div>
                             </td>
@@ -517,12 +579,26 @@ const UnitDetailPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {tract.assignedBuyer ? tract.assignedBuyer.name : 'Unassigned'}
+                                {tract.assignedBuyer ? (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {tract.assignedBuyer.name}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                    Unassigned
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-500">
-                                {tract.lastActivity ? new Date(tract.lastActivity).toLocaleDateString() : 'No activity'}
+                                {tract.lastActivity ? (
+                                  <span title={`Last activity: ${new Date(tract.lastActivity).toLocaleString()}`}>
+                                    {new Date(tract.lastActivity).toLocaleDateString()}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">No activity</span>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -531,7 +607,9 @@ const UnitDetailPage: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   disabled={!tract.hasTitleChain}
-                                  className="text-xs"
+                                  className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors duration-150"
+                                  onClick={() => handleViewTitleChain(tract)}
+                                  title={tract.hasTitleChain ? "View title chain details" : "No title chain data available"}
                                 >
                                   View Title Chain
                                 </Button>
@@ -539,7 +617,9 @@ const UnitDetailPage: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   disabled={!tract.hasContacts}
-                                  className="text-xs"
+                                  className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors duration-150"
+                                  onClick={() => handleViewContacts(tract)}
+                                  title={tract.hasContacts ? "View contact information" : "No contact data available"}
                                 >
                                   View Contacts
                                 </Button>
@@ -549,6 +629,12 @@ const UnitDetailPage: React.FC = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                
+                {filteredAndSortedTracts.length > 0 && (
+                  <div className="mt-4 text-sm text-gray-500">
+                    Showing {filteredAndSortedTracts.length} of {unitTractsEnhanced.length} tracts
                   </div>
                 )}
               </div>
