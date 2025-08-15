@@ -247,3 +247,45 @@
 .focus-ring-danger:focus { 
   box-shadow: 0 0 0 3px var(--focus-ring-danger), 0 0 0 1px var(--focus-ring-offset); 
 }
+
+/* Legacy Sooner Capital Colors - Added for backward compatibility */
+.sc-navy { background-color: #1e293b; }
+.sc-light-navy { background-color: #334155; }
+.sc-slate { color: #475569; }
+.sc-light-slate { color: #64748b; }
+.sc-blue { color: #3b82f6; }
+
+/* Enhanced text colors for better visibility */
+.text-gray-300 { color: #6b7280; }
+.text-gray-400 { color: #6b7280; }
+.text-gray-500 { color: #4b5563; }
+
+/* Background colors */
+.bg-sc-navy { background-color: #1e293b; }
+.bg-sc-light-navy { background-color: #334155; }
+
+/* Text colors */
+.text-sc-navy { color: #1e293b; }
+.text-sc-light-navy { color: #334155; }
+.text-sc-slate { color: #475569; }
+.text-sc-light-slate { color: #64748b; }
+.text-sc-blue { color: #3b82f6; }
+
+/* Border colors */
+.border-sc-navy { border-color: #1e293b; }
+.border-sc-light-navy { border-color: #334155; }
+
+/* Hover states */
+.hover\:bg-sc-navy:hover { background-color: #1e293b; }
+.hover\:text-sc-navy:hover { color: #1e293b; }
+.hover\:text-white:hover { color: #ffffff; }
+
+/* Additional sc-blue variants */
+.text-sc-blue-600 { color: #2563eb; }
+.text-sc-blue-dark { color: #1d4ed8; }
+.text-sc-light-blue { color: #60a5fa; }
+.bg-sc-blue\/20 { background-color: rgba(59, 130, 246, 0.2); }
+.bg-sc-blue\/10 { background-color: rgba(59, 130, 246, 0.1); }
+
+/* Focus ring colors */
+.focus\:ring-sc-blue:focus { --tw-ring-color: #3b82f6; }

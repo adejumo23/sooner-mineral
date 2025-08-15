@@ -169,7 +169,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-white">Tract Leads</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Tract Leads</h3>
         <Button onClick={() => setIsCreateLeadModalOpen(true)}>
           Create New Lead
         </Button>

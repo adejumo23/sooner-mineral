@@ -98,32 +98,49 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ tractId, users }) => {
     }
   };
 
-  const getLastOutreach = (contact: ContactTractOwnership): string => {
-    const notes = contactNotes.filter(note => note.contactId === contact.contactId);
-    if (notes.length === 0) return 'No outreach';
+  const formatPercentage = (value: number) => {
+    return `${(value * 100).toFixed(1)}%`;
+  };
+
+  const formatAcres = (value: number) => {
+    return `${value.toFixed(2)} NMA`;
+  };
+
+  const getLastOutreach = (contact: ContactTractOwnership) => {
+    // This would typically come from the contact notes or lead activity
+    // For now, returning a placeholder
+    return 'N/A';
+  };
+
+  const hasLinkedLead = (contact: ContactTractOwnership) => {
+    // This would check if there's an active lead for this contact
+    // For now, returning false as placeholder
+    return false;
+  };
+
+  const getContactInfo = (contact: ContactTractOwnership) => {
+    if (!contact.contact) return 'N/A';
     
-    const latestNote = notes.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
+    const { email, phone, address } = contact.contact;
+    const contactMethods = [];
     
-    return new Date(latestNote.createdAt).toLocaleDateString();
+    if (email) contactMethods.push(`📧 ${email}`);
+    if (phone) contactMethods.push(`📞 ${phone}`);
+    if (address) contactMethods.push(`📍 ${address}`);
+    
+    return contactMethods.length > 0 ? contactMethods.join('\n') : 'N/A';
   };
 
-  const hasLinkedLead = (contact: ContactTractOwnership): boolean => {
-    return contactLeads.some(lead => 
-      lead.contactId === contact.contactId && 
-      ['Open', 'In Progress', 'Qualified'].includes(lead.status)
-    );
+  const getSourceOfTitle = (contact: ContactTractOwnership) => {
+    if (!contact.sourceOfTitle) return 'N/A';
+    
+    // Truncate long titles and show full on hover
+    return contact.sourceOfTitle.length > 50 
+      ? `${contact.sourceOfTitle.substring(0, 50)}...`
+      : contact.sourceOfTitle;
   };
 
-  const formatPercentage = (value: number): string => {
-    return `${(value * 100).toFixed(2)}%`;
-  };
-
-  const formatAcres = (value?: number): string => {
-    return value ? value.toFixed(2) : 'N/A';
-  };
-
+  // Sort contacts based on current sort criteria
   const sortedContacts = [...contacts].sort((a, b) => {
     let aValue: any, bValue: any;
     
@@ -141,13 +158,14 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ tractId, users }) => {
         bValue = getLastOutreach(b);
         break;
       default:
-        return 0;
+        aValue = a.contact?.name || '';
+        bValue = b.contact?.name || '';
     }
-
+    
     if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
     } else {
-      return aValue < bValue ? 1 : -1;
+      return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
     }
   });
 
@@ -166,365 +184,377 @@ const ContactsTab: React.FC<ContactsTabProps> = ({ tractId, users }) => {
 
   return (
     <div className="space-y-6">
-      {/* Contacts Table */}
+      {/* Header with description */}
       <div>
-        <h3 className="text-lg font-semibold text-white mb-4">Tract Contacts</h3>
-        <Table headers={[
-          'Contact Name',
-          'Ownership %',
-          'Royalty %',
-          'NMA',
-          'NRA (1/8 normalized)',
-          'Source of Title',
-          'Last Outreach',
-          'Linked Lead',
-          'Actions'
-        ]}>
-          {sortedContacts.map((contact) => (
-            <tr key={contact.id} className="hover:bg-sc-light-navy cursor-pointer" onClick={() => handleContactClick(contact)}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                <div>
-                  <div className="font-medium">{contact.contact?.name}</div>
-                  {contact.contact?.entityType === 'Entity' && (
-                    <div className="text-xs text-sc-slate mt-1" title={contact.contact.legalName}>
-                      {contact.contact.legalName.length > 50 
-                        ? contact.contact.legalName.substring(0, 50) + '...'
-                        : contact.contact.legalName
-                      }
-                    </div>
-                  )}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                {formatPercentage(contact.ownershipPercentage)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                {formatPercentage(contact.royaltyPercentage)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                {formatAcres(contact.nma)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                {formatAcres(contact.nra)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                <div className="max-w-xs truncate" title={contact.sourceOfTitle}>
-                  {contact.sourceOfTitle || 'N/A'}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                {getLastOutreach(contact)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  hasLinkedLead(contact) 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {hasLinkedLead(contact) ? 'Yes' : 'No'}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleContactClick(contact);
-                    setIsNoteModalOpen(true);
-                  }}
+        <h3 className="text-lg font-semibold text-white mb-2">Tract Contacts</h3>
+        <p className="text-sc-slate text-sm">
+          Manage landowners and stakeholders associated with this tract. View ownership interest, 
+          contact details, and create leads for buyer outreach opportunities.
+        </p>
+      </div>
+
+      {/* Contacts Table */}
+      <div className="bg-sc-light-navy rounded-lg border border-sc-navy overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-sc-navy">
+            <thead className="bg-sc-navy">
+              <tr>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider cursor-pointer hover:text-white"
+                  onClick={() => handleSort('name')}
                 >
-                  Add Note
-                </Button>
-                {!hasLinkedLead(contact) && (
-                  <Button 
-                    variant="secondary" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleContactClick(contact);
-                      setIsLeadModalOpen(true);
-                    }}
-                  >
-                    Create Lead
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </Table>
+                  <div className="flex items-center space-x-1">
+                    <span>Contact Name</span>
+                    {sortBy === 'name' && (
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider cursor-pointer hover:text-white"
+                  onClick={() => handleSort('ownership')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Ownership %</span>
+                    {sortBy === 'ownership' && (
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  Royalty %
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  NMA
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  NRA (1/8 normalized)
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  Source of Title
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  Contact Info
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider cursor-pointer hover:text-white"
+                  onClick={() => handleSort('lastOutreach')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Last Outreach</span>
+                    {sortBy === 'lastOutreach' && (
+                      <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  Linked Lead
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-sc-slate uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-sc-light-navy divide-y divide-sc-navy">
+              {sortedContacts.map((contact) => (
+                <tr key={contact.id} className="hover:bg-sc-navy cursor-pointer" onClick={() => handleContactClick(contact)}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    <div>
+                      <div className="font-medium">{contact.contact?.name}</div>
+                      {contact.contact?.entityType === 'Entity' && (
+                        <div className="text-xs text-sc-slate mt-1" title={contact.contact.legalName}>
+                          {contact.contact.legalName.length > 50 
+                            ? contact.contact.legalName.substring(0, 50) + '...'
+                            : contact.contact.legalName
+                          }
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
+                    {formatPercentage(contact.ownershipPercentage)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
+                    {formatPercentage(contact.royaltyPercentage)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
+                    {formatAcres(contact.nma || 0)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
+                    {formatAcres(contact.nra || 0)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-sc-slate">
+                    <div className="max-w-xs" title={contact.sourceOfTitle}>
+                      {getSourceOfTitle(contact)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-sc-slate">
+                    <div className="max-w-xs whitespace-pre-line" title={getContactInfo(contact)}>
+                      {getContactInfo(contact)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
+                    {getLastOutreach(contact)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-sc-slate">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      hasLinkedLead(contact) 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {hasLinkedLead(contact) ? 'Yes' : 'No'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleContactClick(contact);
+                        setIsNoteModalOpen(true);
+                      }}
+                    >
+                      Add Note
+                    </Button>
+                    {!hasLinkedLead(contact) && (
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleContactClick(contact);
+                          setIsLeadModalOpen(true);
+                        }}
+                      >
+                        Create Lead
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Contact Details Modal */}
       {selectedContact && (
-        <Modal 
-          isOpen={!!selectedContact} 
-          onClose={() => setSelectedContact(null)}
-          title={`Contact Details - ${selectedContact.contact?.name}`}
+        <Modal
+          isOpen={isNoteModalOpen || isLeadModalOpen}
+          onClose={() => {
+            setIsNoteModalOpen(false);
+            setIsLeadModalOpen(false);
+            setSelectedContact(null);
+          }}
+          title={`${selectedContact.contact?.name} - ${isNoteModalOpen ? 'Add Note' : 'Create Lead'}`}
         >
-          <div className="space-y-6">
-            {/* Contact Info */}
-            <div className="bg-sc-light-navy p-4 rounded-lg">
-              <h4 className="text-white font-semibold mb-3">Contact Information</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-sc-slate">Name:</span>
-                  <div className="text-white">{selectedContact.contact?.name}</div>
-                </div>
-                <div>
-                  <span className="text-sc-slate">Entity Type:</span>
-                  <div className="text-white">{selectedContact.contact?.entityType}</div>
-                </div>
-                <div>
-                  <span className="text-sc-slate">Email:</span>
-                  <div className="text-white">{selectedContact.contact?.email || 'N/A'}</div>
-                </div>
-                <div>
-                  <span className="text-sc-slate">Phone:</span>
-                  <div className="text-white">{selectedContact.contact?.phone || 'N/A'}</div>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-sc-slate">Address:</span>
-                  <div className="text-white">{selectedContact.contact?.address || 'N/A'}</div>
-                </div>
-                {selectedContact.contact?.entityType === 'Entity' && (
-                  <div className="col-span-2">
-                    <span className="text-sc-slate">Legal Name:</span>
-                    <div className="text-white">{selectedContact.contact.legalName}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Ownership Info */}
-            <div className="bg-sc-light-navy p-4 rounded-lg">
-              <h4 className="text-white font-semibold mb-3">Ownership Information</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-sc-slate">Ownership %:</span>
-                  <div className="text-white">{formatPercentage(selectedContact.ownershipPercentage)}</div>
-                </div>
-                <div>
-                  <span className="text-sc-slate">Royalty %:</span>
-                  <div className="text-white">{formatPercentage(selectedContact.royaltyPercentage)}</div>
-                </div>
-                <div>
-                  <span className="text-sc-slate">NMA:</span>
-                  <div className="text-white">{formatAcres(selectedContact.nma)}</div>
-                </div>
-                <div>
-                  <span className="text-sc-slate">NRA (1/8 normalized):</span>
-                  <div className="text-white">{formatAcres(selectedContact.nra)}</div>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-sc-slate">Source of Title:</span>
-                  <div className="text-white">{selectedContact.sourceOfTitle || 'N/A'}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes Section */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-white font-semibold">Contact Notes</h4>
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={() => setIsNoteModalOpen(true)}
+          {isNoteModalOpen && (
+            <form onSubmit={handleCreateNote} className="space-y-4">
+              <div>
+                <label htmlFor="noteType" className="block text-sm font-medium text-sc-slate mb-1">
+                  Note Type
+                </label>
+                <select
+                  id="noteType"
+                  name="noteType"
+                  required
+                  className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
                 >
+                  <option value="Outreach">Outreach</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Documentation">Documentation</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="noteText" className="block text-sm font-medium text-sc-slate mb-1">
+                  Note Text
+                </label>
+                <textarea
+                  id="noteText"
+                  name="noteText"
+                  required
+                  rows={4}
+                  className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate placeholder-sc-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                  placeholder="Enter your note here..."
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-sc-light-navy">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setIsNoteModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
                   Add Note
                 </Button>
               </div>
-              <div className="space-y-3 max-h-48 overflow-y-auto">
-                {contactNotes.length === 0 ? (
-                  <p className="text-sc-slate text-sm">No notes yet</p>
-                ) : (
-                  contactNotes.map((note) => (
-                    <div key={note.id} className="bg-sc-light-navy p-3 rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs text-sc-blue bg-sc-blue bg-opacity-20 px-2 py-1 rounded">
-                          {note.noteType}
-                        </span>
-                        <span className="text-xs text-sc-slate">
-                          {new Date(note.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-white text-sm">{note.noteText}</p>
-                      <p className="text-xs text-sc-slate mt-1">
-                        By: {note.createdByUser?.name}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            </form>
+          )}
 
-            {/* Leads Section */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-white font-semibold">Linked Leads</h4>
-                {!hasLinkedLead(selectedContact) && (
-                  <Button 
-                    variant="secondary" 
-                    size="sm"
-                    onClick={() => setIsLeadModalOpen(true)}
-                  >
-                    Create Lead
-                  </Button>
-                )}
+          {isLeadModalOpen && (
+            <form onSubmit={handleCreateLead} className="space-y-4">
+              <div>
+                <label htmlFor="leadType" className="block text-sm font-medium text-sc-slate mb-1">
+                  Lead Type
+                </label>
+                <select
+                  id="leadType"
+                  name="leadType"
+                  required
+                  className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                >
+                  <option value="Acquisition">Acquisition</option>
+                  <option value="Lease">Lease</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
-              <div className="space-y-3 max-h-48 overflow-y-auto">
-                {contactLeads.length === 0 ? (
-                  <p className="text-sc-slate text-sm">No leads yet</p>
-                ) : (
-                  contactLeads.map((lead) => (
-                    <div key={lead.id} className="bg-sc-light-navy p-3 rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex space-x-2">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            lead.status === 'Open' ? 'bg-blue-100 text-blue-800' :
-                            lead.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                            lead.status === 'Qualified' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {lead.status}
-                          </span>
-                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                            {lead.leadType}
-                          </span>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            lead.priority === 'High' || lead.priority === 'Urgent' ? 'bg-red-100 text-red-800' :
-                            lead.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {lead.priority}
-                          </span>
-                        </div>
-                        <span className="text-xs text-sc-slate">
-                          {new Date(lead.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {lead.notes && (
-                        <p className="text-white text-sm mb-2">{lead.notes}</p>
-                      )}
-                      <div className="text-xs text-sc-slate">
-                        Assigned to: {lead.assignedToUser?.name || 'Unassigned'}
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div>
+                <label htmlFor="priority" className="block text-sm font-medium text-sc-slate mb-1">
+                  Priority
+                </label>
+                <select
+                  id="priority"
+                  name="priority"
+                  required
+                  className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Urgent">Urgent</option>
+                </select>
               </div>
-            </div>
-          </div>
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-sc-slate mb-1">
+                  Notes
+                </label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  rows={3}
+                  className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate placeholder-sc-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                  placeholder="Enter lead notes..."
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t border-sc-light-navy">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setIsLeadModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Create Lead
+                </Button>
+              </div>
+            </form>
+          )}
         </Modal>
       )}
 
-      {/* Add Note Modal */}
-      <Modal 
-        isOpen={isNoteModalOpen} 
-        onClose={() => setIsNoteModalOpen(false)}
-        title="Add Contact Note"
-      >
-        <form onSubmit={handleCreateNote} className="space-y-4">
-          <div>
-            <label htmlFor="noteType" className="block text-sm font-medium text-sc-slate mb-1">
-              Note Type
-            </label>
-            <select 
-              id="noteType" 
-              name="noteType" 
-              required
-              className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
+      {/* Contact Details Panel */}
+      {selectedContact && !isNoteModalOpen && !isLeadModalOpen && (
+        <div className="bg-sc-light-navy p-4 rounded-lg">
+          <div className="flex justify-between items-start mb-4">
+            <h4 className="text-lg font-medium text-white">
+              {selectedContact.contact?.name} - Contact Details
+            </h4>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSelectedContact(null)}
             >
-              <option value="Outreach">Outreach</option>
-              <option value="Follow-up">Follow-up</option>
-              <option value="Meeting">Meeting</option>
-              <option value="Documentation">Documentation</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="noteText" className="block text-sm font-medium text-sc-slate mb-1">
-              Note Text
-            </label>
-            <textarea 
-              id="noteText" 
-              name="noteText" 
-              required
-              rows={4}
-              className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate placeholder-sc-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
-              placeholder="Enter your note here..."
-            />
-          </div>
-          <div className="flex justify-end space-x-3 pt-4 border-t border-sc-light-navy">
-            <Button type="button" variant="secondary" onClick={() => setIsNoteModalOpen(false)}>
-              Cancel
+              Close
             </Button>
-            <Button type="submit">Add Note</Button>
           </div>
-        </form>
-      </Modal>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Contact Information */}
+            <div>
+              <h5 className="text-sm font-medium text-sc-slate mb-3">Contact Information</h5>
+              <div className="space-y-2 text-sm text-white">
+                {selectedContact.contact?.email && (
+                  <div><span className="text-sc-slate">Email:</span> {selectedContact.contact.email}</div>
+                )}
+                {selectedContact.contact?.phone && (
+                  <div><span className="text-sc-slate">Phone:</span> {selectedContact.contact.phone}</div>
+                )}
+                {selectedContact.contact?.address && (
+                  <div><span className="text-sc-slate">Address:</span> {selectedContact.contact.address}</div>
+                )}
+              </div>
+            </div>
 
-      {/* Create Lead Modal */}
-      <Modal 
-        isOpen={isLeadModalOpen} 
-        onClose={() => setIsLeadModalOpen(false)}
-        title="Create Lead"
-      >
-        <form onSubmit={handleCreateLead} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+            {/* Ownership Details */}
             <div>
-              <label htmlFor="leadType" className="block text-sm font-medium text-sc-slate mb-1">
-                Lead Type
-              </label>
-              <select 
-                id="leadType" 
-                name="leadType" 
-                required
-                className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
-              >
-                <option value="Acquisition">Acquisition</option>
-                <option value="Lease">Lease</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="priority" className="block text-sm font-medium text-sc-slate mb-1">
-                Priority
-              </label>
-              <select 
-                id="priority" 
-                name="priority" 
-                required
-                className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </select>
+              <h5 className="text-sm font-medium text-sc-slate mb-3">Ownership Details</h5>
+              <div className="space-y-2 text-sm text-white">
+                <div><span className="text-sc-slate">Ownership %:</span> {formatPercentage(selectedContact.ownershipPercentage)}</div>
+                <div><span className="text-sc-slate">Royalty %:</span> {formatPercentage(selectedContact.royaltyPercentage)}</div>
+                <div><span className="text-sc-slate">NMA:</span> {formatAcres(selectedContact.nma || 0)}</div>
+                <div><span className="text-sc-slate">NRA (1/8 normalized):</span> {formatAcres(selectedContact.nra || 0)}</div>
+                <div><span className="text-sc-slate">Source of Title:</span> {selectedContact.sourceOfTitle || 'N/A'}</div>
+              </div>
             </div>
           </div>
-          <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-sc-slate mb-1">
-              Notes
-            </label>
-            <textarea 
-              id="notes" 
-              name="notes" 
-              rows={3}
-              className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate placeholder-sc-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
-              placeholder="Enter lead notes..."
-            />
+
+          {/* Notes Section */}
+          <div className="mt-6">
+            <h5 className="text-sm font-medium text-sc-slate mb-3">Contact Notes</h5>
+            <div className="space-y-3">
+              {contactNotes.length > 0 ? (
+                contactNotes.map((note) => (
+                  <div key={note.id} className="bg-sc-navy p-3 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs text-sc-slate">
+                        {new Date(note.createdAt).toLocaleDateString()} - {note.noteType}
+                      </span>
+                    </div>
+                    <p className="text-xs text-sc-slate mt-1">{note.noteText}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sc-slate text-sm">No notes yet</p>
+              )}
+            </div>
           </div>
-          <div className="flex justify-end space-x-3 pt-4 border-t border-sc-light-navy">
-            <Button type="button" variant="secondary" onClick={() => setIsLeadModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Create Lead</Button>
+
+          {/* Leads Section */}
+          <div className="mt-6">
+            <h5 className="text-sm font-medium text-sc-slate mb-3">Linked Leads</h5>
+            <div className="space-y-3">
+              {contactLeads.length > 0 ? (
+                contactLeads.map((lead) => (
+                  <div key={lead.id} className="bg-sc-navy p-3 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs text-sc-slate">
+                        {new Date(lead.createdAt).toLocaleDateString()} - {lead.leadType}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        lead.status === 'Open' ? 'bg-green-100 text-green-800' :
+                        lead.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                        lead.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {lead.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-sc-slate mt-1">{lead.notes || 'No notes'}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sc-slate text-sm">No leads yet</p>
+              )}
+            </div>
           </div>
-        </form>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 };

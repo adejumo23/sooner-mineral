@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { 
   fetchContact, 
   fetchContactTractOwnership, 
@@ -36,12 +37,14 @@ import {
   PhoneIcon,
   DocumentIcon,
   ClipboardDocumentListIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  EnvelopeIcon
 } from '../components/icons/Icons';
 
 const ContactDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [contact, setContact] = useState<ContactEnhanced | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'tracts' | 'units' | 'map' | 'communication' | 'leads' | 'callLog' | 'documents' | 'esg'>('overview');
   const [loading, setLoading] = useState(true);

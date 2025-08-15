@@ -74,14 +74,14 @@ const UsersPage: React.FC = () => {
       header: 'Name',
       accessor: 'name',
       cell: (user: User) => (
-        <span className="text-sm font-medium text-white">{user.name}</span>
+        <span className="text-sm font-medium text-gray-900">{user.name}</span>
       )
     },
     {
       header: 'Email',
       accessor: 'email',
       cell: (user: User) => (
-        <span className="text-sm text-sc-slate">{user.email}</span>
+        <span className="text-sm text-gray-700">{user.email}</span>
       )
     },
     {
@@ -108,12 +108,12 @@ const UsersPage: React.FC = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">Manage Users</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Manage Users</h1>
         <Button onClick={() => handleOpenModal()}>Add User</Button>
       </div>
 
       {isLoading ? (
-        <p>Loading users...</p>
+        <p className="text-gray-700">Loading users...</p>
       ) : (
         <Table data={users} columns={columns} />
       )}
@@ -121,26 +121,26 @@ const UsersPage: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingUser ? 'Edit User' : 'Add User'}>
         <form onSubmit={handleSaveUser} className="space-y-4">
             <div>
-                <label htmlFor="name" className="block text-sm font-medium text-sc-slate mb-1">Full Name</label>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <Input id="name" name="name" type="text" defaultValue={editingUser?.name} required />
             </div>
              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-sc-slate mb-1">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <Input id="email" name="email" type="email" defaultValue={editingUser?.email} required disabled={!!editingUser} />
             </div>
             {!editingUser && (
                  <div>
-                    <label htmlFor="password"  className="block text-sm font-medium text-sc-slate mb-1">Password</label>
+                    <label htmlFor="password"  className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                     <Input id="password" name="password" type="password" required />
                 </div>
             )}
             <div>
-                <label htmlFor="roleId" className="block text-sm font-medium text-sc-slate mb-1">Role</label>
+                <label htmlFor="roleId" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                 <select 
                     id="roleId" 
                     name="roleId"
                     defaultValue={editingUser?.role.id}
-                    className="w-full px-4 py-2 bg-sc-light-navy border border-sc-light-navy rounded-md text-sc-light-slate focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-sc-blue"
                     required>
                     {roles.map(role => (
                         <option key={role.id} value={role.id}>{role.name}</option>

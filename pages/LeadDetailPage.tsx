@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchLead, fetchLeadCallLogs, fetchLeadNotes, createLeadCallLog, createLeadNote, updateLead, deleteLead } from '../services/api';
-import { Lead, LeadCallLog, LeadNote, CreateCallLogData, CreateLeadNoteData, UpdateLeadData } from '../types';
+import { fetchLead, fetchLeadCallLogs, fetchLeadNotes, createLeadCallLog, createLeadNote, updateLead, deleteLead, fetchUsers } from '../services/api';
+import { Lead, LeadCallLog, LeadNote, CreateCallLogData, CreateLeadNoteData, UpdateLeadData, User } from '../types';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, PhoneIcon, DocumentTextIcon, PlusIcon } from '../components/icons/Icons';
+import ActivityLogTab from '../components/ActivityLogTab';
 
 const LeadDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,12 +32,15 @@ const LeadDetailPage: React.FC = () => {
     noteText: '',
     noteType: 'General'
   });
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity-log'>('overview');
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
     if (id) {
       loadLead();
       loadCallLogs();
       loadNotes();
+      loadUsers();
     }
   }, [id]);
 
@@ -166,6 +170,15 @@ const LeadDetailPage: React.FC = () => {
     }
   };
 
+  const loadUsers = async () => {
+    try {
+      const usersData = await fetchUsers();
+      setUsers(usersData || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -197,7 +210,7 @@ const LeadDetailPage: React.FC = () => {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-white">Lead Details</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Lead Details</h1>
             <p className="text-sc-slate">
               {lead.linkedContact?.name} - {lead.linkedContact?.city}, {lead.linkedContact?.state}
             </p>
@@ -219,13 +232,40 @@ const LeadDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'overview'
+                ? 'border-sc-blue text-sc-blue'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('activity-log')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'activity-log'
+                ? 'border-sc-blue text-sc-blue'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Activity Log
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'overview' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
           {/* Lead Overview */}
           <Card>
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-lg font-semibold text-white">Lead Overview</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Lead Overview</h2>
               <div className="flex space-x-2">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
                   {lead.status}
@@ -239,49 +279,49 @@ const LeadDetailPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-500">Source Channel</label>
-                <p className="text-white">{lead.sourceChannel}</p>
+                <p className="text-gray-900">{lead.sourceChannel}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">Buyer</label>
-                <p className="text-white">{lead.buyer?.name}</p>
+                <p className="text-gray-900">{lead.buyer?.name}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">Last Contact</label>
-                <p className="text-white">
+                <p className="text-gray-900">
                   {lead.lastContactDate ? new Date(lead.lastContactDate).toLocaleDateString() : 'Never'}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">Next Follow-up</label>
-                <p className="text-white">
+                <p className="text-gray-900">
                   {lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toLocaleDateString() : 'Not set'}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">Outreach Count</label>
-                <p className="text-white">{lead.outreachCount}</p>
+                <p className="text-gray-900">{lead.outreachCount}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">Created</label>
-                <p className="text-white">{new Date(lead.createdAt).toLocaleDateString()}</p>
+                <p className="text-gray-900">{new Date(lead.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
 
             {lead.notes && (
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-500">Notes</label>
-                <p className="text-white">{lead.notes}</p>
+                <p className="text-gray-900">{lead.notes}</p>
               </div>
             )}
           </Card>
 
           {/* Asset Summary */}
           <Card>
-            <h2 className="text-lg font-semibold text-white mb-4">Asset Summary</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Asset Summary</h2>
             <div className="space-y-4">
               {lead.linkedTracts && lead.linkedTracts.length > 0 && (
                 <div>
-                  <h3 className="font-medium text-white mb-2">Linked Tracts</h3>
+                  <h3 className="font-medium text-gray-900 mb-2">Linked Tracts</h3>
                   {lead.linkedTracts.map(tract => (
                     <div key={tract.id} className="bg-gray-50 p-3 rounded-lg">
                       <div className="font-medium">{tract.tractName}</div>
@@ -295,7 +335,7 @@ const LeadDetailPage: React.FC = () => {
               
               {lead.linkedUnits && lead.linkedUnits.length > 0 && (
                 <div>
-                  <h3 className="font-medium text-white mb-2">Linked Units</h3>
+                  <h3 className="font-medium text-gray-900 mb-2">Linked Units</h3>
                   {lead.linkedUnits.map(unit => (
                     <div key={unit.id} className="bg-gray-50 p-3 rounded-lg">
                       <div className="font-medium">{unit.unitName}</div>
@@ -312,7 +352,7 @@ const LeadDetailPage: React.FC = () => {
           {/* Call Log */}
           <Card>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-white">Call Log</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Call Log</h2>
               <Button size="sm" onClick={() => setShowCallLogModal(true)}>
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Add Call
@@ -356,7 +396,7 @@ const LeadDetailPage: React.FC = () => {
           {/* Notes */}
           <Card>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-white">Notes</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Notes</h2>
               <Button size="sm" onClick={() => setShowNoteModal(true)}>
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Add Note
@@ -391,29 +431,29 @@ const LeadDetailPage: React.FC = () => {
         <div className="space-y-6">
           {/* Contact Info */}
           <Card>
-            <h2 className="text-lg font-semibold text-white mb-4">Contact Info</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Info</h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-500">Name</label>
-                <p className="text-white">{lead.linkedContact?.name}</p>
+                                  <p className="text-gray-900">{lead.linkedContact?.name}</p>
               </div>
               {lead.linkedContact?.email && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Email</label>
-                  <p className="text-white">{lead.linkedContact.email}</p>
+                  <p className="text-gray-900">{lead.linkedContact.email}</p>
                 </div>
               )}
               {lead.linkedContact?.phone && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Phone</label>
-                  <p className="text-white">{lead.linkedContact.phone}</p>
+                  <p className="text-gray-900">{lead.linkedContact.phone}</p>
                 </div>
               )}
               {lead.linkedContact?.address && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Address</label>
-                  <p className="text-white">{lead.linkedContact.address}</p>
-                  <p className="text-white">
+                  <p className="text-gray-900">{lead.linkedContact.address}</p>
+                  <p className="text-gray-900">
                     {lead.linkedContact.city}, {lead.linkedContact.state} {lead.linkedContact.zipCode}
                   </p>
                 </div>
@@ -424,7 +464,7 @@ const LeadDetailPage: React.FC = () => {
           {/* Documents */}
           {lead.documentLinks && lead.documentLinks.length > 0 && (
             <Card>
-              <h2 className="text-lg font-semibold text-white mb-4">Documents</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Documents</h2>
               <div className="space-y-2">
                 {lead.documentLinks.map((link, index) => (
                   <a
@@ -443,6 +483,9 @@ const LeadDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+      ) : (
+        <ActivityLogTab leadId={id!} users={users} />
+      )}
 
       {/* Edit Modal */}
       <Modal

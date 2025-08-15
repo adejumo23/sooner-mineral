@@ -1706,3 +1706,86 @@ export interface ESGAuditLog {
   ipAddress?: string;
   userAgent?: string;
 }
+
+// Title Chain Interfaces
+export type TitleInstrumentStatus = 'Verified' | 'Requirements' | 'In Progress';
+export type InstrumentType = 'Deed' | 'Probate' | 'Affidavit' | 'Abstract' | 'Assignment' | 'Lease' | 'Other';
+
+export interface TitleInstrument {
+  id: string;
+  tractId: string;
+  instrumentType: InstrumentType;
+  recordedDate: string;
+  recordingInfo: string;
+  notes?: string;
+  status: TitleInstrumentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CurativeIssue {
+  id: string;
+  tractId: string;
+  issueDescription: string;
+  requiredAction: string;
+  responsibleParty: string;
+  status: 'Open' | 'In Progress' | 'Resolved';
+  targetResolution?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleDocument {
+  id: string;
+  tractId: string;
+  instrumentType: InstrumentType;
+  contactName?: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  uploadDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTitleInstrumentData {
+  tractId: string;
+  instrumentType: InstrumentType;
+  recordedDate: string;
+  recordingInfo: string;
+  notes?: string;
+  status: TitleInstrumentStatus;
+}
+
+export interface UpdateTitleInstrumentData {
+  instrumentType?: InstrumentType;
+  recordedDate?: string;
+  recordingInfo?: string;
+  notes?: string;
+  status?: TitleInstrumentStatus;
+}
+
+export interface CreateCurativeIssueData {
+  tractId: string;
+  issueDescription: string;
+  requiredAction: string;
+  responsibleParty: string;
+  targetResolution?: string;
+}
+
+export interface UpdateCurativeIssueData {
+  issueDescription?: string;
+  requiredAction?: string;
+  responsibleParty?: string;
+  status?: 'Open' | 'In Progress' | 'Resolved';
+  targetResolution?: string;
+}
+
+export interface TitleChainSummary {
+  tractId: string;
+  totalInstruments: number;
+  verifiedInstruments: number;
+  inProgressInstruments: number;
+  requirementInstruments: number;
+  lastUpdated: string;
+}

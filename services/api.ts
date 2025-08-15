@@ -4968,3 +4968,242 @@ export const importESGData = async (file: File, importType: ESGDataImport['impor
   
   return importRecord;
 };
+
+// Title Chain Mock Data
+const mockTitleInstruments: TitleInstrument[] = [
+  {
+    id: 'ti1',
+    tractId: 't1',
+    instrumentType: 'Deed',
+    recordedDate: '2020-01-15',
+    recordingInfo: 'Book 1234, Page 567',
+    notes: 'Warranty deed from John Smith to Jane Doe',
+    status: 'Verified',
+    createdAt: '2020-01-15T10:00:00Z',
+    updatedAt: '2020-01-15T10:00:00Z'
+  },
+  {
+    id: 'ti2',
+    tractId: 't1',
+    instrumentType: 'Probate',
+    recordedDate: '2019-06-20',
+    recordingInfo: 'Probate Case #2019-123',
+    notes: 'Probate order for estate of John Smith',
+    status: 'Verified',
+    createdAt: '2019-06-20T14:30:00Z',
+    updatedAt: '2019-06-20T14:30:00Z'
+  },
+  {
+    id: 'ti3',
+    tractId: 't1',
+    instrumentType: 'Affidavit',
+    recordedDate: '2021-03-10',
+    recordingInfo: 'Doc #2021-456',
+    notes: 'Affidavit of heirship for Jane Doe',
+    status: 'In Progress',
+    createdAt: '2021-03-10T09:15:00Z',
+    updatedAt: '2021-03-10T09:15:00Z'
+  }
+];
+
+const mockCurativeIssues: CurativeIssue[] = [
+  {
+    id: 'ci1',
+    tractId: 't1',
+    issueDescription: 'Missing chain of title between 1995-2000',
+    requiredAction: 'Obtain quitclaim deed or court order',
+    responsibleParty: 'Legal Team',
+    status: 'Open',
+    targetResolution: '2024-12-31',
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: 'ci2',
+    tractId: 't1',
+    issueDescription: 'Incomplete probate documentation',
+    requiredAction: 'Request certified copy of probate order',
+    responsibleParty: 'Land Team',
+    status: 'In Progress',
+    targetResolution: '2024-06-30',
+    createdAt: '2024-02-01T14:30:00Z',
+    updatedAt: '2024-02-01T14:30:00Z'
+  }
+];
+
+const mockTitleDocuments: TitleDocument[] = [
+  {
+    id: 'td1',
+    tractId: 't1',
+    instrumentType: 'Deed',
+    contactName: 'John Smith',
+    fileName: 'warranty_deed_2020.pdf',
+    fileUrl: '/documents/warranty_deed_2020.pdf',
+    fileSize: 2048576,
+    uploadDate: '2020-01-15T10:00:00Z',
+    createdAt: '2020-01-15T10:00:00Z',
+    updatedAt: '2020-01-15T10:00:00Z'
+  },
+  {
+    id: 'td2',
+    tractId: 't1',
+    instrumentType: 'Probate',
+    contactName: 'Estate of John Smith',
+    fileName: 'probate_order_2019.pdf',
+    fileUrl: '/documents/probate_order_2019.pdf',
+    fileSize: 1536000,
+    uploadDate: '2019-06-20T14:30:00Z',
+    createdAt: '2019-06-20T14:30:00Z',
+    updatedAt: '2019-06-20T14:30:00Z'
+  }
+];
+
+// Title Chain API Functions
+export const fetchTractTitleInstruments = async (tractId: string): Promise<TitleInstrument[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    const instruments = mockTitleInstruments.filter(ti => ti.tractId === tractId);
+    resolve(instruments);
+  }, apiDelay));
+};
+
+export const createTitleInstrument = async (data: CreateTitleInstrumentData): Promise<TitleInstrument> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newInstrument: TitleInstrument = {
+      id: `ti${Date.now()}`,
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    mockTitleInstruments.push(newInstrument);
+    resolve(newInstrument);
+  }, apiDelay));
+};
+
+export const updateTitleInstrument = async (instrumentId: string, data: UpdateTitleInstrumentData): Promise<TitleInstrument> => {
+  return new Promise(resolve => setTimeout(() => {
+    const instrumentIndex = mockTitleInstruments.findIndex(ti => ti.id === instrumentId);
+    if (instrumentIndex === -1) throw new Error('Title instrument not found');
+    
+    const updatedInstrument = {
+      ...mockTitleInstruments[instrumentIndex],
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    mockTitleInstruments[instrumentIndex] = updatedInstrument;
+    resolve(updatedInstrument);
+  }, apiDelay));
+};
+
+export const deleteTitleInstrument = async (instrumentId: string): Promise<void> => {
+  return new Promise(resolve => setTimeout(() => {
+    const instrumentIndex = mockTitleInstruments.findIndex(ti => ti.id === instrumentId);
+    if (instrumentIndex === -1) throw new Error('Title instrument not found');
+    
+    mockTitleInstruments.splice(instrumentIndex, 1);
+    resolve();
+  }, apiDelay));
+};
+
+export const fetchTractCurativeIssues = async (tractId: string): Promise<CurativeIssue[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    const issues = mockCurativeIssues.filter(ci => ci.tractId === tractId);
+    resolve(issues);
+  }, apiDelay));
+};
+
+export const createCurativeIssue = async (data: CreateCurativeIssueData): Promise<CurativeIssue> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newIssue: CurativeIssue = {
+      id: `ci${Date.now()}`,
+      ...data,
+      status: 'Open',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    mockCurativeIssues.push(newIssue);
+    resolve(newIssue);
+  }, apiDelay));
+};
+
+export const updateCurativeIssue = async (issueId: string, data: UpdateCurativeIssueData): Promise<CurativeIssue> => {
+  return new Promise(resolve => setTimeout(() => {
+    const issueIndex = mockCurativeIssues.findIndex(ci => ci.id === issueId);
+    if (issueIndex === -1) throw new Error('Curative issue not found');
+    
+    const updatedIssue = {
+      ...mockCurativeIssues[issueIndex],
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    mockCurativeIssues[issueIndex] = updatedIssue;
+    resolve(updatedIssue);
+  }, apiDelay));
+};
+
+export const deleteCurativeIssue = async (issueId: string): Promise<void> => {
+  return new Promise(resolve => setTimeout(() => {
+    const issueIndex = mockCurativeIssues.findIndex(ci => ci.id === issueId);
+    if (issueIndex === -1) throw new Error('Curative issue not found');
+    
+    mockCurativeIssues.splice(issueIndex, 1);
+    resolve();
+  }, apiDelay));
+};
+
+export const fetchTractTitleDocuments = async (tractId: string): Promise<TitleDocument[]> => {
+  return new Promise(resolve => setTimeout(() => {
+    const documents = mockTitleDocuments.filter(td => td.tractId === tractId);
+    resolve(documents);
+  }, apiDelay));
+};
+
+export const uploadTitleDocument = async (data: { tractId: string; file: File; instrumentType: InstrumentType; contactName?: string }): Promise<TitleDocument> => {
+  return new Promise(resolve => setTimeout(() => {
+    const newDocument: TitleDocument = {
+      id: `td${Date.now()}`,
+      tractId: data.tractId,
+      instrumentType: data.instrumentType,
+      contactName: data.contactName,
+      fileName: data.file.name,
+      fileUrl: `/documents/${data.file.name}`,
+      fileSize: data.file.size,
+      uploadDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    mockTitleDocuments.push(newDocument);
+    resolve(newDocument);
+  }, apiDelay));
+};
+
+export const deleteTitleDocument = async (documentId: string): Promise<void> => {
+  return new Promise(resolve => setTimeout(() => {
+    const documentIndex = mockTitleDocuments.findIndex(td => td.id === documentId);
+    if (documentIndex === -1) throw new Error('Title document not found');
+    
+    mockTitleDocuments.splice(documentIndex, 1);
+    resolve();
+  }, apiDelay));
+};
+
+export const fetchTractTitleChainSummary = async (tractId: string): Promise<TitleChainSummary> => {
+  return new Promise(resolve => setTimeout(() => {
+    const instruments = mockTitleInstruments.filter(ti => ti.tractId === tractId);
+    const verified = instruments.filter(ti => ti.status === 'Verified').length;
+    const inProgress = instruments.filter(ti => ti.status === 'In Progress').length;
+    const requirements = instruments.filter(ti => ti.status === 'Requirements').length;
+    
+    const summary: TitleChainSummary = {
+      tractId,
+      totalInstruments: instruments.length,
+      verifiedInstruments: verified,
+      inProgressInstruments: inProgress,
+      requirementInstruments: requirements,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    resolve(summary);
+  }, apiDelay));
+};
