@@ -67,6 +67,23 @@ export interface Contact {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  updatedBy?: string;
+  alternatePhone?: string;
+  company?: string;
+  ownerNumber?: string;
+  partyType?: 'individual' | 'entity';
+  interestType?: 'mineral' | 'override' | 'both';
+  ownershipPercent?: number;
+  royaltyPercent?: number;
+  doNotContact?: boolean;
+  deceased?: boolean;
+  litigation?: boolean;
+  phoneVerified?: boolean;
+  emailVerified?: boolean;
+  phoneInvalid?: boolean;
+  emailBounced?: boolean;
+  enrichedSource?: string;
+  lastEnriched?: string;
 }
 
 // Enhanced Contact interface for the Contact Management module
@@ -744,26 +761,43 @@ export interface CreateLeadNoteData {
 // Deal interface for communication integration
 export interface Deal {
   id: string;
-  name: string;
-  description?: string;
-  status: 'Draft' | 'Active' | 'Pending' | 'Closed' | 'Cancelled';
-  contactId: string;
-  contact?: Contact;
-  leadId?: string;
-  lead?: Lead;
-  value?: number;
-  startDate?: string;
-  endDate?: string;
-  
-  // ESG Tracking Fields
-  esgRiskLevel?: ESGRiskLevel;
-  requiresESGReview?: boolean;
-  esgReviewNotes?: string;
-  esgApprovedBy?: string;
-  esgApprovedAt?: Date;
-  
+  leadId: string;
+  ownerId: string;
+  type: 'Minerals' | 'Non-Op' | 'Leasehold' | 'Other';
+  loiDocumentId?: string;
+  notes?: string;
+  status: 'Converted' | 'Error' | 'Pending';
   createdAt: string;
-  updatedAt: string;
+  createdBy: string;
+  assignedOwnerId: string;
+  effectiveDate: string;
+  loiStatus: string;
+  sellerName: string;
+  executionTimestamp: string;
+}
+
+export interface DealConversion {
+  leadId: string;
+  dealId: string;
+  userId: string;
+  timestamp: string;
+  notes?: string;
+  status: 'Success' | 'Error';
+  loiDocumentId?: string;
+  assignedOwnerId: string;
+  dealType: 'Minerals' | 'Non-Op' | 'Leasehold' | 'Other';
+  effectiveDate: string;
+  loiStatus: string;
+  sellerName: string;
+  executionTimestamp: string;
+}
+
+export interface DealAuditTrail {
+  dealId: string;
+  userId: string;
+  action: string;
+  timestamp: string;
+  notes?: string;
 }
 
 // Communication Integration Module Types

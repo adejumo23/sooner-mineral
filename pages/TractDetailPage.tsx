@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import type { Tract, User } from '../types';
 import * as api from '../services/api';
-import ContactsTab from '../components/ContactsTab';
 import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
@@ -249,10 +248,6 @@ const TractDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
-
-        {activeTab === 'contacts' && (
-          <ContactsTab tractId={tract.id} users={users} />
         )}
 
         {activeTab === 'mapping' && (

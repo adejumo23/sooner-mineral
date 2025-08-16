@@ -1,4 +1,5 @@
 import type { User, Role, Privilege, Tract, Contact, ContactTractOwnership, ContactNote, Lead, TractLead, LeadNote, TractSpatial, ProducingWell, Permit, Rig, Unit, UnitAssignment, UnitTract, UnitContact, UnitNote, UnitFilters, MapLayerPreference, Assignment, AssignmentHistory, CreateAssignmentData, UpdateAssignmentData, AssignmentFilters, UnitTractEnhanced, TitleStatus, ContactCallLog, ContactDocument, DistressSignal, LeadEnhanced, LeadCallLog, MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, MapInteraction, MapExport, ESGProfile, ESGRiskFlag, RegulatoryWatchlistEntry, ESGPortfolioSummary, ESGFilterCriteria, ESGReportRequest, ESGDataImport } from '../types';
+import type { Deal, DealConversion, DealAuditTrail } from '../types';
 
 /*
 ================================================================================
@@ -5207,3 +5208,92 @@ export const fetchTractTitleChainSummary = async (tractId: string): Promise<Titl
     resolve(summary);
   }, apiDelay));
 };
+
+/**
+ * PUT /api/contacts/:id
+ * Body: Partial<Contact>
+ * Response: Contact
+ */
+export const updateContact = async (id: string, data: Partial<Contact>): Promise<Contact> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const contactIndex = mockContacts.findIndex(c => c.id === id);
+      if (contactIndex === -1) return reject(new Error('Contact not found'));
+      const updatedContact = {
+        ...mockContacts[contactIndex],
+        ...data,
+        updatedAt: new Date().toISOString(),
+      };
+      mockContacts[contactIndex] = updatedContact;
+      resolve(updatedContact);
+    }, apiDelay);
+  });
+};
+
+/**
+ * POST /api/leads/:id/convert
+ * Body: DealConversion
+ * Response: { deal: Deal, conversion: DealConversion }
+ */
+export const convertLeadToDeal = async (leadId: string, data: Partial<DealConversion>): Promise<{ deal: Deal, conversion: DealConversion }> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const leadIndex = mockLeads.findIndex(l => l.id === leadId);
+      if (leadIndex === -1) return reject(new Error('Lead not found'));
+      const lead = mockLeads[leadIndex];
+      // Eligibility check (example: status must be 'Committed' or 'Signed Paperwork')
+      if (!['Committed', 'Signed Paperwork'].includes(lead.status)) {
+        return reject(new Error('Lead is not eligible for conversion'));
+      }
+      // Create Deal
+      const dealId = 'deal_' + Math.random().toString(36).substr(2, 9);
+      const now = new Date().toISOString();
+      const deal = {
+        id: dealId,
+        leadId,
+        ownerId: data.assignedOwnerId || lead.buyerId,
+        type: data.dealType || 'Minerals',
+        loiDocumentId: data.loiDocumentId,
+        notes: data.notes,
+        status: 'Converted',
+        createdAt: now,
+        createdBy: data.userId,
+        assignedOwnerId: data.assignedOwnerId || lead.buyerId,
+        effectiveDate: data.effectiveDate || now,
+        loiStatus: data.loiStatus || '',
+        sellerName: data.sellerName || '',
+        executionTimestamp: data.executionTimestamp || now,
+      };
+      mockDeals.push(deal);
+      // Update lead status
+      mockLeads[leadIndex] = { ...lead, status: 'Converted' };
+      // Log audit trail
+      mockDealAuditTrails.push({
+        dealId,
+        userId: data.userId,
+        action: 'convert',
+        timestamp: now,
+        notes: data.notes,
+      });
+      // Return
+      resolve({ deal, conversion: {
+        leadId,
+        dealId,
+        userId: data.userId,
+        timestamp: now,
+        notes: data.notes,
+        status: 'Success',
+        loiDocumentId: data.loiDocumentId,
+        assignedOwnerId: data.assignedOwnerId || lead.buyerId,
+        dealType: data.dealType || 'Minerals',
+        effectiveDate: data.effectiveDate || now,
+        loiStatus: data.loiStatus || '',
+        sellerName: data.sellerName || '',
+        executionTimestamp: data.executionTimestamp || now,
+      }});
+    }, apiDelay);
+  });
+};
+
+const mockDeals: Deal[] = [];
+const mockDealAuditTrails: DealAuditTrail[] = [];
