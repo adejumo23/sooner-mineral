@@ -27,6 +27,7 @@ import ESGPage from './pages/ESGPage';
 import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
+import LPPortalPage from './pages/LPPortalPage';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -76,6 +77,7 @@ function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
+          <Route path="/lp-portal" element={<LPPortalPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>
