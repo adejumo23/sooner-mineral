@@ -6,7 +6,45 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
-import { ArrowLeftIcon, PencilIcon, TrashIcon, PhoneIcon, DocumentTextIcon, PlusIcon } from '../components/icons/Icons';
+import {
+  UserIcon,
+  MapIcon,
+  ChatBubbleLeftRightIcon,
+  DocumentTextIcon,
+  ClipboardDocumentListIcon,
+  EnvelopeIcon,
+  CogIcon,
+  PencilIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  PlusIcon,
+  EyeIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  DownloadIcon,
+  FunnelIcon,
+  CalendarIcon,
+  FilterIcon,
+  MagnifyingGlassIcon,
+  UserGroupIcon,
+  ArchiveBoxIcon,
+  ChartBarIcon,
+  ChartPieIcon,
+  BuildingIcon,
+  CurrencyDollarIcon,
+  TruckIcon,
+  GlobeAltIcon,
+  PresentationChartLineIcon,
+  BeakerIcon,
+  LightBulbIcon,
+  RocketLaunchIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ExclamationTriangleIcon,
+  ArrowLeftIcon,
+  PhoneIcon,
+  TrashIcon,
+} from '../components/icons/Icons';
 import ActivityLogTab from '../components/ActivityLogTab';
 import ContactInfoTab from '../components/ContactInfoTab';
 import ConversionTrackerTab from '../components/ConversionTrackerTab';
@@ -15,6 +53,26 @@ import LeadDocumentsTab from '../components/LeadDocumentsTab';
 import LeadNotesTab from '../components/LeadNotesTab';
 import LeadOverviewTab from '../components/LeadOverviewTab';
 import LeadTractAssignmentTab from '../components/LeadTractAssignmentTab';
+
+// Replace the ErrorBoundary function with a class-based component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+  componentDidCatch(error, errorInfo) {
+    // Optionally log error
+  }
+  render() {
+    if (this.state.hasError) {
+      return <div className="p-8 text-center text-red-600">An error occurred.</div>;
+    }
+    return this.props.children;
+  }
+}
 
 const LeadDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -245,66 +303,66 @@ const LeadDetailPage: React.FC = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'overview'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Overview
+            <UserIcon className="h-5 w-5" /> Overview
           </button>
           <button
             onClick={() => setActiveTab('tract-assignment')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'tract-assignment'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Tract Assignment
+            <MapIcon className="h-5 w-5" /> Tract Assignment
           </button>
           <button
             onClick={() => setActiveTab('activity-log')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'activity-log'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Activity Log
+            <ChatBubbleLeftRightIcon className="h-5 w-5" /> Activity Log
           </button>
           <button
             onClick={() => setActiveTab('notes')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'notes'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Notes
+            <DocumentTextIcon className="h-5 w-5" /> Notes
           </button>
           <button
             onClick={() => setActiveTab('documents')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'documents'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Documents
+            <ClipboardDocumentListIcon className="h-5 w-5" /> Documents
           </button>
           <button
             onClick={() => setActiveTab('contact-info')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'contact-info'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Contact Info
+            <EnvelopeIcon className="h-5 w-5" /> Contact Info
           </button>
           <button
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'conversion'
                 ? 'border-sc-blue text-sc-blue'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -313,31 +371,37 @@ const LeadDetailPage: React.FC = () => {
               setActiveTab('conversion');
             }}
           >
-            Conversion
+            <CogIcon className="h-5 w-5" /> Conversion
           </button>
         </nav>
-            </div>
+      </div>
 
       {/* Tab Content */}
-                <div>
-        {activeTab === 'overview' && (
-          <LeadOverviewTab lead={lead!} currentUser={currentUser} users={users} onConvertToDeal={() => setActiveTab('conversion')} />
+      <ErrorBoundary>
+        {(!lead || !users) ? (
+          <div className="p-8 text-center text-red-600">Lead details could not be loaded. Please check the console for errors.</div>
+        ) : (
+          <div>
+            {activeTab === 'overview' && (
+              <LeadOverviewTab lead={lead!} currentUser={currentUser} users={users} onConvertToDeal={() => setActiveTab('conversion')} />
+            )}
+            {activeTab === 'tract-assignment' && <LeadTractAssignmentTab lead={lead!} currentUser={currentUser} users={users} />}
+            {activeTab === 'activity-log' && <ActivityLogTab leadId={id!} users={users} />}
+            {activeTab === 'notes' && <LeadNotesTab lead={lead!} currentUser={currentUser} users={users} />}
+            {activeTab === 'documents' && <LeadDocumentsTab lead={lead!} currentUser={currentUser} />}
+            {activeTab === 'contact-info' && <ContactInfoTab lead={lead!} users={users} onContactUpdate={loadLead} />}
+            {activeTab === 'conversion' && (
+              <ConversionTrackerTab
+                lead={lead}
+                currentUser={currentUser}
+                onConversion={(deal, conversion) => {
+                  // Optionally refresh lead/deal data or show a notification
+                }}
+              />
+            )}
+          </div>
         )}
-        {activeTab === 'tract-assignment' && <LeadTractAssignmentTab lead={lead!} currentUser={currentUser} users={users} />}
-        {activeTab === 'activity-log' && <ActivityLogTab leadId={id!} users={users} />}
-        {activeTab === 'notes' && <LeadNotesTab lead={lead!} currentUser={currentUser} users={users} />}
-        {activeTab === 'documents' && <LeadDocumentsTab lead={lead!} currentUser={currentUser} />}
-        {activeTab === 'contact-info' && <ContactInfoTab lead={lead!} users={users} onContactUpdate={loadLead} />}
-        {activeTab === 'conversion' && (
-          <ConversionTrackerTab
-            lead={lead}
-            currentUser={currentUser}
-            onConversion={(deal, conversion) => {
-              // Optionally refresh lead/deal data or show a notification
-            }}
-          />
-        )}
-      </div>
+      </ErrorBoundary>
 
       {/* Edit Modal */}
       <Modal

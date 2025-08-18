@@ -47,9 +47,10 @@ const LeadOverviewTab: React.FC<{
   const [showConfirm, setShowConfirm] = React.useState(false);
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-8">
+    <div className="w-full max-w-5xl mx-auto space-y-6">
       {/* Lead Header */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow p-6 flex flex-col gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Overview</h2>
         <div className="flex flex-wrap items-center gap-4 justify-between">
           <div>
             <div className="text-2xl font-bold text-gray-900">
@@ -61,7 +62,7 @@ const LeadOverviewTab: React.FC<{
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(lead.status)}`}>{lead.status}</span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-6 text-sm text-gray-700">
+        <div className="flex flex-wrap gap-6 text-sm text-gray-700 mt-4">
           <div title="User who created this lead">
             <span className="font-medium">Created On/By:</span> {new Date(lead.createdAt || '').toLocaleString()} by {lead.createdBy || 'N/A'}
           </div>
@@ -71,7 +72,8 @@ const LeadOverviewTab: React.FC<{
         </div>
       </div>
       {/* Assignment Summary */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow p-6 flex flex-col gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Assignment Summary</h2>
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2" title="Assigned Buyer">
             <UserIcon className="h-8 w-8 text-sc-blue" />
@@ -97,7 +99,8 @@ const LeadOverviewTab: React.FC<{
         </div>
       </div>
       {/* Conversion Tracker Panel */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow p-6 flex flex-col gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Conversion Tracker</h2>
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2" title="Current qualifying status">
             <span className="font-medium">Current Status:</span>
@@ -116,9 +119,11 @@ const LeadOverviewTab: React.FC<{
             <span className="text-xs text-gray-700">{new Date(lastStatusChange).toLocaleString()}</span>
           </div>
           {lead.status !== 'Converted' && isEligible && (currentUser.role.name === 'Admin' || currentUser.id === lead.buyerId) && (
-            <Button onClick={() => setShowConfirm(true)} variant="primary" className="flex items-center gap-1" title="Convert to Deal">
-              <ArrowLeftIcon className="h-4 w-4" /> Convert to Deal
-            </Button>
+            <div className="space-x-2">
+              <Button onClick={() => setShowConfirm(true)} variant="primary" className="flex items-center gap-1" title="Convert to Deal">
+                <ArrowLeftIcon className="h-4 w-4" /> Convert to Deal
+              </Button>
+            </div>
           )}
           {lead.status === 'Converted' && convertedBy && convertedOn && (
             <div className="flex items-center gap-2" title="Converted By/On">
