@@ -12,6 +12,68 @@ interface ArcGISMappingTabProps {
 const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName }) => {
   console.log('ArcGISMappingTab component rendered with tractId:', tractId, 'tractName:', tractName);
   
+  // Add custom styles for the sliders
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .slider-thumb::-webkit-slider-thumb {
+        appearance: none;
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .slider-thumb::-moz-range-thumb {
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .slider-thumb::-webkit-slider-track {
+        width: 100%;
+        height: 8px;
+        cursor: pointer;
+        background: #4b5563;
+        border-radius: 4px;
+        border: none;
+      }
+      .slider-thumb::-moz-range-track {
+        width: 100%;
+        height: 8px;
+        cursor: pointer;
+        background: #4b5563;
+        border-radius: 4px;
+        border: none;
+      }
+      
+      /* Hide ArcGIS built-in attribution that overlaps with our title */
+      .arcgis-map-container .esri-attribution {
+        display: none !important;
+      }
+      
+      /* Alternative: reposition ArcGIS attribution if we want to keep it */
+      .arcgis-map-container .esri-attribution__sources {
+        position: absolute !important;
+        bottom: 10px !important;
+        left: 10px !important;
+        font-size: 10px !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+        z-index: 1000 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapView, setMapView] = useState<any>(null);
   const [tractSpatial, setTractSpatial] = useState<TractSpatial | null>(null);
@@ -498,17 +560,17 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       </div>
 
       {/* ArcGIS Map Container */}
-      <div className="relative">
+      <div className="relative mb-8">
         <div 
           ref={mapRef}
           id="arcgis-map-container" // Added ID for fallback
-          className="arcgis-map-container w-full h-96 rounded-lg border border-sc-light-navy" // Added class for fallback
+          className="arcgis-map-container w-full h-96 rounded-lg border border-gray-600" // Added class for fallback
           style={{ backgroundColor: '#1a202c' }}
         />
         {(isLoading || !arcgisLoaded) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-sc-navy bg-opacity-75">
-            <div className="text-center text-sc-slate">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sc-blue mx-auto mb-2"></div>
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 rounded-lg">
+            <div className="text-center text-gray-300">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
               <p>{isLoading ? 'Loading map data...' : 'Loading ArcGIS map...'}</p>
             </div>
           </div>
@@ -517,7 +579,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded">
+        <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded mb-6">
           <h4 className="font-semibold">ArcGIS Error</h4>
           <p>{error}</p>
           <p className="text-sm mt-2">
@@ -527,32 +589,52 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       )}
 
       {/* Layer Controls */}
-      <div className="bg-sc-light-navy p-4 rounded-lg">
-        <h4 className="text-white font-semibold mb-3">Map Layers</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+        <h4 className="text-white font-semibold text-lg mb-6">Map Layers</h4>
+        
+        {/* Attribution Text - Separate section with proper spacing */}
+        <div className="mb-6 p-4 bg-gray-700 rounded text-xs text-gray-300 border border-gray-600">
+          <p className="leading-relaxed">
+            Powered by Esri • Data sources: City of Midland, Texas Parks & Wildlife, CONANP, Esri, TomTom, Garmin, SafeGraph, GeoTechnologies, Inc, METI/NASA, USGS, EPA, NPS, USDA, USFWS
+          </p>
+        </div>
+        
+        {/* Layer Controls Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Object.entries(arcgis.LAYER_CONFIG).map(([key, config]) => (
-            <div key={key} className="flex items-center space-x-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
+            <div key={key} className="flex items-center justify-between p-4 bg-gray-700 rounded border border-gray-600">
+              <label className="flex items-center space-x-3 cursor-pointer flex-1">
                 <input
                   type="checkbox"
                   checked={getLayerVisibility(key)}
                   onChange={(e) => handleLayerToggle(key, e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-sc-blue focus:ring-sc-blue"
+                  className="h-4 w-4 rounded border-gray-400 text-orange-500 focus:ring-orange-500 focus:ring-2"
                   disabled={!arcgisLoaded}
                 />
-                <span className="text-sm text-sc-slate">{config.title}</span>
+                <span className="text-sm text-white font-medium">{config.title}</span>
               </label>
               {getLayerVisibility(key) && (
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={getLayerOpacity(key)}
-                  onChange={(e) => handleOpacityChange(key, parseFloat(e.target.value))}
-                  className="w-16 h-2 bg-sc-navy rounded-lg appearance-none cursor-pointer"
-                  disabled={!arcgisLoaded}
-                />
+                <div className="flex items-center space-x-3 ml-4">
+                  <span className="text-xs text-gray-300 whitespace-nowrap">Opacity:</span>
+                  <div className="relative w-24">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={getLayerOpacity(key)}
+                      onChange={(e) => handleOpacityChange(key, parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider-thumb"
+                      style={{
+                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${getLayerOpacity(key) * 100}%, #4b5563 ${getLayerOpacity(key) * 100}%, #4b5563 100%)`
+                      }}
+                      disabled={!arcgisLoaded}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-300 w-10 text-right font-mono">
+                    {Math.round(getLayerOpacity(key) * 100)}%
+                  </span>
+                </div>
               )}
             </div>
           ))}
@@ -658,21 +740,21 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-sc-light-navy p-4 rounded-lg">
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
           <div className="text-2xl font-bold text-white">{wells.length}</div>
-          <div className="text-sc-slate text-sm">Producing Wells</div>
+          <div className="text-gray-300 text-sm">Producing Wells</div>
         </div>
-        <div className="bg-sc-light-navy p-4 rounded-lg">
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
           <div className="text-2xl font-bold text-white">{permits.length}</div>
-          <div className="text-sc-slate text-sm">Active Permits</div>
+          <div className="text-gray-300 text-sm">Active Permits</div>
         </div>
-        <div className="bg-sc-light-navy p-4 rounded-lg">
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
           <div className="text-2xl font-bold text-white">{rigs.length}</div>
-          <div className="text-sc-slate text-sm">Active Rigs</div>
+          <div className="text-gray-300 text-sm">Active Rigs</div>
         </div>
-        <div className="bg-sc-light-navy p-4 rounded-lg">
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
           <div className="text-2xl font-bold text-white">{units.length}</div>
-          <div className="text-sc-slate text-sm">Nearby Units</div>
+          <div className="text-gray-300 text-sm">Nearby Units</div>
         </div>
       </div>
     </div>
