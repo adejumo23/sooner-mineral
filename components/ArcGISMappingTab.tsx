@@ -110,10 +110,18 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       let Map, MapView, GraphicsLayer;
       try {
         const mapModule = await import("@arcgis/core/Map");
-        Map = mapModule.Map;
-        MapView = mapModule.MapView;
-        GraphicsLayer = mapModule.GraphicsLayer;
+        const mapViewModule = await import("@arcgis/core/views/MapView");
+        const graphicsLayerModule = await import("@arcgis/core/layers/GraphicsLayer");
+        
+        // Get the actual constructor functions
+        Map = mapModule.default || mapModule.Map;
+        MapView = mapViewModule.default || mapViewModule.MapView;
+        GraphicsLayer = graphicsLayerModule.default || graphicsLayerModule.GraphicsLayer;
+        
         console.log('Successfully imported Map, MapView, GraphicsLayer');
+        console.log('Map constructor:', Map);
+        console.log('MapView constructor:', MapView);
+        console.log('GraphicsLayer constructor:', GraphicsLayer);
       } catch (importError) {
         console.error('Failed to import ArcGIS Map modules:', importError);
         setError(`Failed to import ArcGIS Map modules: ${importError.message}`);
@@ -121,11 +129,29 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       }
 
       console.log('Attempting to import @arcgis/core/config...');
-      let config;
       try {
+        // Import the config module and set the API key directly
         const configModule = await import("@arcgis/core/config");
-        config = configModule.config;
-        console.log('Successfully imported config');
+        console.log('Successfully imported config module:', configModule);
+        
+        // Configure ArcGIS with API key - try multiple approaches
+        console.log('Configuring ArcGIS with API key...');
+        let configSet = false;
+        
+        // Try different ways to set the API key
+        if (configModule.default && typeof configModule.default === 'object') {
+          (configModule.default as any).apiKey = apiKey;
+          configSet = true;
+        } else if (typeof configModule === 'object') {
+          (configModule as any).apiKey = apiKey;
+          configSet = true;
+        }
+        
+        if (configSet) {
+          console.log('ArcGIS configured with API key');
+        } else {
+          console.warn('Could not set API key on config module, but continuing...');
+        }
       } catch (importError) {
         console.error('Failed to import ArcGIS config:', importError);
         setError(`Failed to import ArcGIS config: ${importError.message}`);
@@ -133,11 +159,6 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       }
       
       console.log('ArcGIS modules loaded successfully');
-
-      // Configure ArcGIS
-      console.log('Configuring ArcGIS with API key...');
-      config.apiKey = apiKey;
-      console.log('ArcGIS configured with API key');
 
       // Create map
       console.log('Creating ArcGIS Map...');
