@@ -387,11 +387,46 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
   const handleBasemapChange = async (basemapId: string) => {
     if (mapView) {
       try {
-        const { Basemap } = await import("@arcgis/core/Basemap");
-        const basemap = await Basemap.fromId(basemapId);
+        console.log('Changing basemap to:', basemapId);
+        
+        // Import the Basemap module correctly for ArcGIS 4.x
+        const basemapModule = await import("@arcgis/core/Basemap");
+        console.log('Basemap module imported:', basemapModule);
+        
+        // Get the Basemap constructor - it might be default or named export
+        const Basemap = basemapModule.default || basemapModule.Basemap;
+        console.log('Basemap constructor:', Basemap);
+        
+        if (!Basemap || typeof Basemap.fromId !== 'function') {
+          throw new Error('Basemap.fromId is not available');
+        }
+        
+        // Use the correct basemap ID format for ArcGIS 4.x
+        let basemap;
+        if (basemapId === 'satellite') {
+          basemap = await Basemap.fromId("satellite");
+        } else if (basemapId === 'streets') {
+          basemap = await Basemap.fromId("streets-vector");
+        } else {
+          // Default to satellite if unknown
+          basemap = await Basemap.fromId("satellite");
+        }
+        
         mapView.map.basemap = basemap;
+        console.log('Basemap changed successfully to:', basemapId);
       } catch (error) {
         console.error('Failed to change basemap:', error);
+        // Fallback to satellite if there's an error
+        try {
+          const basemapModule = await import("@arcgis/core/Basemap");
+          const Basemap = basemapModule.default || basemapModule.Basemap;
+          if (Basemap && typeof Basemap.fromId === 'function') {
+            const fallbackBasemap = await Basemap.fromId("satellite");
+            mapView.map.basemap = fallbackBasemap;
+          }
+        } catch (fallbackError) {
+          console.error('Failed to set fallback basemap:', fallbackError);
+        }
       }
     }
   };
@@ -438,7 +473,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
           <Button 
             variant="secondary" 
             size="sm"
-            onClick={() => handleBasemapChange('streets-vector')}
+            onClick={() => handleBasemapChange('streets')}
             disabled={!arcgisLoaded}
           >
             🗺️ Streets
