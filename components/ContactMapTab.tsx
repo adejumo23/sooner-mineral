@@ -16,11 +16,13 @@ import {
   MapIcon, 
   EyeIcon, 
   EyeSlashIcon,
-  InformationCircleIcon,
   ExclamationTriangleIcon,
   ChevronDownIcon,
   ChevronUpIcon
 } from './icons/Icons';
+import Map from "@arcgis/core/Map";
+import MapView from "@arcgis/core/views/MapView";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 interface ContactMapTabProps {
   contactId: string;
@@ -42,70 +44,110 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [arcgisLoaded, setArcgisLoaded] = useState(false);
+  const [useFallbackMap, setUseFallbackMap] = useState(false);
   
   // Map layers and overlays
   const [layers, setLayers] = useState<{ [key: string]: any }>({});
   const [layerPreferences, setLayerPreferences] = useState<MapLayerPreference[]>([]);
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
   
-  // Overlay toggles
-  const [showProducingWells, setShowProducingWells] = useState(true);
-  const [showPermits, setShowPermits] = useState(true);
-  const [showRigs, setShowRigs] = useState(true);
-  const [showDistressSignals, setShowDistressSignals] = useState(true);
+  // Data state
+  const [wells, setWells] = useState<any[]>([]);
+  const [permits, setPermits] = useState<any[]>([]);
+  const [rigs, setRigs] = useState<any[]>([]);
   
   // UI state
   const [showLegend, setShowLegend] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedAssetType, setSelectedAssetType] = useState<'all' | 'tracts' | 'units'>('all');
-  const [selectedBuyer, setSelectedBuyer] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Initialize map when component is mounted
   useEffect(() => {
     const timer = setTimeout(() => {
       const container = mapRef.current;
-      if (container && !arcgisLoaded) {
+      if (container && !arcgisLoaded && !useFallbackMap) {
         initializeMap(container);
       }
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [arcgisLoaded]);
+  }, [arcgisLoaded, useFallbackMap]);
 
   // Fetch map data when map is loaded
   useEffect(() => {
-    if (arcgisLoaded) {
+    if (arcgisLoaded || useFallbackMap) {
       fetchMapData();
     }
-  }, [arcgisLoaded, contactId]);
+  }, [arcgisLoaded, useFallbackMap, contactId]);
 
   const initializeMap = async (container: HTMLElement) => {
     try {
       setIsLoading(true);
+      setError(null);
       console.log('Initializing Contact Map...');
       
       // Check if API key is available
       const apiKey = process.env.REACT_APP_ARCGIS_API_KEY;
       if (!apiKey) {
-        throw new Error('ArcGIS API key not found');
+        console.warn('ArcGIS API key not found, using fallback map');
+        setUseFallbackMap(true);
+        setIsLoading(false);
+        return;
       }
 
       // Load ArcGIS modules
       await arcgis.loadModules();
       
+      // Create map
+      console.log('Creating ArcGIS Map...');
+      const map = new Map({
+        basemap: "satellite"
+      });
+      console.log('Map created successfully');
+
       // Create map view
-      const view = await arcgis.createContactMapView(container, contact, tracts, units);
+      console.log('Creating MapView...');
+      const view = new MapView({
+        container: container as HTMLDivElement,
+        map: map,
+        center: [-102.0776, 31.9686], // Default to Midland, TX
+        zoom: 12
+      });
+      console.log('MapView created successfully');
+
+      // Wait for the view to be ready
+      console.log('Waiting for MapView to be ready...');
+      await view.when();
+      console.log('MapView is ready');
+
+      // Create graphics layers for each feature type
+      console.log('Creating graphics layers...');
+      const graphicsLayers = {
+        tracts: new GraphicsLayer({ id: "contact-tracts", title: "Contact Tracts" }),
+        units: new GraphicsLayer({ id: "contact-units", title: "Contact Units" }),
+        producingWells: new GraphicsLayer({ id: "producing-wells", title: "Producing Wells" }),
+        permits: new GraphicsLayer({ id: "permits", title: "Permits" }),
+        rigs: new GraphicsLayer({ id: "rigs", title: "Rigs" }),
+        distressSignals: new GraphicsLayer({ id: "distress-signals", title: "Distress Signals" })
+      };
+
+      // Add layers to map
+      console.log('Adding graphics layers to map...');
+      Object.values(graphicsLayers).forEach(layer => {
+        map.add(layer);
+      });
+      console.log('Graphics layers added to map');
+
       setMapView(view);
+      setLayers(graphicsLayers);
       setArcgisLoaded(true);
-      
-      // Set up event handlers
-      view.on('click', handleMapClick);
-      view.on('mouse-wheel', handleMouseWheel);
-      
-    } catch (err) {
-      console.error('Failed to initialize map:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize map');
+      console.log('=== Contact Map initialization complete ===');
+
+    } catch (error) {
+      console.error('=== Contact Map initialization failed ===');
+      console.error('Error details:', error);
+      console.log('Falling back to simple map display');
+      setUseFallbackMap(true);
+      setError(null); // Clear error since we're using fallback
     } finally {
       setIsLoading(false);
     }
@@ -113,26 +155,26 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
 
   const fetchMapData = async () => {
     try {
-      // Fetch spatial data for tracts and units
-      const tractSpatialData = await Promise.all(
-        tracts.map(tract => api.fetchTractSpatial(tract.tractId))
-      );
-      
+      if (useFallbackMap) {
+        // For fallback map, we don't need to fetch spatial data
+        return;
+      }
+
       // Fetch overlay data
-      const [wells, permits, rigs] = await Promise.all([
+      const [wellsData, permitsData, rigsData] = await Promise.all([
         api.fetchProducingWells(),
         api.fetchPermits(),
         api.fetchRigs()
       ]);
 
-      // Add layers to map
-      await addTractLayers(tractSpatialData);
-      await addUnitLayers(units);
-      await addOverlayLayers(wells, permits, rigs);
-      await addDistressSignalLayers(distressSignals);
+      setWells(wellsData);
+      setPermits(permitsData);
+      setRigs(rigsData);
 
-      // Zoom to fit all assets
-      await zoomToFitAll();
+      // Add features to map
+      if (arcgisLoaded && !useFallbackMap) {
+        addFeaturesToMap(wellsData, permitsData, rigsData);
+      }
       
     } catch (err) {
       console.error('Failed to fetch map data:', err);
@@ -140,113 +182,112 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
     }
   };
 
-  const addTractLayers = async (tractSpatialData: TractSpatial[]) => {
-    if (!mapView) return;
-
-    const tractLayer = await arcgis.createTractLayer(tractSpatialData, {
-      color: '#3B82F6', // Blue for tracts
-      outlineColor: '#1E40AF',
-      opacity: 0.7
-    });
-
-    mapView.map.add(tractLayer);
-    setLayers(prev => ({ ...prev, tracts: tractLayer }));
-  };
-
-  const addUnitLayers = async (unitData: ContactUnitSummary[]) => {
-    if (!mapView) return;
-
-    const unitLayer = await arcgis.createUnitLayer(unitData, {
-      color: '#8B5CF6', // Purple for units
-      outlineColor: '#6D28D9',
-      opacity: 0.6
-    });
-
-    mapView.map.add(unitLayer);
-    setLayers(prev => ({ ...prev, units: unitLayer }));
-  };
-
-  const addOverlayLayers = async (wells: any[], permits: any[], rigs: any[]) => {
-    if (!mapView) return;
-
-    if (showProducingWells && wells.length > 0) {
-      const wellsLayer = await arcgis.createWellsLayer(wells);
-      mapView.map.add(wellsLayer);
-      setLayers(prev => ({ ...prev, wells: wellsLayer }));
+  const addFeaturesToMap = async (wells: any[], permits: any[], rigs: any[]) => {
+    if (!mapView || !layers) {
+      console.log('MapView or layers not ready');
+      return;
     }
-
-    if (showPermits && permits.length > 0) {
-      const permitsLayer = await arcgis.createPermitsLayer(permits);
-      mapView.map.add(permitsLayer);
-      setLayers(prev => ({ ...prev, permits: permitsLayer }));
-    }
-
-    if (showRigs && rigs.length > 0) {
-      const rigsLayer = await arcgis.createRigsLayer(rigs);
-      mapView.map.add(rigsLayer);
-      setLayers(prev => ({ ...prev, rigs: rigsLayer }));
-    }
-  };
-
-  const addDistressSignalLayers = async (signals: DistressSignal[]) => {
-    if (!mapView || !showDistressSignals || signals.length === 0) return;
-
-    const signalsLayer = await arcgis.createDistressSignalsLayer(signals, {
-      color: '#EF4444', // Red for distress signals
-      size: 12
-    });
-
-    mapView.map.add(signalsLayer);
-    setLayers(prev => ({ ...prev, distressSignals: signalsLayer }));
-  };
-
-  const zoomToFitAll = async () => {
-    if (!mapView) return;
 
     try {
-      // Get all graphics from tract and unit layers
-      const allGraphics: any[] = [];
+      console.log('Adding features to contact map...');
       
-      if (layers.tracts) {
-        const tractGraphics = layers.tracts.graphics?.toArray() || [];
-        allGraphics.push(...tractGraphics);
-      }
-      
-      if (layers.units) {
-        const unitGraphics = layers.units.graphics?.toArray() || [];
-        allGraphics.push(...unitGraphics);
+      // Clear existing graphics
+      Object.values(layers).forEach(layer => {
+        layer.removeAll();
+      });
+
+      // Add tracts
+      if (tracts && tracts.length > 0) {
+        const validTracts = tracts.filter(tract => tract && tract.tractId);
+        if (validTracts.length > 0) {
+          const tractGraphics = arcgis.createGraphicsFromData(validTracts.map(tract => ({
+            id: tract.tractId,
+            latitude: (tract.tract as any)?.latitude || 31.9686,
+            longitude: (tract.tract as any)?.longitude || -102.0776,
+            name: tract.tract?.tractName || 'Unknown Tract',
+            geometryType: 'Point'
+          })).filter(tract => tract.id), 'tract', {
+            id: "contact-tracts",
+            title: "Contact Tracts",
+            color: [59, 130, 246, 0.7], // Blue
+            symbol: "polygon"
+          });
+          layers.tracts.addMany(tractGraphics);
+          console.log(`Added ${tractGraphics.length} tract graphics`);
+        }
       }
 
-      if (allGraphics.length > 0) {
-        await mapView.goTo(allGraphics, {
-          padding: { top: 50, bottom: 50, left: 50, right: 50 }
-        });
+      // Add units
+      if (units && units.length > 0) {
+        const validUnits = units.filter(unit => unit && unit.unitId);
+        if (validUnits.length > 0) {
+          const unitGraphics = arcgis.createGraphicsFromData(validUnits.map(unit => ({
+            id: unit.unitId,
+            latitude: (unit as any)?.latitude || 31.9686,
+            longitude: (unit as any)?.longitude || -102.0776,
+            name: unit.unitName || 'Unknown Unit',
+            geometryType: 'Point'
+          })).filter(unit => unit.id), 'unit', {
+            id: "contact-units",
+            title: "Contact Units",
+            color: [156, 39, 176, 0.6], // Purple
+            symbol: "polygon"
+          });
+          layers.units.addMany(unitGraphics);
+          console.log(`Added ${unitGraphics.length} unit graphics`);
+        }
       }
-    } catch (err) {
-      console.error('Failed to zoom to fit all:', err);
+
+      // Add wells
+      if (wells && wells.length > 0) {
+        const validWells = wells.filter(well => well && well.latitude && well.longitude);
+        if (validWells.length > 0) {
+          const wellGraphics = arcgis.createGraphicsFromData(validWells, 'well', arcgis.LAYER_CONFIG.producingWells);
+          layers.producingWells.addMany(wellGraphics);
+          console.log(`Added ${wellGraphics.length} well graphics`);
+        }
+      }
+
+      // Add permits
+      if (permits && permits.length > 0) {
+        const validPermits = permits.filter(permit => permit && permit.latitude && permit.longitude);
+        if (validPermits.length > 0) {
+          const permitGraphics = arcgis.createGraphicsFromData(validPermits, 'permit', arcgis.LAYER_CONFIG.permits);
+          layers.permits.addMany(permitGraphics);
+          console.log(`Added ${permitGraphics.length} permit graphics`);
+        }
+      }
+
+      // Add rigs
+      if (rigs && rigs.length > 0) {
+        const validRigs = rigs.filter(rig => rig && rig.latitude && rig.longitude);
+        if (validRigs.length > 0) {
+          const rigGraphics = arcgis.createGraphicsFromData(validRigs, 'rig', arcgis.LAYER_CONFIG.rigs);
+          layers.rigs.addMany(rigGraphics);
+          console.log(`Added ${rigGraphics.length} rig graphics`);
+        }
+      }
+
+      // Add distress signals
+      if (distressSignals && distressSignals.length > 0) {
+        const validSignals = distressSignals.filter(signal => signal && (signal as any).latitude && (signal as any).longitude);
+        if (validSignals.length > 0) {
+          const distressGraphics = arcgis.createGraphicsFromData(validSignals, 'distress', {
+            id: "distress-signals",
+            title: "Distress Signals",
+            color: [239, 68, 68, 0.8], // Red
+            symbol: "circle"
+          });
+          layers.distressSignals.addMany(distressGraphics);
+          console.log(`Added ${distressGraphics.length} distress signal graphics`);
+        }
+      }
+      
+      console.log('All features added to contact map successfully');
+    } catch (error) {
+      console.error('Error adding features to contact map:', error);
+      setError(`Error adding features to map: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  };
-
-  const handleMapClick = (event: any) => {
-    if (!mapView) return;
-
-    mapView.hitTest(event).then((response: any) => {
-      if (response.results.length > 0) {
-        const result = response.results[0];
-        setSelectedFeature({
-          graphic: result.graphic,
-          data: result.graphic.attributes,
-          type: result.graphic.layer?.id || 'unknown'
-        });
-      } else {
-        setSelectedFeature(null);
-      }
-    });
-  };
-
-  const handleMouseWheel = () => {
-    // Hide feature details when zooming/panning
-    setSelectedFeature(null);
   };
 
   const handleLayerToggle = (layerType: string, visible: boolean) => {
@@ -256,67 +297,27 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
     setLayers({ ...layers });
   };
 
-  const handleFilterChange = () => {
-    // Apply filters to map layers
-    if (layers.tracts) {
-      const tractGraphics = layers.tracts.graphics?.toArray() || [];
-      tractGraphics.forEach((graphic: any) => {
-        const tract = tracts.find(t => t.tractId === graphic.attributes.tractId);
-        if (tract) {
-          const matchesAssetType = selectedAssetType === 'all' || selectedAssetType === 'tracts';
-          const matchesBuyer = selectedBuyer === 'all' || tract.assignedBuyerId === selectedBuyer;
-          const matchesStatus = selectedStatus === 'all' || tract.titleStatus === selectedStatus;
-          
-          graphic.visible = matchesAssetType && matchesBuyer && matchesStatus;
-        }
-      });
-    }
-
-    if (layers.units) {
-      const unitGraphics = layers.units.graphics?.toArray() || [];
-      unitGraphics.forEach((graphic: any) => {
-        const unit = units.find(u => u.id === graphic.attributes.unitId);
-        if (unit) {
-          const matchesAssetType = selectedAssetType === 'all' || selectedAssetType === 'units';
-          const matchesBuyer = selectedBuyer === 'all' || unit.assignedBuyer === selectedBuyer;
-          const matchesStatus = selectedStatus === 'all' || unit.status === selectedStatus;
-          
-          graphic.visible = matchesAssetType && matchesBuyer && matchesStatus;
-        }
-      });
-    }
-  };
-
-  const getBuyerOptions = () => {
-    const buyers = new Set<string>();
-    tracts.forEach(tract => {
-      if (tract.assignedBuyerId) buyers.add(tract.assignedBuyerId);
-    });
-    units.forEach(unit => {
-      if (unit.assignedBuyer) buyers.add(unit.assignedBuyer);
-    });
-    return Array.from(buyers);
-  };
-
-  const getStatusOptions = () => {
-    const tractStatuses = new Set(tracts.map(t => t.titleStatus));
-    const unitStatuses = new Set(units.map(u => u.status).filter(Boolean));
-    return Array.from(new Set([...tractStatuses, ...unitStatuses]));
-  };
-
-  if (error) {
+  if (error && !useFallbackMap) {
     return (
       <Card className="p-6">
         <div className="text-center text-red-600">
           <ExclamationTriangleIcon className="h-12 w-12 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Map Error</h3>
           <p className="text-sm">{error}</p>
-          <Button 
-            onClick={() => window.location.reload()} 
-            className="mt-4"
-          >
-            Retry
-          </Button>
+          <div className="mt-4 space-x-2">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mr-2"
+            >
+              Retry
+            </Button>
+            <Button 
+              onClick={() => setUseFallbackMap(true)}
+              variant="secondary"
+            >
+              Use Simple Map
+            </Button>
+          </div>
         </div>
       </Card>
     );
@@ -332,11 +333,16 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
             <span className="text-sm text-gray-500">
               {tracts.length} Tracts • {units.length} Units
             </span>
+            {useFallbackMap && (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                Simple Map Mode
+              </span>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => setShowLegend(!showLegend)}
               className="flex items-center space-x-2"
@@ -346,22 +352,13 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
             </Button>
             
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center space-x-2"
             >
               {showFilters ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
               <span>Filters</span>
-            </Button>
-            
-            <Button
-              onClick={zoomToFitAll}
-              size="sm"
-              className="flex items-center space-x-2"
-            >
-              <MapIcon className="h-4 w-4" />
-              <span>Fit All</span>
             </Button>
           </div>
         </div>
@@ -370,88 +367,103 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
         {showFilters && (
           <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Asset Type</label>
-              <select
-                value={selectedAssetType}
-                onChange={(e) => {
-                  setSelectedAssetType(e.target.value as any);
-                  handleFilterChange();
-                }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option value="all">All Assets</option>
-                <option value="tracts">Tracts Only</option>
-                <option value="units">Units Only</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Tracts</label>
+              <input
+                type="checkbox"
+                checked={layers.tracts?.visible !== false}
+                onChange={(e) => handleLayerToggle('tracts', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Buyer</label>
-              <select
-                value={selectedBuyer}
-                onChange={(e) => {
-                  setSelectedBuyer(e.target.value);
-                  handleFilterChange();
-                }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option value="all">All Buyers</option>
-                {getBuyerOptions().map(buyerId => (
-                  <option key={buyerId} value={buyerId}>{buyerId}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Units</label>
+              <input
+                type="checkbox"
+                checked={layers.units?.visible !== false}
+                onChange={(e) => handleLayerToggle('units', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={selectedStatus}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Wells & Permits</label>
+              <input
+                type="checkbox"
+                checked={layers.producingWells?.visible !== false}
                 onChange={(e) => {
-                  setSelectedStatus(e.target.value);
-                  handleFilterChange();
+                  handleLayerToggle('producingWells', e.target.checked);
+                  handleLayerToggle('permits', e.target.checked);
                 }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              >
-                <option value="all">All Statuses</option>
-                {getStatusOptions().map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
             </div>
             
-            <div className="flex items-end">
-              <Button
-                onClick={handleFilterChange}
-                size="sm"
-                className="w-full"
-              >
-                Apply Filters
-              </Button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Distress Signals</label>
+              <input
+                type="checkbox"
+                checked={layers.distressSignals?.visible !== false}
+                onChange={(e) => handleLayerToggle('distressSignals', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
             </div>
           </div>
         )}
       </div>
 
       {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" style={{ minHeight: '400px', maxHeight: '600px' }}>
         <div
           ref={mapRef}
           id="contact-map-container"
           className="w-full h-full"
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            minHeight: '400px',
+            maxHeight: '600px',
+            maxWidth: '100%'
+          }}
         />
         
         {isLoading && (
           <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sc-blue mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading map...</p>
+              <p className="text-gray-600">
+                {useFallbackMap ? 'Loading simple map...' : 'Loading ArcGIS map...'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback Map Display */}
+        {useFallbackMap && !isLoading && (
+          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+            <div className="text-center p-8">
+              <MapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Contact Asset Overview</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-blue-600">{tracts.length}</div>
+                  <div className="text-gray-600">Tracts</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-purple-600">{units.length}</div>
+                  <div className="text-gray-600">Units</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-4">
+                Configure REACT_APP_ARCGIS_API_KEY for full mapping features.
+              </p>
             </div>
           </div>
         )}
       </div>
 
       {/* Legend Panel */}
-      {showLegend && (
+      {showLegend && !useFallbackMap && (
         <div className="bg-white border-t border-gray-200 p-4">
           <h4 className="text-sm font-medium text-gray-900 mb-3">Map Legend</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -476,13 +488,13 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
       )}
 
       {/* Feature Details Panel */}
-      {selectedFeature && (
+      {selectedFeature && !useFallbackMap && (
         <div className="absolute top-4 right-4 w-80 bg-white rounded-lg shadow-lg border border-gray-200">
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-900">Asset Details</h4>
+              <h4 className="text-sm font-medium text-gray-900">Feature Details</h4>
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
                 onClick={() => setSelectedFeature(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -494,11 +506,7 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
             <div className="space-y-2 text-sm">
               <div>
                 <span className="text-gray-500">Type:</span>
-                <span className="ml-2 text-gray-900 capitalize">
-                  {selectedFeature.type === 'tracts' ? 'Tract' : 
-                   selectedFeature.type === 'units' ? 'Unit' : 
-                   selectedFeature.type}
-                </span>
+                <span className="ml-2 text-gray-900 capitalize">{selectedFeature.type}</span>
               </div>
               
               {selectedFeature.data.name && (
@@ -512,13 +520,6 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
                 <div>
                   <span className="text-gray-500">Status:</span>
                   <span className="ml-2 text-gray-900">{selectedFeature.data.status}</span>
-                </div>
-              )}
-              
-              {selectedFeature.data.assignedBuyer && (
-                <div>
-                  <span className="text-gray-500">Buyer:</span>
-                  <span className="ml-2 text-gray-900">{selectedFeature.data.assignedBuyer}</span>
                 </div>
               )}
             </div>

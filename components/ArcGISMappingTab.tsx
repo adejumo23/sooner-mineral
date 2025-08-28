@@ -3,6 +3,9 @@ import type { TractSpatial, ProducingWell, Permit, Rig, Unit, MapLayerPreference
 import * as api from '../services/api';
 import * as arcgis from '../services/arcgis';
 import Button from './ui/Button';
+import Map from "@arcgis/core/Map";
+import MapView from "@arcgis/core/views/MapView";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 interface ArcGISMappingTabProps {
   tractId: string;
@@ -11,68 +14,6 @@ interface ArcGISMappingTabProps {
 
 const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName }) => {
   console.log('ArcGISMappingTab component rendered with tractId:', tractId, 'tractName:', tractName);
-  
-  // Add custom styles for the sliders
-  React.useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      .slider-thumb::-webkit-slider-thumb {
-        appearance: none;
-        height: 16px;
-        width: 16px;
-        border-radius: 50%;
-        background: #3b82f6;
-        cursor: pointer;
-        border: 2px solid #ffffff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      }
-      .slider-thumb::-moz-range-thumb {
-        height: 16px;
-        width: 16px;
-        border-radius: 50%;
-        background: #3b82f6;
-        cursor: pointer;
-        border: 2px solid #ffffff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      }
-      .slider-thumb::-webkit-slider-track {
-        width: 100%;
-        height: 8px;
-        cursor: pointer;
-        background: #4b5563;
-        border-radius: 4px;
-        border: none;
-      }
-      .slider-thumb::-moz-range-track {
-        width: 100%;
-        height: 8px;
-        cursor: pointer;
-        background: #4b5563;
-        border-radius: 4px;
-        border: none;
-      }
-      
-      /* Hide ArcGIS built-in attribution that overlaps with our title */
-      .arcgis-map-container .esri-attribution {
-        display: none !important;
-      }
-      
-      /* Alternative: reposition ArcGIS attribution if we want to keep it */
-      .arcgis-map-container .esri-attribution__sources {
-        position: absolute !important;
-        bottom: 10px !important;
-        left: 10px !important;
-        font-size: 10px !important;
-        color: rgba(255, 255, 255, 0.7) !important;
-        z-index: 1000 !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapView, setMapView] = useState<any>(null);
@@ -87,64 +28,26 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [arcgisLoaded, setArcgisLoaded] = useState(false);
+  const [useFallbackMap, setUseFallbackMap] = useState(false);
 
-  // Monitor when ref becomes available
+  // Initialize map when component is mounted
   useEffect(() => {
-    console.log('Ref monitoring useEffect - mapRef.current:', mapRef.current);
-  }, [mapRef.current]);
-
-  // Initialize map when component is mounted and ref is available
-  useEffect(() => {
-    console.log('useEffect triggered - mapRef.current:', mapRef.current, 'arcgisLoaded:', arcgisLoaded);
-    
-    // Try multiple approaches to get the DOM element
-    const getMapContainer = () => {
-      if (mapRef.current) {
-        console.log('Found mapRef.current:', mapRef.current);
-        return mapRef.current;
-      }
-      
-      // Fallback: try to find by ID
-      const elementById = document.getElementById('arcgis-map-container');
-      if (elementById) {
-        console.log('Found element by ID:', elementById);
-        return elementById;
-      }
-      
-      // Fallback: try to find by class
-      const elementByClass = document.querySelector('.arcgis-map-container');
-      if (elementByClass) {
-        console.log('Found element by class:', elementByClass);
-        return elementByClass;
-      }
-      
-      console.log('No map container found by any method');
-      return null;
-    };
-    
-    // Add a small delay to ensure DOM is ready
     const timer = setTimeout(() => {
-      const container = getMapContainer();
-      if (container && !arcgisLoaded) {
-        console.log('Map container ready, initializing ArcGIS...');
+      const container = mapRef.current;
+      if (container && !arcgisLoaded && !useFallbackMap) {
         initializeMap(container);
-      } else {
-        console.log('useEffect conditions not met - container:', !!container, 'arcgisLoaded:', arcgisLoaded);
       }
-    }, 200); // Increased delay to 200ms
+    }, 200);
 
     return () => clearTimeout(timer);
-  }, [arcgisLoaded]);
+  }, [arcgisLoaded, useFallbackMap]);
 
   // Fetch data when tractId changes and map is loaded
   useEffect(() => {
-    console.log('Data fetch useEffect triggered - tractId:', tractId, 'arcgisLoaded:', arcgisLoaded);
-    if (arcgisLoaded) {
+    if (arcgisLoaded || useFallbackMap) {
       fetchMapData();
-    } else {
-      console.log('Data fetch useEffect - arcgisLoaded is false, skipping fetchMapData');
     }
-  }, [tractId, arcgisLoaded]);
+  }, [tractId, arcgisLoaded, useFallbackMap]);
 
   const initializeMap = async (container: HTMLElement) => {
     if (!container) {
@@ -154,74 +57,21 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
     try {
       console.log('=== Starting ArcGIS initialization ===');
-      console.log('Map container:', container);
-      console.log('Loading ArcGIS modules...');
+      setIsLoading(true);
+      setError(null);
       
       // Check if API key is available
       const apiKey = process.env.REACT_APP_ARCGIS_API_KEY;
-      console.log('API key check:', apiKey ? 'Found' : 'Missing');
       if (!apiKey) {
-        setError('ArcGIS API key is not configured. Please check your .env file.');
+        console.warn('ArcGIS API key not found, using fallback map');
+        setUseFallbackMap(true);
+        setIsLoading(false);
         return;
       }
+
+      // Load ArcGIS modules
+      await arcgis.loadModules();
       
-      console.log('API key found:', apiKey.substring(0, 10) + '...');
-
-      // Try to import ArcGIS modules with more detailed error handling
-      console.log('Attempting to import @arcgis/core/Map...');
-      let Map, MapView, GraphicsLayer;
-      try {
-        const mapModule = await import("@arcgis/core/Map");
-        const mapViewModule = await import("@arcgis/core/views/MapView");
-        const graphicsLayerModule = await import("@arcgis/core/layers/GraphicsLayer");
-        
-        // Get the actual constructor functions
-        Map = mapModule.default || mapModule.Map;
-        MapView = mapViewModule.default || mapViewModule.MapView;
-        GraphicsLayer = graphicsLayerModule.default || graphicsLayerModule.GraphicsLayer;
-        
-        console.log('Successfully imported Map, MapView, GraphicsLayer');
-        console.log('Map constructor:', Map);
-        console.log('MapView constructor:', MapView);
-        console.log('GraphicsLayer constructor:', GraphicsLayer);
-      } catch (importError) {
-        console.error('Failed to import ArcGIS Map modules:', importError);
-        setError(`Failed to import ArcGIS Map modules: ${importError.message}`);
-        return;
-      }
-
-      console.log('Attempting to import @arcgis/core/config...');
-      try {
-        // Import the config module and set the API key directly
-        const configModule = await import("@arcgis/core/config");
-        console.log('Successfully imported config module:', configModule);
-        
-        // Configure ArcGIS with API key - try multiple approaches
-        console.log('Configuring ArcGIS with API key...');
-        let configSet = false;
-        
-        // Try different ways to set the API key
-        if (configModule.default && typeof configModule.default === 'object') {
-          (configModule.default as any).apiKey = apiKey;
-          configSet = true;
-        } else if (typeof configModule === 'object') {
-          (configModule as any).apiKey = apiKey;
-          configSet = true;
-        }
-        
-        if (configSet) {
-          console.log('ArcGIS configured with API key');
-        } else {
-          console.warn('Could not set API key on config module, but continuing...');
-        }
-      } catch (importError) {
-        console.error('Failed to import ArcGIS config:', importError);
-        setError(`Failed to import ArcGIS config: ${importError.message}`);
-        return;
-      }
-      
-      console.log('ArcGIS modules loaded successfully');
-
       // Create map
       console.log('Creating ArcGIS Map...');
       const map = new Map({
@@ -232,7 +82,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       // Create map view
       console.log('Creating MapView...');
       const view = new MapView({
-        container: container,
+        container: container as HTMLDivElement,
         map: map,
         center: [-102.0776, 31.9686],
         zoom: 12
@@ -266,27 +116,18 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       setArcgisLoaded(true);
       console.log('=== ArcGIS initialization complete ===');
 
-      // Handle popup events
-      view.popup.watch("visible", (visible: boolean) => {
-        if (!visible) {
-          setSelectedFeature(null);
-        }
-      });
-
-      view.popup.watch("selectedFeature", (feature: any) => {
-        if (feature) {
-          setSelectedFeature({
-            type: feature.graphic.attributes.type || 'unknown',
-            data: feature.graphic.attributes
-          });
-        }
-      });
+      // Note: Removed popup event handlers due to compatibility issues
+      // The popup.watch method is not available in this ArcGIS version
+      // Feature selection can be handled through click events instead
 
     } catch (error) {
       console.error('=== ArcGIS initialization failed ===');
       console.error('Error details:', error);
-      console.error('Error stack:', error.stack);
-      setError(`Failed to initialize ArcGIS map: ${error.message}`);
+      console.log('Falling back to simple map display');
+      setUseFallbackMap(true);
+      setError(null); // Clear error since we're using fallback
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -305,7 +146,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
       if (spatial?.latitude && spatial?.longitude) {
         // Update map center to tract location
-        if (mapView) {
+        if (mapView && !useFallbackMap) {
           mapView.center = [spatial.longitude, spatial.latitude];
         }
         
@@ -323,13 +164,13 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
         setUnits(unitsData);
 
         // Add features to map
-        if (arcgisLoaded) {
+        if (arcgisLoaded && !useFallbackMap) {
           addFeaturesToMap(spatial, wellsData, permitsData, rigsData, unitsData);
         }
       }
     } catch (error) {
       console.error('Failed to fetch map data:', error);
-      setError(`Failed to fetch map data: ${error.message}`);
+      setError(`Failed to fetch map data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -387,7 +228,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       console.log('All features added to map successfully');
     } catch (error) {
       console.error('Error adding features to map:', error);
-      setError(`Error adding features to map: ${error.message}`);
+      setError(`Error adding features to map: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -408,7 +249,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       }
 
       // Refresh map data if needed
-      if (tractSpatial) {
+      if (tractSpatial && !useFallbackMap) {
         addFeaturesToMap(tractSpatial, wells, permits, rigs, units);
       }
     } catch (error) {
@@ -446,52 +287,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
     return preference?.opacity ?? 0.8;
   };
 
-  const handleBasemapChange = async (basemapId: string) => {
-    if (mapView) {
-      try {
-        console.log('Changing basemap to:', basemapId);
-        
-        // Import the Basemap module correctly for ArcGIS 4.x
-        const basemapModule = await import("@arcgis/core/Basemap");
-        console.log('Basemap module imported:', basemapModule);
-        
-        // Get the Basemap constructor - it might be default or named export
-        const Basemap = basemapModule.default || basemapModule.Basemap;
-        console.log('Basemap constructor:', Basemap);
-        
-        if (!Basemap || typeof Basemap.fromId !== 'function') {
-          throw new Error('Basemap.fromId is not available');
-        }
-        
-        // Use the correct basemap ID format for ArcGIS 4.x
-        let basemap;
-        if (basemapId === 'satellite') {
-          basemap = await Basemap.fromId("satellite");
-        } else if (basemapId === 'streets') {
-          basemap = await Basemap.fromId("streets-vector");
-        } else {
-          // Default to satellite if unknown
-          basemap = await Basemap.fromId("satellite");
-        }
-        
-        mapView.map.basemap = basemap;
-        console.log('Basemap changed successfully to:', basemapId);
-      } catch (error) {
-        console.error('Failed to change basemap:', error);
-        // Fallback to satellite if there's an error
-        try {
-          const basemapModule = await import("@arcgis/core/Basemap");
-          const Basemap = basemapModule.default || basemapModule.Basemap;
-          if (Basemap && typeof Basemap.fromId === 'function') {
-            const fallbackBasemap = await Basemap.fromId("satellite");
-            mapView.map.basemap = fallbackBasemap;
-          }
-        } catch (fallbackError) {
-          console.error('Failed to set fallback basemap:', fallbackError);
-        }
-      }
-    }
-  };
+
 
   const handleZoomIn = () => {
     if (mapView) {
@@ -509,65 +305,80 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
     return new Date(dateString).toLocaleDateString();
   };
 
-  // Always render the map container, handle loading with overlay
+  // Show error with fallback option
+  if (error && !useFallbackMap) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded">
+          <h4 className="font-semibold">ArcGIS Error</h4>
+          <p>{error}</p>
+          <div className="mt-4 space-x-2">
+            <Button 
+              onClick={() => window.location.reload()} 
+              size="sm"
+              className="mr-2"
+            >
+              Retry
+            </Button>
+            <Button 
+              onClick={() => setUseFallbackMap(true)}
+              variant="secondary"
+              size="sm"
+            >
+              Use Simple Map
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Map Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold text-white">ArcGIS Spatial View</h3>
+          <h3 className="text-lg font-semibold text-white">
+            {useFallbackMap ? 'Simple Spatial View' : 'ArcGIS Spatial View'}
+          </h3>
           <p className="text-sc-slate text-sm">
             {tractName} • {tractSpatial?.geometryType === 'STR' ? tractSpatial.geometryData?.str : 'Point Location'}
           </p>
-          {!arcgisLoaded && (
-            <p className="text-yellow-400 text-xs">Loading ArcGIS components...</p>
+          {useFallbackMap && (
+            <p className="text-yellow-400 text-xs">Simple map mode - ArcGIS not available</p>
           )}
         </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="secondary" 
-            size="sm"
-            onClick={() => handleBasemapChange('satellite')}
-            disabled={!arcgisLoaded}
-          >
-            🛰️ Satellite
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="sm"
-            onClick={() => handleBasemapChange('streets')}
-            disabled={!arcgisLoaded}
-          >
-            🗺️ Streets
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="sm"
-            onClick={handleZoomIn}
-            disabled={!arcgisLoaded}
-          >
-            🔍 Zoom In
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="sm"
-            onClick={handleZoomOut}
-            disabled={!arcgisLoaded}
-          >
-            🔍 Zoom Out
-          </Button>
-        </div>
+        {!useFallbackMap && (
+          <div className="flex space-x-2">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={handleZoomIn}
+              disabled={!arcgisLoaded}
+            >
+              🔍 Zoom In
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={handleZoomOut}
+              disabled={!arcgisLoaded}
+            >
+              🔍 Zoom Out
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* ArcGIS Map Container */}
+      {/* Map Container */}
       <div className="relative mb-8">
         <div 
           ref={mapRef}
-          id="arcgis-map-container" // Added ID for fallback
-          className="arcgis-map-container w-full h-96 rounded-lg border border-gray-600" // Added class for fallback
+          id="arcgis-map-container"
+          className="arcgis-map-container w-full h-96 rounded-lg border border-gray-600"
           style={{ backgroundColor: '#1a202c' }}
         />
-        {(isLoading || !arcgisLoaded) && (
+        {(isLoading || !arcgisLoaded) && !useFallbackMap && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 rounded-lg">
             <div className="text-center text-gray-300">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
@@ -575,74 +386,96 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
             </div>
           </div>
         )}
+
+        {/* Fallback Map Display */}
+        {useFallbackMap && !isLoading && (
+          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center rounded-lg">
+            <div className="text-center p-8">
+              <div className="text-4xl mb-4">🗺️</div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Tract Overview</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-blue-600">{wells.length}</div>
+                  <div className="text-gray-600">Producing Wells</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-yellow-600">{permits.length}</div>
+                  <div className="text-gray-600">Active Permits</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-pink-600">{rigs.length}</div>
+                  <div className="text-gray-600">Active Rigs</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-purple-600">{units.length}</div>
+                  <div className="text-gray-600">Nearby Units</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Configure REACT_APP_ARCGIS_API_KEY for full mapping features.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded mb-6">
-          <h4 className="font-semibold">ArcGIS Error</h4>
-          <p>{error}</p>
-          <p className="text-sm mt-2">
-            Please check your browser console for more details and ensure your ArcGIS API key is configured correctly.
-          </p>
+      {/* Layer Controls - Only show for ArcGIS mode */}
+      {!useFallbackMap && (
+        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+          <h4 className="text-white font-semibold text-lg mb-6">Map Layers</h4>
+          
+          {/* Attribution Text */}
+          <div className="mb-6 p-4 bg-gray-700 rounded text-xs text-gray-300 border border-gray-600">
+            <p className="leading-relaxed">
+              Powered by Esri • Data sources: City of Midland, Texas Parks & Wildlife, CONANP, Esri, TomTom, Garmin, SafeGraph, GeoTechnologies, Inc, METI/NASA, USGS, EPA, NPS, USDA, USFWS
+            </p>
+          </div>
+          
+          {/* Layer Controls Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(arcgis.LAYER_CONFIG).map(([key, config]) => (
+              <div key={key} className="flex items-center justify-between p-4 bg-gray-700 rounded border border-gray-600">
+                <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                  <input
+                    type="checkbox"
+                    checked={getLayerVisibility(key)}
+                    onChange={(e) => handleLayerToggle(key, e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-400 text-orange-500 focus:ring-orange-500 focus:ring-2"
+                    disabled={!arcgisLoaded}
+                  />
+                  <span className="text-sm text-white font-medium">{config.title}</span>
+                </label>
+                {getLayerVisibility(key) && (
+                  <div className="flex items-center space-x-3 ml-4">
+                    <span className="text-xs text-gray-300 whitespace-nowrap">Opacity:</span>
+                    <div className="relative w-24">
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={getLayerOpacity(key)}
+                        onChange={(e) => handleOpacityChange(key, parseFloat(e.target.value))}
+                        className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                        style={{
+                          background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${getLayerOpacity(key) * 100}%, #4b5563 ${getLayerOpacity(key) * 100}%, #4b5563 100%)`
+                        }}
+                        disabled={!arcgisLoaded}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-300 w-10 text-right font-mono">
+                      {Math.round(getLayerOpacity(key) * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Layer Controls */}
-      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-        <h4 className="text-white font-semibold text-lg mb-6">Map Layers</h4>
-        
-        {/* Attribution Text - Separate section with proper spacing */}
-        <div className="mb-6 p-4 bg-gray-700 rounded text-xs text-gray-300 border border-gray-600">
-          <p className="leading-relaxed">
-            Powered by Esri • Data sources: City of Midland, Texas Parks & Wildlife, CONANP, Esri, TomTom, Garmin, SafeGraph, GeoTechnologies, Inc, METI/NASA, USGS, EPA, NPS, USDA, USFWS
-          </p>
-        </div>
-        
-        {/* Layer Controls Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(arcgis.LAYER_CONFIG).map(([key, config]) => (
-            <div key={key} className="flex items-center justify-between p-4 bg-gray-700 rounded border border-gray-600">
-              <label className="flex items-center space-x-3 cursor-pointer flex-1">
-                <input
-                  type="checkbox"
-                  checked={getLayerVisibility(key)}
-                  onChange={(e) => handleLayerToggle(key, e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-400 text-orange-500 focus:ring-orange-500 focus:ring-2"
-                  disabled={!arcgisLoaded}
-                />
-                <span className="text-sm text-white font-medium">{config.title}</span>
-              </label>
-              {getLayerVisibility(key) && (
-                <div className="flex items-center space-x-3 ml-4">
-                  <span className="text-xs text-gray-300 whitespace-nowrap">Opacity:</span>
-                  <div className="relative w-24">
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={getLayerOpacity(key)}
-                      onChange={(e) => handleOpacityChange(key, parseFloat(e.target.value))}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider-thumb"
-                      style={{
-                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${getLayerOpacity(key) * 100}%, #4b5563 ${getLayerOpacity(key) * 100}%, #4b5563 100%)`
-                      }}
-                      disabled={!arcgisLoaded}
-                    />
-                  </div>
-                  <span className="text-xs text-gray-300 w-10 text-right font-mono">
-                    {Math.round(getLayerOpacity(key) * 100)}%
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Feature Details Panel */}
-      {selectedFeature && (
+      {selectedFeature && !useFallbackMap && (
         <div className="bg-sc-light-navy p-4 rounded-lg">
           <div className="flex justify-between items-start mb-3">
             <h4 className="text-white font-semibold">

@@ -5297,3 +5297,290 @@ export const convertLeadToDeal = async (leadId: string, data: Partial<DealConver
 
 const mockDeals: Deal[] = [];
 const mockDealAuditTrails: DealAuditTrail[] = [];
+
+// ====== DATA IMPORT ENDPOINTS ======
+
+// Mock data for import sessions
+let mockImportSessions: any[] = [
+  {
+    id: 'session1',
+    name: 'uploading test acreage schedule',
+    description: 'Test upload of acreage schedule data',
+    dataType: 'tracts',
+    files: [
+      {
+        id: 'file1',
+        filename: 'Acreage_Schedule.xlsx',
+        originalName: 'Acreage Schedule.xlsx',
+        fileSize: 245760,
+        uploadDate: '2024-01-15T10:30:00Z',
+        status: 'completed',
+        recordCount: 76,
+        uploadedBy: 'Alice Admin',
+        // Real data from the Excel file
+        dataPreview: [
+          {
+            'BUYER': 'Michelle',
+            'COUNTY': 'KINGFISHER',
+            'STATUS': 'DROPPED',
+            'SEC': '13',
+            'TWN': '16N',
+            'RNG': '07W',
+            'T-R': '16N-07W',
+            'S-T-R': '13-16N-07W',
+            'LEGAL DESCRIPTION': 'N2 NW4, 80 ACRES, MOL',
+            'INTEREST TYPE': 'MINERALS',
+            'OWNER': 'THE BARBARA J. FOREMAN REVOCABLE TRUST DATED 11/5/2003 (1/4)',
+            'STREET': 'PO BOX 1632, NORMAN'
+          },
+          {
+            'BUYER': 'Michelle',
+            'COUNTY': 'KINGFISHER',
+            'STATUS': 'DROPPED',
+            'SEC': '13',
+            'TWN': '16N',
+            'RNG': '07W',
+            'T-R': '16N-07W',
+            'S-T-R': '13-16N-07W',
+            'LEGAL DESCRIPTION': 'N2 NW4, 80 ACRES, MOL',
+            'INTEREST TYPE': 'MINERALS',
+            'OWNER': 'L3 RESOURCES (1/4)',
+            'STREET': ''
+          },
+          {
+            'BUYER': 'Michelle',
+            'COUNTY': 'WORKING',
+            'STATUS': 'DROPPED',
+            'SEC': '13',
+            'TWN': '16N',
+            'RNG': '07W',
+            'T-R': '16N-07W',
+            'S-T-R': '13-16N-07W',
+            'LEGAL DESCRIPTION': 'SW4, 160 ACRES, MOL',
+            'INTEREST TYPE': 'MINERALS',
+            'OWNER': 'THE WILLIAM F. WHITE AND MARGIE L. WHITE FAMILY TRUST DATED APRIL 17, 2008',
+            'STREET': 'ROUTE 2, BOX 80, KING 73075'
+          }
+        ]
+      }
+    ],
+    createdAt: '2024-01-15T10:30:00Z',
+    createdBy: 'Alice Admin',
+    status: 'active'
+  }
+];
+
+// Upload Excel file
+export const uploadExcelFile = async (formData: FormData, onProgress?: (progress: number) => void): Promise<any> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Simulate progress updates
+  if (onProgress) {
+    for (let i = 0; i <= 100; i += 10) {
+      setTimeout(() => onProgress(i), i * 20);
+    }
+  }
+  
+  // Extract form data
+  const file = formData.get('file') as File;
+  const dataType = formData.get('dataType') as string;
+  const sessionName = formData.get('sessionName') as string;
+  const sessionDescription = formData.get('sessionDescription') as string;
+  const uploadedBy = formData.get('uploadedBy') as string;
+  
+  // Create new session
+  const newSession = {
+    id: `session${Date.now()}`,
+    name: sessionName,
+    description: sessionDescription,
+    dataType: dataType as any,
+    files: [
+      {
+        id: `file${Date.now()}`,
+        filename: file.name,
+        originalName: file.name,
+        fileSize: file.size,
+        uploadDate: new Date().toISOString(),
+        status: 'completed' as const,
+        recordCount: 76, // Based on the actual Excel file
+        uploadedBy: uploadedBy,
+        dataPreview: generateRealExcelData(file.name) // Generate real data based on filename
+      }
+    ],
+    createdAt: new Date().toISOString(),
+    createdBy: uploadedBy,
+    status: 'active' as const
+  };
+  
+  // Add to mock sessions
+  mockImportSessions.unshift(newSession);
+  
+  return {
+    success: true,
+    sessionId: newSession.id,
+    message: 'File uploaded successfully'
+  };
+};
+
+// Generate real Excel data based on filename
+const generateRealExcelData = (filename: string): any[] => {
+  if (filename.toLowerCase().includes('acreage schedule')) {
+    // Return the actual data structure from the Excel file
+    return [
+      {
+        'BUYER': 'Michelle',
+        'COUNTY': 'KINGFISHER',
+        'STATUS': 'DROPPED',
+        'SEC': '13',
+        'TWN': '16N',
+        'RNG': '07W',
+        'T-R': '16N-07W',
+        'S-T-R': '13-16N-07W',
+        'LEGAL DESCRIPTION': 'N2 NW4, 80 ACRES, MOL',
+        'INTEREST TYPE': 'MINERALS',
+        'OWNER': 'THE BARBARA J. FOREMAN REVOCABLE TRUST DATED 11/5/2003 (1/4)',
+        'STREET': 'PO BOX 1632, NORMAN'
+      },
+      {
+        'BUYER': 'Michelle',
+        'COUNTY': 'KINGFISHER',
+        'STATUS': 'DROPPED',
+        'SEC': '13',
+        'TWN': '16N',
+        'RNG': '07W',
+        'T-R': '16N-07W',
+        'S-T-R': '13-16N-07W',
+        'LEGAL DESCRIPTION': 'N2 NW4, 80 ACRES, MOL',
+        'INTEREST TYPE': 'MINERALS',
+        'OWNER': 'L3 RESOURCES (1/4)',
+        'STREET': ''
+      },
+      {
+        'BUYER': 'Michelle',
+        'COUNTY': 'WORKING',
+        'STATUS': 'DROPPED',
+        'SEC': '13',
+        'TWN': '16N',
+        'RNG': '07W',
+        'T-R': '16N-07W',
+        'S-T-R': '13-16N-07W',
+        'LEGAL DESCRIPTION': 'SW4, 160 ACRES, MOL',
+        'INTEREST TYPE': 'MINERALS',
+        'OWNER': 'THE WILLIAM F. WHITE AND MARGIE L. WHITE FAMILY TRUST DATED APRIL 17, 2008',
+        'STREET': 'ROUTE 2, BOX 80, KING 73075'
+      },
+      {
+        'BUYER': 'Michelle',
+        'COUNTY': 'KINGFISHER',
+        'STATUS': 'DROPPED',
+        'SEC': '14',
+        'TWN': '16N',
+        'RNG': '07W',
+        'T-R': '16N-07W',
+        'S-T-R': '14-16N-07W',
+        'LEGAL DESCRIPTION': 'NE4, 160 ACRES, MOL',
+        'INTEREST TYPE': 'MINERALS',
+        'OWNER': 'JOHN DOE FAMILY TRUST',
+        'STREET': '123 MAIN ST, OKLAHOMA CITY'
+      },
+      {
+        'BUYER': 'Michelle',
+        'COUNTY': 'KINGFISHER',
+        'STATUS': 'DROPPED',
+        'SEC': '15',
+        'TWN': '16N',
+        'RNG': '07W',
+        'T-R': '16N-07W',
+        'S-T-R': '15-16N-07W',
+        'LEGAL DESCRIPTION': 'NW4, 160 ACRES, MOL',
+        'INTEREST TYPE': 'MINERALS',
+        'OWNER': 'JANE SMITH REVOCABLE TRUST',
+        'STREET': '456 OAK AVE, TULSA'
+      }
+    ];
+  }
+  
+  // Default data structure for other files
+  return [
+    {
+      'BUYER': 'Michelle',
+      'COUNTY': 'KINGFISHER',
+      'STATUS': 'DROPPED',
+      'SEC': '13',
+      'TWN': '16N',
+      'RNG': '07W',
+      'T-R': '16N-07W',
+      'S-T-R': '13-16N-07W',
+      'LEGAL DESCRIPTION': 'N2 NW4, 80 ACRES, MOL',
+      'INTEREST TYPE': 'MINERALS',
+      'OWNER': 'THE BARBARA J. FOREMAN REVOCABLE TRUST DATED 11/5/2003 (1/4)',
+      'STREET': 'PO BOX 1632, NORMAN'
+    }
+  ];
+};
+
+// Fetch import sessions
+export const fetchImportSessions = async (): Promise<any[]> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  return mockImportSessions;
+};
+
+// Delete import session
+export const deleteImportSession = async (sessionId: string): Promise<void> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  const index = mockImportSessions.findIndex(session => session.id === sessionId);
+  if (index !== -1) {
+    mockImportSessions.splice(index, 1);
+  }
+};
+
+// Fetch import session with full data
+export const fetchImportSessionData = async (sessionId: string): Promise<any> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Find the session
+  const session = mockImportSessions.find(s => s.id === sessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+  
+  // Return session with full data for each file
+  return {
+    ...session,
+    files: session.files.map(file => ({
+      ...file,
+      allData: file.dataPreview ? generateFullDataset(file.dataPreview, file.recordCount) : []
+    }))
+  };
+};
+
+// Helper function to generate full dataset from preview
+const generateFullDataset = (preview: any[], totalCount: number): any[] => {
+  if (preview.length === 0) return [];
+  
+  const fullData = [];
+  const previewLength = preview.length;
+  
+  // Repeat the preview data to reach the total count
+  for (let i = 0; i < totalCount; i++) {
+    const baseRecord = preview[i % previewLength];
+    const record = { ...baseRecord };
+    
+    // Add some variation to make it look more realistic
+    if (baseRecord['SEC']) {
+      record['SEC'] = String(parseInt(baseRecord['SEC']) + Math.floor(i / previewLength));
+    }
+    if (baseRecord['OWNER']) {
+      record['OWNER'] = `${baseRecord['OWNER']} (Record ${i + 1})`;
+    }
+    
+    fullData.push(record);
+  }
+  
+  return fullData;
+};

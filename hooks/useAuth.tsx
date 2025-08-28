@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const autoLogin = async () => {
       try {
         // Auto-login with a default user for development
-        const userData = await api.login('admin@sooner.com', 'password');
+        const userData = await api.login('admin@sooner.cap', 'password');
         setUser(userData);
       } catch (error) {
         console.log('Auto-login failed, user will need to login manually');

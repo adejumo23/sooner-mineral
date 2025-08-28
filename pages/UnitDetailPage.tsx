@@ -20,6 +20,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
+import UnitMappingTab from '../components/UnitMappingTab';
 import { 
   ArrowLeftIcon, 
   PencilIcon, 
@@ -29,7 +30,10 @@ import {
   UserIcon,
   MapIcon,
   DocumentTextIcon,
-  CogIcon
+  CogIcon,
+  PlusIcon,
+  ClipboardDocumentListIcon,
+  MapPinIcon
 } from '../components/icons/Icons';
 
 const UnitDetailPage: React.FC = () => {
@@ -832,17 +836,13 @@ const UnitDetailPage: React.FC = () => {
         )}
 
         {activeTab === 'mapping' && (
-          <Card>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Mapping Preview</h3>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <MapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">
-                  Map integration coming soon. This will show unit boundaries overlaid on tract data.
-                </p>
-              </div>
-            </div>
-          </Card>
+          <div className="h-[600px]">
+            <UnitMappingTab 
+              unitId={unit.id} 
+              unit={unit} 
+              unitTracts={unitTractsEnhanced} 
+            />
+          </div>
         )}
 
         {activeTab === 'assignment' && (
@@ -897,9 +897,9 @@ const UnitDetailPage: React.FC = () => {
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Assignment Date</dt>
-                            <dd className="text-sm text-gray-600">
-                              {unitAssignments.length > 0 ? new Date(unitAssignments[0].assignedAt).toLocaleDateString() : 'N/A'}
-                            </dd>
+                                                      <dd className="text-sm text-gray-600">
+                            {unitAssignments.length > 0 && unitAssignments[0].assignedAt ? new Date(unitAssignments[0].assignedAt).toLocaleDateString() : 'N/A'}
+                          </dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Assigned By</dt>

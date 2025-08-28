@@ -27,7 +27,8 @@ import {
   UserPlusIcon,
   Cog6ToothIcon,
   BeakerIcon,
-  LightBulbIcon
+  LightBulbIcon,
+  DocumentArrowUpIcon
 } from '../components/icons/Icons';
 
 interface ModuleButton {
@@ -213,6 +214,16 @@ const DashboardPage: React.FC = () => {
       category: 'future',
       color: 'from-purple-400 to-violet-500',
       gradient: 'bg-gradient-to-br from-purple-400 to-violet-500',
+      status: 'active'
+    },
+    {
+      name: 'Data Import',
+      description: 'Upload Excel files to import data into the system',
+      href: '/data-import',
+      icon: DocumentArrowUpIcon,
+      category: 'core',
+      color: 'from-emerald-400 to-teal-500',
+      gradient: 'bg-gradient-to-br from-emerald-400 to-teal-500',
       status: 'active'
     },
     {

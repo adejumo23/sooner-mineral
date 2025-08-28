@@ -3,6 +3,9 @@ import { MapIcon, FilterIcon, EyeIcon, EyeSlashIcon, DownloadIcon, UserGroupIcon
 import type { MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, User } from '../types';
 import * as api from '../services/api';
 import * as arcgis from '../services/arcgis';
+import Map from "@arcgis/core/Map";
+import MapView from "@arcgis/core/views/MapView";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 interface MappingDashboardProps {
   currentUser: User;
@@ -22,6 +25,8 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
   const [showLegend, setShowLegend] = useState(true);
   const [basemapType, setBasemapType] = useState<'streets' | 'satellite'>('streets');
   const [error, setError] = useState<string | null>(null);
+  const [arcgisLoaded, setArcgisLoaded] = useState(false);
+  const [useFallbackMap, setUseFallbackMap] = useState(false);
 
   useEffect(() => {
     initializeMap();
@@ -40,22 +45,62 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
     }
   }, [mapView, assets, overlays]);
 
-  useEffect(() => {
-    if (mapView && assets.length > 0) {
-      addLayersToMap(assets, overlays);
-    }
-  }, [mapView, assets, overlays]);
-
   const initializeMap = async () => {
     if (!mapRef.current) return;
 
     try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Initializing Mapping Dashboard...');
+      
+      // Check if API key is available
+      const apiKey = process.env.REACT_APP_ARCGIS_API_KEY;
+      if (!apiKey) {
+        console.warn('ArcGIS API key not found, using fallback map');
+        setUseFallbackMap(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Load ArcGIS modules
+      await arcgis.loadModules();
+      
       const container = mapRef.current;
-      const view = await arcgis.createMapView(container);
+      
+      // Create map
+      console.log('Creating ArcGIS Map...');
+      const map = new Map({
+        basemap: basemapType === 'satellite' ? "satellite" : "streets-vector"
+      });
+      console.log('Map created successfully');
+
+      // Create map view
+      console.log('Creating MapView...');
+      const view = new MapView({
+        container: container as HTMLDivElement,
+        map: map,
+        center: [-102.0776, 31.9686], // Default to Midland, TX
+        zoom: 10
+      });
+      console.log('MapView created successfully');
+
+      // Wait for the view to be ready
+      console.log('Waiting for MapView to be ready...');
+      await view.when();
+      console.log('MapView is ready');
+
       setMapView(view);
+      setArcgisLoaded(true);
+      console.log('=== Mapping Dashboard initialization complete ===');
+
     } catch (error) {
-      console.error('Failed to initialize map:', error);
-      setError('Failed to initialize map. Please refresh the page.');
+      console.error('=== Mapping Dashboard initialization failed ===');
+      console.error('Error details:', error);
+      console.log('Falling back to simple map display');
+      setUseFallbackMap(true);
+      setError(null); // Clear error since we're using fallback
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -106,16 +151,16 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
 
       // Create and add overlay layers
       if (overlaysData.length > 0) {
-        const wellsLayer = await arcgis.createWellsLayer(overlaysData.filter(o => o.type === 'wells').flatMap(o => o.data || []));
+        const wellsLayer = await arcgis.createWellsLayer(overlaysData.filter(o => (o as any).type === 'wells').flatMap(o => o.data || []));
         await arcgis.addLayerToMap(mapView, wellsLayer);
 
-        const permitsLayer = await arcgis.createPermitsLayer(overlaysData.filter(o => o.type === 'permits').flatMap(o => o.data || []));
+        const permitsLayer = await arcgis.createPermitsLayer(overlaysData.filter(o => (o as any).type === 'permits').flatMap(o => o.data || []));
         await arcgis.addLayerToMap(mapView, permitsLayer);
 
-        const rigsLayer = await arcgis.createRigsLayer(overlaysData.filter(o => o.type === 'rigs').flatMap(o => o.data || []));
+        const rigsLayer = await arcgis.createRigsLayer(overlaysData.filter(o => (o as any).type === 'rigs').flatMap(o => o.data || []));
         await arcgis.addLayerToMap(mapView, rigsLayer);
 
-        const distressLayer = await arcgis.createDistressSignalsLayer(overlaysData.filter(o => o.type === 'distress').flatMap(o => o.data || []));
+        const distressLayer = await arcgis.createDistressSignalsLayer(overlaysData.filter(o => (o as any).type === 'distress').flatMap(o => o.data || []));
         await arcgis.addLayerToMap(mapView, distressLayer);
       }
     } catch (error) {
@@ -454,14 +499,66 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
           </div>
 
           {/* Map Container */}
-          <div className="flex-1 relative">
-            <div ref={mapRef} className="w-full h-full" />
+          <div className="flex-1 relative" style={{ minHeight: '500px', maxHeight: '800px' }}>
+            <div 
+              ref={mapRef} 
+              className="w-full h-full" 
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                minHeight: '500px',
+                maxHeight: '800px',
+                maxWidth: '100%'
+              }}
+            />
             
             {isLoading && (
               <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading map...</p>
+                  <p className="text-gray-600">
+                    {useFallbackMap ? 'Loading simple map...' : 'Loading ArcGIS map...'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Fallback Map Display */}
+            {useFallbackMap && !isLoading && (
+              <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                <div className="text-center p-8">
+                  <MapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Mapping Dashboard Overview</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-white p-3 rounded shadow">
+                      <div className="font-semibold text-blue-600">{assets.filter(a => a.assetType === 'Tract').length}</div>
+                      <div className="text-gray-600">Tracts</div>
+                    </div>
+                    <div className="bg-white p-3 rounded shadow">
+                      <div className="font-semibold text-purple-600">{assets.filter(a => a.assetType === 'Unit').length}</div>
+                      <div className="text-gray-600">Units</div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-4">
+                    Configure REACT_APP_ARCGIS_API_KEY for full mapping features.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {error && !useFallbackMap && (
+              <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center">
+                <div className="text-center text-red-600">
+                  <MapIcon className="h-12 w-12 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Map Error</h3>
+                  <p className="text-sm">{error}</p>
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="mt-4 bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-600"
+                  >
+                    Retry
+                  </button>
                 </div>
               </div>
             )}

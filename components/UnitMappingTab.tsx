@@ -1,0 +1,528 @@
+import React, { useState, useEffect, useRef } from 'react';
+import type { Unit, UnitTractEnhanced, ProducingWell, Permit, Rig, MapLayerPreference } from '../types';
+import * as api from '../services/api';
+import * as arcgis from '../services/arcgis';
+import Button from './ui/Button';
+import Card from './ui/Card';
+import { 
+  MapIcon, 
+  EyeIcon, 
+  EyeSlashIcon,
+  ExclamationTriangleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
+} from './icons/Icons';
+import Map from "@arcgis/core/Map";
+import MapView from "@arcgis/core/views/MapView";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+
+interface UnitMappingTabProps {
+  unitId: string;
+  unit: Unit;
+  unitTracts: UnitTractEnhanced[];
+}
+
+const UnitMappingTab: React.FC<UnitMappingTabProps> = ({ 
+  unitId, 
+  unit, 
+  unitTracts 
+}) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapView, setMapView] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [arcgisLoaded, setArcgisLoaded] = useState(false);
+  const [useFallbackMap, setUseFallbackMap] = useState(false);
+  
+  // Map layers and overlays
+  const [layers, setLayers] = useState<{ [key: string]: any }>({});
+  const [layerPreferences, setLayerPreferences] = useState<MapLayerPreference[]>([]);
+  const [selectedFeature, setSelectedFeature] = useState<any>(null);
+  
+  // Data state
+  const [wells, setWells] = useState<ProducingWell[]>([]);
+  const [permits, setPermits] = useState<Permit[]>([]);
+  const [rigs, setRigs] = useState<Rig[]>([]);
+  
+  // UI state
+  const [showLegend, setShowLegend] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Initialize map when component is mounted
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = mapRef.current;
+      if (container && !arcgisLoaded && !useFallbackMap) {
+        initializeMap(container);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [arcgisLoaded, useFallbackMap]);
+
+  // Fetch map data when map is loaded
+  useEffect(() => {
+    if (arcgisLoaded || useFallbackMap) {
+      fetchMapData();
+    }
+  }, [arcgisLoaded, useFallbackMap, unitId]);
+
+  const initializeMap = async (container: HTMLElement) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Initializing Unit Map...');
+      
+      // Check if API key is available
+      const apiKey = process.env.REACT_APP_ARCGIS_API_KEY;
+      if (!apiKey) {
+        console.warn('ArcGIS API key not found, using fallback map');
+        setUseFallbackMap(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Load ArcGIS modules
+      await arcgis.loadModules();
+      
+      // Create map
+      console.log('Creating ArcGIS Map...');
+      const map = new Map({
+        basemap: "satellite"
+      });
+      console.log('Map created successfully');
+
+      // Create map view
+      console.log('Creating MapView...');
+      const view = new MapView({
+        container: container as HTMLDivElement,
+        map: map,
+        center: [-102.0776, 31.9686], // Default to Midland, TX
+        zoom: 12
+      });
+      console.log('MapView created successfully');
+
+      // Wait for the view to be ready
+      console.log('Waiting for MapView to be ready...');
+      await view.when();
+      console.log('MapView is ready');
+
+      // Create graphics layers for each feature type
+      console.log('Creating graphics layers...');
+      const graphicsLayers = {
+        unitBoundary: new GraphicsLayer({ id: "unit-boundary", title: "Unit Boundary" }),
+        linkedTracts: new GraphicsLayer({ id: "linked-tracts", title: "Linked Tracts" }),
+        producingWells: new GraphicsLayer({ id: "producing-wells", title: "Producing Wells" }),
+        permits: new GraphicsLayer({ id: "permits", title: "Permits" }),
+        rigs: new GraphicsLayer({ id: "rigs", title: "Rigs" })
+      };
+
+      // Add layers to map
+      console.log('Adding graphics layers to map...');
+      Object.values(graphicsLayers).forEach(layer => {
+        map.add(layer);
+      });
+      console.log('Graphics layers added to map');
+
+      setMapView(view);
+      setLayers(graphicsLayers);
+      setArcgisLoaded(true);
+      console.log('=== Unit Map initialization complete ===');
+
+    } catch (error) {
+      console.error('=== Unit Map initialization failed ===');
+      console.error('Error details:', error);
+      console.log('Falling back to simple map display');
+      setUseFallbackMap(true);
+      setError(null); // Clear error since we're using fallback
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMapData = async () => {
+    try {
+      if (useFallbackMap) {
+        // For fallback map, we don't need to fetch spatial data
+        return;
+      }
+
+      // Fetch nearby data based on unit location or linked tracts
+      const centerLat = (unit as any).latitude || 31.9686;
+      const centerLon = (unit as any).longitude || -102.0776;
+      
+      // Fetch overlay data
+      const [wellsData, permitsData, rigsData] = await Promise.all([
+        api.fetchNearbyWells(centerLat, centerLon, 10),
+        api.fetchNearbyPermits(centerLat, centerLon, 10),
+        api.fetchNearbyRigs(centerLat, centerLon, 10)
+      ]);
+
+      setWells(wellsData);
+      setPermits(permitsData);
+      setRigs(rigsData);
+
+      // Add features to map
+      if (arcgisLoaded && !useFallbackMap) {
+        addFeaturesToMap(wellsData, permitsData, rigsData);
+      }
+      
+    } catch (err) {
+      console.error('Failed to fetch map data:', err);
+      setError('Failed to load map data');
+    }
+  };
+
+  const addFeaturesToMap = async (wells: ProducingWell[], permits: Permit[], rigs: Rig[]) => {
+    if (!mapView || !layers) {
+      console.log('MapView or layers not ready');
+      return;
+    }
+
+    try {
+      console.log('Adding features to unit map...');
+      
+      // Clear existing graphics
+      Object.values(layers).forEach(layer => {
+        layer.removeAll();
+      });
+
+      // Add unit boundary (if we have spatial data)
+      if ((unit as any).latitude && (unit as any).longitude) {
+        const unitGraphics = arcgis.createGraphicsFromData([{
+          id: unit.id,
+          latitude: (unit as any).latitude,
+          longitude: (unit as any).longitude,
+          name: unit.unitName,
+          geometryType: 'Point'
+        }], 'unit', {
+          id: "unit-boundary",
+          title: "Unit Boundary",
+          color: [156, 39, 176, 0.8], // Purple
+          symbol: "polygon"
+        });
+        layers.unitBoundary.addMany(unitGraphics);
+        console.log('Added unit boundary graphics');
+      }
+
+      // Add linked tracts
+      if (unitTracts.length > 0) {
+        const tractGraphics = arcgis.createGraphicsFromData(unitTracts.map(tract => ({
+          id: tract.tractId,
+          latitude: (tract as any).latitude || 31.9686,
+          longitude: (tract as any).longitude || -102.0776,
+          name: tract.tractName,
+          geometryType: 'Point'
+        })), 'tract', {
+          id: "linked-tracts",
+          title: "Linked Tracts",
+          color: [59, 130, 246, 0.7], // Blue
+          symbol: "polygon"
+        });
+        layers.linkedTracts.addMany(tractGraphics);
+        console.log(`Added ${unitTracts.length} linked tract graphics`);
+      }
+
+      // Add wells
+      if (wells.length > 0) {
+        const wellGraphics = arcgis.createGraphicsFromData(wells, 'well', arcgis.LAYER_CONFIG.producingWells);
+        layers.producingWells.addMany(wellGraphics);
+        console.log(`Added ${wells.length} well graphics`);
+      }
+
+      // Add permits
+      if (permits.length > 0) {
+        const permitGraphics = arcgis.createGraphicsFromData(permits, 'permit', arcgis.LAYER_CONFIG.permits);
+        layers.permits.addMany(permitGraphics);
+        console.log(`Added ${permits.length} permit graphics`);
+      }
+
+      // Add rigs
+      if (rigs.length > 0) {
+        const rigGraphics = arcgis.createGraphicsFromData(rigs, 'rig', arcgis.LAYER_CONFIG.rigs);
+        layers.rigs.addMany(rigGraphics);
+        console.log(`Added ${rigs.length} rig graphics`);
+      }
+      
+      console.log('All features added to unit map successfully');
+    } catch (error) {
+      console.error('Error adding features to unit map:', error);
+      setError(`Error adding features to map: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleLayerToggle = (layerType: string, visible: boolean) => {
+    if (!layers[layerType]) return;
+
+    layers[layerType].visible = visible;
+    setLayers({ ...layers });
+  };
+
+  if (error && !useFallbackMap) {
+    return (
+      <Card className="p-6">
+        <div className="text-center text-red-600">
+          <ExclamationTriangleIcon className="h-12 w-12 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Map Error</h3>
+          <p className="text-sm">{error}</p>
+          <div className="mt-4 space-x-2">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mr-2"
+            >
+              Retry
+            </Button>
+            <Button 
+              onClick={() => setUseFallbackMap(true)}
+              variant="secondary"
+            >
+              Use Simple Map
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Map Controls Header */}
+      <div className="bg-white border-b border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h3 className="text-lg font-semibold text-gray-900">Unit Mapping Preview</h3>
+            <span className="text-sm text-gray-500">
+              {unit.unitName} • {unitTracts.length} Linked Tracts
+            </span>
+            {useFallbackMap && (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                Simple Map Mode
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowLegend(!showLegend)}
+              className="flex items-center space-x-2"
+            >
+              {showLegend ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
+              <span>Legend</span>
+            </Button>
+            
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center space-x-2"
+            >
+              {showFilters ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+              <span>Filters</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Unit Boundary</label>
+              <input
+                type="checkbox"
+                checked={layers.unitBoundary?.visible !== false}
+                onChange={(e) => handleLayerToggle('unitBoundary', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Linked Tracts</label>
+              <input
+                type="checkbox"
+                checked={layers.linkedTracts?.visible !== false}
+                onChange={(e) => handleLayerToggle('linkedTracts', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Show Wells & Permits</label>
+              <input
+                type="checkbox"
+                checked={layers.producingWells?.visible !== false}
+                onChange={(e) => {
+                  handleLayerToggle('producingWells', e.target.checked);
+                  handleLayerToggle('permits', e.target.checked);
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Map Container */}
+      <div className="flex-1 relative" style={{ minHeight: '400px', maxHeight: '600px' }}>
+        <div
+          ref={mapRef}
+          id="unit-map-container"
+          className="w-full h-full"
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            minHeight: '400px',
+            maxHeight: '600px',
+            maxWidth: '100%'
+          }}
+        />
+        
+        {/* ArcGIS Attribution Override - Position it properly to avoid overlap */}
+        <style>{`
+          #unit-map-container .esri-attribution {
+            bottom: 160px !important;
+            left: 10px !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            padding: 6px 10px !important;
+            border-radius: 6px !important;
+            font-size: 10px !important;
+            color: #555 !important;
+            max-width: 180px !important;
+            z-index: 1000 !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            border: 1px solid rgba(0,0,0,0.1) !important;
+          }
+          
+          #unit-map-container .esri-attribution__sources {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          
+          #unit-map-container .esri-attribution__source {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.3 !important;
+          }
+        `}</style>
+        
+        {isLoading && (
+          <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sc-blue mx-auto mb-4"></div>
+              <p className="text-gray-600">
+                {useFallbackMap ? 'Loading simple map...' : 'Loading ArcGIS map...'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback Map Display */}
+        {useFallbackMap && !isLoading && (
+          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+            <div className="text-center p-8">
+              <MapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Unit Overview</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-purple-600">{unitTracts.length}</div>
+                  <div className="text-gray-600">Linked Tracts</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-blue-600">{wells.length}</div>
+                  <div className="text-gray-600">Nearby Wells</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-yellow-600">{permits.length}</div>
+                  <div className="text-gray-600">Active Permits</div>
+                </div>
+                <div className="bg-white p-3 rounded shadow">
+                  <div className="font-semibold text-pink-600">{rigs.length}</div>
+                  <div className="text-gray-600">Active Rigs</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-4">
+                Configure REACT_APP_ARCGIS_API_KEY for full mapping features.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Legend Panel */}
+      {showLegend && !useFallbackMap && (
+        <div className="bg-white border-t border-gray-200 p-4 mt-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Map Legend</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-purple-500 rounded"></div>
+              <span className="text-sm text-gray-600">Unit Boundary</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-blue-500 rounded"></div>
+              <span className="text-sm text-gray-600">Linked Tracts</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Producing Wells</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Active Permits</span>
+            </div>
+          </div>
+          
+          {/* ArcGIS Attribution with proper spacing */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <div className="text-xs text-gray-400 space-y-1">
+              <div>Earthstar Geographics</div>
+              <div>Powered by Esri</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feature Details Panel */}
+      {selectedFeature && !useFallbackMap && (
+        <div className="absolute top-4 right-4 w-80 bg-white rounded-lg shadow-lg border border-gray-200">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-gray-900">Feature Details</h4>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setSelectedFeature(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </Button>
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-gray-500">Type:</span>
+                <span className="ml-2 text-gray-900 capitalize">{selectedFeature.type}</span>
+              </div>
+              
+              {selectedFeature.data.name && (
+                <div>
+                  <span className="text-gray-500">Name:</span>
+                  <span className="ml-2 text-gray-900">{selectedFeature.data.name}</span>
+                </div>
+              )}
+              
+              {selectedFeature.data.status && (
+                <div>
+                  <span className="text-gray-500">Status:</span>
+                  <span className="ml-2 text-gray-900">{selectedFeature.data.status}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default UnitMappingTab;

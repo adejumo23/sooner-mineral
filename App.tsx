@@ -24,6 +24,8 @@ import CalendarTaskPage from './pages/CalendarTaskPage';
 import DocumentGenerationPage from './pages/DocumentGenerationPage';
 import ReportingPage from './pages/ReportingPage';
 import ESGPage from './pages/ESGPage';
+import LPPortalPage from './pages/LPPortalPage';
+import DataImportPage from './pages/DataImportPage';
 import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
@@ -73,6 +75,8 @@ function App() {
           <Route path="/document-generation" element={<DocumentGenerationPage />} />
           <Route path="/reporting" element={<ReportingPage />} />
           <Route path="/esg" element={<ESGPage />} />
+          <Route path="/lp-portal" element={<LPPortalPage />} />
+          <Route path="/data-import" element={<DataImportPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
