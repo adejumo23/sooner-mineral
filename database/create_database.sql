@@ -317,6 +317,80 @@ INSERT INTO lead_notes (id, lead_id, note_text, note_type, created_by_id) VALUES
 ('ln4', 'lead4', 'Development opportunity - needs due diligence', 'General', 'u4');
 
 -- ============================================================================
+-- DATA IMPORT TABLES
+-- ============================================================================
+
+-- Import sessions table
+CREATE TABLE import_sessions (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    data_type ENUM('tracts', 'contacts', 'units', 'leads', 'assignments', 'custom') NOT NULL,
+    status ENUM('staging', 'review', 'production', 'archived') DEFAULT 'staging',
+    created_by VARCHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- Import files table
+CREATE TABLE import_files (
+    id VARCHAR(36) PRIMARY KEY,
+    session_id VARCHAR(36) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    file_size BIGINT NOT NULL,
+    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('uploading', 'processing', 'staged', 'error') DEFAULT 'uploading',
+    record_count INT DEFAULT 0,
+    error_message TEXT,
+    FOREIGN KEY (session_id) REFERENCES import_sessions(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Staging tables metadata
+CREATE TABLE staging_tables (
+    id VARCHAR(36) PRIMARY KEY,
+    session_id VARCHAR(36) NOT NULL,
+    table_name VARCHAR(255) NOT NULL UNIQUE,
+    column_schema JSON NOT NULL, -- Stores column names, types, and constraints
+    record_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES import_sessions(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Production tables metadata
+CREATE TABLE production_tables (
+    id VARCHAR(36) PRIMARY KEY,
+    session_id VARCHAR(36) NOT NULL,
+    table_name VARCHAR(255) NOT NULL UNIQUE,
+    column_schema JSON NOT NULL, -- Stores column names, types, and constraints
+    record_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES import_sessions(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Import validation rules
+CREATE TABLE import_validation_rules (
+    id VARCHAR(36) PRIMARY KEY,
+    data_type ENUM('tracts', 'contacts', 'units', 'leads', 'assignments', 'custom') NOT NULL,
+    required_columns JSON NOT NULL, -- Array of required column names
+    column_mappings JSON, -- Maps Excel columns to database columns
+    validation_rules JSON, -- Custom validation rules
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insert default validation rules for known data types
+INSERT INTO import_validation_rules (id, data_type, required_columns, column_mappings) VALUES
+('vr1', 'tracts', '["TRACT_NAME", "STATE", "COUNTY", "GROSS_ACRES"]', '{"TRACT_NAME": "tract_name", "STATE": "state", "COUNTY": "county", "GROSS_ACRES": "gross_acres"}'),
+('vr2', 'contacts', '["NAME", "EMAIL", "PHONE"]', '{"NAME": "name", "EMAIL": "email", "PHONE": "phone"}'),
+('vr3', 'units', '["UNIT_NAME", "STATE", "COUNTY"]', '{"UNIT_NAME": "unit_name", "STATE": "state", "COUNTY": "county"}');
+
+-- Insert sample import session
+INSERT INTO import_sessions (id, name, description, data_type, status, created_by) VALUES
+('session1', 'uploading test acreage schedule', 'Test upload of acreage schedule data', 'custom', 'staging', 'u1');
+
+-- ============================================================================
 -- DATABASE CREATION COMPLETE
 -- ============================================================================
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -27,7 +27,7 @@ interface ImportedFile {
   originalName: string;
   fileSize: number;
   uploadDate: string;
-  status: 'processing' | 'completed' | 'failed';
+  status: 'uploading' | 'processing' | 'staged' | 'error';
   recordCount: number;
   uploadedBy: string;
   dataPreview?: any[];
@@ -39,11 +39,22 @@ interface ImportSession {
   id: string;
   name: string;
   description: string;
-  dataType: 'tracts' | 'contacts' | 'units' | 'leads' | 'assignments';
+  dataType: 'tracts' | 'contacts' | 'units' | 'leads' | 'assignments' | 'custom';
   files: ImportedFile[];
   createdAt: string;
   createdBy: string;
-  status: 'active' | 'archived';
+  status: 'staging' | 'review' | 'production' | 'archived';
+  updatedAt: string;
+}
+
+interface StagingTable {
+  id: string;
+  sessionId: string;
+  tableName: string;
+  columnSchema: any[];
+  recordCount: number;
+  createdAt: string;
+  data?: any[];
 }
 
 interface DataTableState {
@@ -57,7 +68,7 @@ interface DataTableState {
 
 const DataImportPage: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'upload' | 'sessions' | 'data'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'sessions' | 'staging' | 'data'>('upload');
   const [importSessions, setImportSessions] = useState<ImportSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ImportSession | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -65,7 +76,7 @@ const DataImportPage: React.FC = () => {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'preparing' | 'uploading' | 'processing' | 'completed' | 'failed'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dataType, setDataType] = useState<'tracts' | 'contacts' | 'units' | 'leads' | 'assignments'>('tracts');
+  const [dataType, setDataType] = useState<'tracts' | 'contacts' | 'units' | 'leads' | 'assignments' | 'custom'>('custom');
   const [sessionName, setSessionName] = useState('');
   const [sessionDescription, setSessionDescription] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +96,12 @@ const DataImportPage: React.FC = () => {
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [allData, setAllData] = useState<any[]>([]);
 
+  // Staging workflow state
+  const [stagingTable, setStagingTable] = useState<StagingTable | null>(null);
+  const [isPromotingToProduction, setIsPromotingToProduction] = useState(false);
+  const [editingRow, setEditingRow] = useState<string | null>(null);
+  const [editingData, setEditingData] = useState<any>({});
+
   useEffect(() => {
     fetchImportSessions();
   }, []);
@@ -96,10 +113,14 @@ const DataImportPage: React.FC = () => {
   }, [activeTab, selectedSession]);
 
   useEffect(() => {
-    if (allData.length > 0) {
-      filterAndSortData();
+    if (activeTab === 'staging' && selectedSession) {
+      loadSessionData();
     }
-  }, [allData, tableState]);
+  }, [activeTab, selectedSession]);
+
+  useEffect(() => {
+    console.log('filteredData changed to:', filteredData);
+  }, [filteredData]);
 
   const fetchImportSessions = async () => {
     try {
@@ -117,35 +138,157 @@ const DataImportPage: React.FC = () => {
     
     setIsLoadingData(true);
     try {
-      // Load full data for all files in the session
-      const sessionWithData = await api.fetchImportSessionData(selectedSession.id);
-      const allSessionData: any[] = [];
-      
-      sessionWithData.files.forEach((file: ImportedFile) => {
-        if (file.allData && file.allData.length > 0) {
-          // Add file identifier to each record
-          const dataWithFile = file.allData.map((record: any) => ({
-            ...record,
-            _fileId: file.id,
-            _fileName: file.originalName
-          }));
-          allSessionData.push(...dataWithFile);
+      if (selectedSession.status === 'staging') {
+        // Load staging table data
+        console.log('Loading staging data for session:', selectedSession.id);
+        const stagingData = await api.fetchStagingTableData(selectedSession.id);
+        console.log('Staging data received:', stagingData);
+        
+        // Check if stagingData is an array (direct data) or object with data property
+        if (Array.isArray(stagingData)) {
+          // Direct data array - create a proper StagingTable object
+          const stagingTableObj: StagingTable = {
+            id: selectedSession.id,
+            sessionId: selectedSession.id,
+            tableName: selectedSession.name,
+            columnSchema: stagingData.length > 0 ? Object.keys(stagingData[0]).map(key => ({ name: key, type: 'string' })) : [],
+            recordCount: stagingData.length,
+            createdAt: selectedSession.createdAt,
+            data: stagingData
+          };
+          setStagingTable(stagingTableObj);
+          setAllData(stagingData);
+          console.log('All data set (direct array):', stagingData);
+          console.log('allData length after set:', stagingData.length);
+        } else if (stagingData && typeof stagingData === 'object' && 'data' in stagingData && Array.isArray((stagingData as any).data)) {
+          // Object with data property
+          const typedStagingData = stagingData as any;
+          setStagingTable(typedStagingData as StagingTable);
+          setAllData(typedStagingData.data);
+          console.log('All data set (object.data):', typedStagingData.data);
+          console.log('allData length after set:', typedStagingData.data.length);
+        } else {
+          // No data or invalid structure
+          console.log('No valid staging data found');
+          setStagingTable(null);
+          setAllData([]);
         }
-      });
+      } else {
+        // Load production data
+        const sessionWithData = await api.fetchImportSessionData(selectedSession.id);
+        const allSessionData: any[] = [];
+        
+        // Safety check for files array
+        if (sessionWithData.files && Array.isArray(sessionWithData.files)) {
+          sessionWithData.files.forEach((file: ImportedFile) => {
+            if (file.allData && Array.isArray(file.allData) && file.allData.length > 0) {
+              // Add file identifier to each record
+              const dataWithFile = file.allData.map((record: any) => ({
+                ...record,
+                _fileId: file.id,
+                _fileName: file.originalName
+              }));
+              allSessionData.push(...dataWithFile);
+            }
+          });
+        }
+        
+        setAllData(allSessionData);
+      }
       
-      setAllData(allSessionData);
-      setTableState(prev => ({
-        ...prev,
-        selectedFile: sessionWithData.files[0]?.id || null
-      }));
+      // Safety check for files array before accessing
+      if (selectedSession.files && Array.isArray(selectedSession.files) && selectedSession.files.length > 0) {
+        setTableState(prev => ({
+          ...prev,
+          selectedFile: selectedSession.files[0]?.id || null
+        }));
+      }
     } catch (error) {
       console.error('Failed to load session data:', error);
+      // Set empty data on error to prevent undefined issues
+      setAllData([]);
+      setStagingTable(null);
     } finally {
       setIsLoadingData(false);
     }
   };
 
-  const filterAndSortData = () => {
+  const handlePromoteToProduction = async () => {
+    if (!selectedSession) return;
+    
+    setIsPromotingToProduction(true);
+    try {
+      const result = await api.promoteToProduction(selectedSession.id);
+      
+      // Update local state
+      setSelectedSession(prev => prev ? { ...prev, status: 'production' } : null);
+      setImportSessions(prev => prev.map(s => 
+        s.id === selectedSession.id ? { ...s, status: 'production' } : s
+      ));
+      
+      // Reload data
+      await loadSessionData();
+      
+      alert(result.message);
+    } catch (error) {
+      console.error('Failed to promote to production:', error);
+      alert('Failed to promote to production. Please try again.');
+    } finally {
+      setIsPromotingToProduction(false);
+    }
+  };
+
+  const handleEditRow = (rowId: string, data: any) => {
+    setEditingRow(rowId);
+    setEditingData(data);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedSession || !editingRow) return;
+    
+    try {
+      // Update the local data first
+      const updatedData = allData.map(row => 
+        row.id === editingRow ? { ...row, ...editingData } : row
+      );
+      
+      // Update the staging table with the new data
+      await api.updateStagingData(selectedSession.id, updatedData);
+      
+      // Update local state
+      setAllData(updatedData);
+      
+      setEditingRow(null);
+      setEditingData({});
+      alert('Data updated successfully');
+    } catch (error) {
+      console.error('Failed to update data:', error);
+      alert('Failed to update data. Please try again.');
+    }
+  };
+
+  const handleDeleteRow = async (rowId: string) => {
+    if (!selectedSession || !confirm('Are you sure you want to delete this record?')) return;
+    
+    try {
+      // Remove the row from local data
+      const updatedData = allData.filter(row => row.id !== rowId);
+      
+      // Update the staging table with the new data
+      await api.updateStagingData(selectedSession.id, updatedData);
+      
+      // Update local state
+      setAllData(updatedData);
+      
+      alert('Record deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete record:', error);
+      alert('Failed to delete record. Please try again.');
+    }
+  };
+
+  const filterAndSortData = useCallback(() => {
+    console.log('filterAndSortData called with allData:', allData);
     let filtered = [...allData];
 
     // Apply search filter
@@ -158,8 +301,8 @@ const DataImportPage: React.FC = () => {
       );
     }
 
-    // Apply file filter
-    if (tableState.selectedFile) {
+    // Apply file filter - only for production data that has _fileId
+    if (tableState.selectedFile && selectedSession?.status !== 'staging') {
       filtered = filtered.filter(record => record._fileId === tableState.selectedFile);
     }
 
@@ -177,8 +320,14 @@ const DataImportPage: React.FC = () => {
       });
     }
 
+    console.log('filteredData set to:', filtered);
     setFilteredData(filtered);
-  };
+  }, [allData, tableState.searchTerm, tableState.sortColumn, tableState.sortDirection, tableState.selectedFile, selectedSession?.status]);
+
+  useEffect(() => {
+    console.log('useEffect triggered - allData changed:', allData.length);
+    filterAndSortData();
+  }, [filterAndSortData]);
 
   const handleSort = (column: string) => {
     setTableState(prev => ({
@@ -322,7 +471,7 @@ const DataImportPage: React.FC = () => {
       console.log('Upload successful:', result);
       
       // Reset form after a brief delay to show completion
-      setTimeout(() => {
+      setTimeout(async () => {
         setSelectedFile(null);
         setSessionName('');
         setSessionDescription('');
@@ -331,11 +480,20 @@ const DataImportPage: React.FC = () => {
         setUploadMessage('');
         setIsUploading(false);
         
-        // Refresh sessions
-        fetchImportSessions();
+        // Refresh sessions and automatically select the new one
+        const updatedSessions = await api.fetchImportSessions();
+        setImportSessions(updatedSessions);
         
-        // Switch to sessions tab
-        setActiveTab('sessions');
+        // Find and select the newly created session
+        const newSession = updatedSessions.find(s => s.id === result.sessionId);
+        if (newSession) {
+          setSelectedSession(newSession);
+          // Switch to staging tab to show the data
+          setActiveTab('staging');
+        } else {
+          // Fallback to sessions tab if session not found
+          setActiveTab('sessions');
+        }
       }, 2000);
       
     } catch (error) {
@@ -348,7 +506,11 @@ const DataImportPage: React.FC = () => {
 
   const handleSessionSelect = async (session: ImportSession) => {
     setSelectedSession(session);
-    setActiveTab('data');
+    if (session.status === 'staging') {
+      setActiveTab('staging');
+    } else {
+      setActiveTab('data');
+    }
   };
 
   const handleDeleteSession = async (sessionId: string) => {
@@ -427,6 +589,19 @@ const DataImportPage: React.FC = () => {
             <DocumentTextIcon className="h-4 w-4 inline mr-2" />
             Import Sessions
           </button>
+          {selectedSession && selectedSession.status === 'staging' && (
+            <button
+              onClick={() => setActiveTab('staging')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'staging'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <TableCellsIcon className="h-4 w-4 inline mr-2" />
+              Staging
+            </button>
+          )}
           {selectedSession && (
             <button
               onClick={() => setActiveTab('data')}
@@ -719,6 +894,273 @@ const DataImportPage: React.FC = () => {
                   )}
                 </Card>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Staging Tab */}
+      {activeTab === 'staging' && (
+        <div className="space-y-4">
+          {!selectedSession ? (
+            <div className="text-center py-8">
+              <TableCellsIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500">Please select a session to view staging data</p>
+              <Button
+                onClick={() => setActiveTab('sessions')}
+                variant="primary"
+                size="sm"
+                className="mt-4"
+              >
+                Go to Sessions
+              </Button>
+            </div>
+          ) : selectedSession.status !== 'staging' ? (
+            <div className="text-center py-8">
+              <TableCellsIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500">This session is not in staging mode</p>
+              <p className="text-sm text-gray-400 mt-2">Status: {selectedSession.status}</p>
+              <Button
+                onClick={() => setActiveTab('sessions')}
+                variant="primary"
+                size="sm"
+                className="mt-4"
+              >
+                Back to Sessions
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Staging Data</h2>
+                  <p className="text-sm text-gray-600">
+                    Review and edit data before promoting to production. 
+                    {stagingTable && ` Table: ${stagingTable.tableName}`}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    onClick={handlePromoteToProduction}
+                    variant="primary"
+                    size="sm"
+                    disabled={isPromotingToProduction || !stagingTable}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {isPromotingToProduction ? (
+                      <>
+                        <RefreshIcon className="h-4 w-4 mr-2 animate-spin" />
+                        Promoting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="h-4 w-4 mr-2" />
+                        Promote to Production
+                      </>
+                      )}
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab('sessions')}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Back to Sessions
+                  </Button>
+                </div>
+              </div>
+
+              <Card className="p-6">
+                {isLoadingData ? (
+                  <div className="text-center py-8">
+                    <RefreshIcon className="h-8 w-8 mx-auto mb-4 animate-spin text-orange-500" />
+                    <p>Loading staging data...</p>
+                  </div>
+                ) : !stagingTable || allData.length === 0 ? (
+                  <div className="text-center py-8">
+                    <TableCellsIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-500">No staging data available</p>
+                    <p className="text-sm text-gray-400 mt-2">Session: {selectedSession.name}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Staging Info */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <InformationCircleIcon className="h-5 w-5 text-blue-600" />
+                        <span className="text-blue-800 font-medium">Staging Mode</span>
+                      </div>
+                      <p className="text-blue-700 text-sm mt-1">
+                        This data is in staging. You can edit, delete, or modify records before promoting to production.
+                        Once promoted, the data will be moved to the production table and cannot be easily modified.
+                      </p>
+                    </div>
+
+                    {/* Filters and Controls */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {/* Search */}
+                      <div className="flex-1">
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search all fields..."
+                            value={tableState.searchTerm}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Page Size */}
+                      <div className="sm:w-32">
+                        <select
+                          value={tableState.pageSize}
+                          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                        >
+                          <option value={10}>10 rows</option>
+                          <option value={25}>25 rows</option>
+                          <option value={50}>50 rows</option>
+                          <option value={100}>100 rows</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Data Summary */}
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <span>
+                        Showing {((tableState.currentPage - 1) * tableState.pageSize) + 1} to{' '}
+                        {Math.min(tableState.currentPage * tableState.pageSize, filteredData.length)} of{' '}
+                        {filteredData.length} records
+                      </span>
+                      <span>Total: {allData.length} records</span>
+                    </div>
+
+                    {/* Staging Data Table */}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            {stagingTable.columnSchema.map((column) => (
+                              <th
+                                key={column.name}
+                                onClick={() => handleSort(column.name)}
+                                className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              >
+                                <div className="flex items-center space-x-1">
+                                  <span>{column.name.replace(/_/g, ' ').toUpperCase()}</span>
+                                  {tableState.sortColumn === column.name && (
+                                    tableState.sortDirection === 'asc' ? (
+                                      <ChevronUpIcon className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronDownIcon className="h-4 w-4" />
+                                    )
+                                  )}
+                                </div>
+                              </th>
+                            ))}
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {getPaginatedData().map((row: any, index: number) => (
+                            <tr key={row.id || index} className="hover:bg-gray-50">
+                              {stagingTable.columnSchema.map((column) => (
+                                <td key={column.name} className="px-3 py-2 text-sm text-gray-900">
+                                  {editingRow === row.id ? (
+                                    <input
+                                      type="text"
+                                      value={editingData[column.name] || row[column.name] || ''}
+                                      onChange={(e) => setEditingData((prev: any) => ({
+                                        ...prev,
+                                        [column.name]: e.target.value
+                                      }))}
+                                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    />
+                                  ) : (
+                                    row[column.name] || ''
+                                  )}
+                                </td>
+                              ))}
+                              <td className="px-3 py-2 text-sm text-gray-500">
+                                <div className="flex items-center space-x-2">
+                                  {editingRow === row.id ? (
+                                    <>
+                                      <button
+                                        onClick={handleSaveEdit}
+                                        className="text-green-600 hover:text-green-900"
+                                        title="Save changes"
+                                      >
+                                        <CheckCircleIcon className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingRow(null);
+                                          setEditingData({});
+                                        }}
+                                        className="text-gray-600 hover:text-red-900"
+                                        title="Cancel edit"
+                                      >
+                                        <XMarkIcon className="h-4 w-4" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => handleEditRow(row.id, row)}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        title="Edit row"
+                                      >
+                                        <EyeIcon className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteRow(row.id)}
+                                        className="text-red-600 hover:text-red-900"
+                                        title="Delete row"
+                                      >
+                                        <TrashIcon className="h-4 w-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {Math.ceil(filteredData.length / tableState.pageSize) > 1 && (
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-700">
+                          Page {tableState.currentPage} of {Math.ceil(filteredData.length / tableState.pageSize)}
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            onClick={() => handlePageChange(tableState.currentPage - 1)}
+                            disabled={tableState.currentPage === 1}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            onClick={() => handlePageChange(tableState.currentPage + 1)}
+                            disabled={tableState.currentPage >= Math.ceil(filteredData.length / tableState.pageSize)}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
             </div>
           )}
         </div>
