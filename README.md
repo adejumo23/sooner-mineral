@@ -173,8 +173,17 @@ chmod +x auto-deploy.sh.example
 cp auto-deploy.sh.example auto-deploy.sh
 
 # Run the auto-deploy script
-./auto-deploy.sh
+./auto-deploy.sh                    # Run in foreground
+./auto-deploy.sh --daemon           # Run in background
+./auto-deploy.sh --install-service  # Install as system service
 ```
+
+### Auto-Deploy Options
+
+- **Foreground Mode**: `./auto-deploy.sh` - Run with visible output
+- **Daemon Mode**: `./auto-deploy.sh --daemon` - Run in background
+- **System Service**: `./auto-deploy.sh --install-service` - Auto-start on boot
+- **Help**: `./auto-deploy.sh --help` - Show all options
 
 ### SSH Setup for Auto-Deploy
 
@@ -200,6 +209,30 @@ cp auto-deploy.sh.example auto-deploy.sh
    export GIT_REPO_URL="git@github.com:your-username/sooner-mineral.git"
    export PROJECT_DIRECTORY="/path/to/your/project"
    ```
+
+### System Service Management
+
+For automatic startup after system reboot:
+
+```bash
+# Install as systemd service (requires sudo)
+sudo ./auto-deploy.sh --install-service
+
+# Start the service
+sudo systemctl start sooner-mineral-deploy
+
+# Check service status
+sudo systemctl status sooner-mineral-deploy
+
+# View service logs
+sudo journalctl -u sooner-mineral-deploy -f
+
+# Stop the service
+sudo systemctl stop sooner-mineral-deploy
+
+# Uninstall the service
+sudo ./auto-deploy.sh --uninstall-service
+```
 
 ## 🗺️ Features
 
