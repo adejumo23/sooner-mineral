@@ -39,6 +39,12 @@ MAX_LOG_SIZE=10485760
 WEBHOOK_URL=""
 NOTIFICATION_ENABLED=false
 
+# Fail-safe configuration
+MAX_CONSECUTIVE_FAILURES=3
+CONTAINER_CHECK_INTERVAL=60
+FAILURE_COUNT=0
+LAST_SUCCESSFUL_DEPLOY=""
+
 # Load configuration from .envrc file if it exists
 if [ -f ".envrc" ]; then
     echo "Loading configuration from .envrc file..."
@@ -287,6 +293,58 @@ check_daemon_status() {
 }
 
 # =============================================================================
+# FAIL-SAFE FUNCTIONS
+# =============================================================================
+
+handle_deployment_failure() {
+    local error_message="$1"
+    FAILURE_COUNT=$((FAILURE_COUNT + 1))
+    
+    log "ERROR" "Deployment failed: $error_message"
+    log "ERROR" "Consecutive failures: $FAILURE_COUNT/$MAX_CONSECUTIVE_FAILURES"
+    
+    if [ "$FAILURE_COUNT" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
+        log "CRITICAL" "Maximum consecutive failures reached ($MAX_CONSECUTIVE_FAILURES)"
+        log "CRITICAL" "Stopping deployment attempts to prevent system overload"
+        send_notification "CRITICAL: Auto-deploy stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures"
+        
+        # Wait longer before retrying
+        log "INFO" "Waiting 30 minutes before retry..."
+        sleep 1800
+        FAILURE_COUNT=0
+    fi
+}
+
+handle_deployment_success() {
+    FAILURE_COUNT=0
+    LAST_SUCCESSFUL_DEPLOY=$(date '+%Y-%m-%d %H:%M:%S')
+    log "INFO" "Deployment successful. Reset failure count."
+}
+
+check_system_health() {
+    # Check if Docker is running
+    if ! docker info >/dev/null 2>&1; then
+        log "ERROR" "Docker is not running or not accessible"
+        return 1
+    fi
+    
+    # Check disk space (fail if less than 1GB free)
+    local available_space=$(df / | awk 'NR==2 {print $4}')
+    if [ "$available_space" -lt 1048576 ]; then  # 1GB in KB
+        log "ERROR" "Low disk space: $(df -h / | awk 'NR==2 {print $4}') available"
+        return 1
+    fi
+    
+    # Check if we can write to log file
+    if ! touch "$LOG_FILE" 2>/dev/null; then
+        log "ERROR" "Cannot write to log file: $LOG_FILE"
+        return 1
+    fi
+    
+    return 0
+}
+
+# =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
 
@@ -379,9 +437,14 @@ check_containers_running() {
     
     if [ "$running_containers" -eq 0 ] || [ "$running_containers" -lt "$total_services" ]; then
         log "WARN" "Not all project containers are running ($running_containers/$total_services). Starting containers..."
-        start_containers
+        if start_containers; then
+            return 0
+        else
+            return 1
+        fi
     else
         log "DEBUG" "All project containers are running ($running_containers/$total_services)"
+        return 0
     fi
 }
 
@@ -669,26 +732,42 @@ run_daemon() {
     save_current_commit "$initial_commit"
     log "INFO" "Initial commit saved: $initial_commit"
     
-    # Check if containers are running and start them if needed
-    check_containers_running
+    # Check if containers are running and start them if needed (only once at startup)
+    log "INFO" "Performing initial container check..."
+    if ! check_containers_running; then
+        log "WARN" "Initial container check failed, but continuing..."
+    fi
     
     # Main monitoring loop
+    local loop_count=0
     while true; do
         rotate_log
         
+        # Check system health every loop
+        if ! check_system_health; then
+            handle_deployment_failure "System health check failed"
+            sleep "$SLEEP_INTERVAL"
+            continue
+        fi
+        
+        # Check for code updates
         if check_for_updates; then
             log "INFO" "Changes detected, deploying..."
             if pull_and_deploy; then
                 log "INFO" "Deployment successful"
+                handle_deployment_success
             else
-                log "ERROR" "Deployment failed"
+                handle_deployment_failure "Deployment process failed"
             fi
         else
             log "DEBUG" "No changes detected, sleeping for $SLEEP_INTERVAL seconds..."
+            # Only check containers every 5 minutes (not every loop) when no changes
+            loop_count=$((loop_count + 1))
+            if [ $((loop_count % 5)) -eq 0 ]; then
+                log "DEBUG" "Periodic container health check..."
+                check_containers_running
+            fi
         fi
-        
-        # Check container status at the end of each loop iteration
-        check_containers_running
         
         sleep "$SLEEP_INTERVAL"
     done
