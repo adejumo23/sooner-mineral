@@ -593,19 +593,21 @@ check_for_updates() {
         return 1
     }
     
-    # Get current and last commit hashes
-    local current_commit=$(get_current_commit)
-    local last_commit=$(get_last_commit)
+    # Get current local commit and remote commit
+    local current_local_commit=$(get_current_commit)
+    local remote_commit=$(git rev-parse "origin/$GIT_BRANCH" 2>/dev/null || echo "unknown")
+    local last_saved_commit=$(get_last_commit)
     
-    log "DEBUG" "Current commit: $current_commit"
-    log "DEBUG" "Last commit: $last_commit"
+    log "DEBUG" "Current local commit: $current_local_commit"
+    log "DEBUG" "Remote commit: $remote_commit"
+    log "DEBUG" "Last saved commit: $last_saved_commit"
     
-    # Check if there are new commits
-    if [ "$current_commit" != "$last_commit" ] && [ "$current_commit" != "unknown" ]; then
-        log "INFO" "New commits detected! Current: $current_commit, Last: $last_commit"
+    # Check if remote has newer commits than what we last deployed
+    if [ "$remote_commit" != "unknown" ] && [ "$remote_commit" != "$last_saved_commit" ]; then
+        log "INFO" "New commits detected on remote! Remote: $remote_commit, Last deployed: $last_saved_commit"
         return 0
     else
-        log "DEBUG" "No new commits detected."
+        log "DEBUG" "No new commits detected on remote."
         return 1
     fi
 }
@@ -613,15 +615,18 @@ check_for_updates() {
 pull_and_deploy() {
     log "INFO" "Pulling latest changes and deploying..."
     
+    # Get the remote commit hash before pulling
+    local remote_commit=$(git rev-parse "origin/$GIT_BRANCH" 2>/dev/null || echo "unknown")
+    
     # Pull latest changes
     git pull origin "$GIT_BRANCH" || {
         log "ERROR" "Failed to pull latest changes"
         return 1
     }
     
-    # Get the new commit hash
-    local new_commit=$(get_current_commit)
-    log "INFO" "Pulled to commit: $new_commit"
+    # Get the new local commit hash after pulling
+    local new_local_commit=$(get_current_commit)
+    log "INFO" "Pulled to commit: $new_local_commit (was tracking: $remote_commit)"
     
     # Stop existing containers
     log "INFO" "Stopping existing containers..."
@@ -634,25 +639,25 @@ pull_and_deploy() {
     if [ -f "$ENV_FILE" ]; then
         log "INFO" "Using environment file: $ENV_FILE"
         if docker-compose --env-file "$ENV_FILE" up --build -d; then
-            log "INFO" "Successfully deployed to commit: $new_commit"
-            save_current_commit "$new_commit"
-            send_notification "Successfully deployed to commit: $new_commit"
+            log "INFO" "Successfully deployed to commit: $new_local_commit"
+            save_current_commit "$remote_commit"
+            send_notification "Successfully deployed to commit: $new_local_commit"
             return 0
         else
             log "ERROR" "Failed to build and start containers"
-            send_notification "Failed to deploy commit: $new_commit"
+            send_notification "Failed to deploy commit: $new_local_commit"
             return 1
         fi
     else
         log "WARN" "Environment file $ENV_FILE not found, using default values"
         if docker-compose up --build -d; then
-            log "INFO" "Successfully deployed to commit: $new_commit"
-            save_current_commit "$new_commit"
-            send_notification "Successfully deployed to commit: $new_commit"
+            log "INFO" "Successfully deployed to commit: $new_local_commit"
+            save_current_commit "$remote_commit"
+            send_notification "Successfully deployed to commit: $new_local_commit"
             return 0
         else
             log "ERROR" "Failed to build and start containers"
-            send_notification "Failed to deploy commit: $new_commit"
+            send_notification "Failed to deploy commit: $new_local_commit"
             return 1
         fi
     fi
