@@ -630,35 +630,67 @@ pull_and_deploy() {
     
     # Stop existing containers
     log "INFO" "Stopping existing containers..."
-    docker-compose down || docker compose down || {
-        log "WARN" "Failed to stop containers (they might not be running)"
-    }
+    if command -v docker-compose &> /dev/null; then
+        docker-compose down || {
+            log "WARN" "Failed to stop containers (they might not be running)"
+        }
+    else
+        docker compose down || {
+            log "WARN" "Failed to stop containers (they might not be running)"
+        }
+    fi
     
     # Build and start containers
     log "INFO" "Building and starting containers..."
     if [ -f "$ENV_FILE" ]; then
         log "INFO" "Using environment file: $ENV_FILE"
-        if docker-compose --env-file "$ENV_FILE" up --build -d; then
-            log "INFO" "Successfully deployed to commit: $new_local_commit"
-            save_current_commit "$remote_commit"
-            send_notification "Successfully deployed to commit: $new_local_commit"
-            return 0
+        if command -v docker-compose &> /dev/null; then
+            if docker-compose --env-file "$ENV_FILE" up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
         else
-            log "ERROR" "Failed to build and start containers"
-            send_notification "Failed to deploy commit: $new_local_commit"
-            return 1
+            if docker compose --env-file "$ENV_FILE" up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
         fi
     else
         log "WARN" "Environment file $ENV_FILE not found, using default values"
-        if docker-compose up --build -d; then
-            log "INFO" "Successfully deployed to commit: $new_local_commit"
-            save_current_commit "$remote_commit"
-            send_notification "Successfully deployed to commit: $new_local_commit"
-            return 0
+        if command -v docker-compose &> /dev/null; then
+            if docker-compose up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
         else
-            log "ERROR" "Failed to build and start containers"
-            send_notification "Failed to deploy commit: $new_local_commit"
-            return 1
+            if docker compose up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
         fi
     fi
 }
