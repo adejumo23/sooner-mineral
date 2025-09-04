@@ -29,6 +29,7 @@ SSH_KEY_PASSPHRASE=""                                                # SSH key p
 DOCKER_COMPOSE_FILE="docker-compose.yml"                            # Docker compose file to use
 PROJECT_DIRECTORY="sooner-mineral"               # Full path to your project directory
 SLEEP_INTERVAL=300                                                   # Sleep interval in seconds (300 = 5 minutes)
+ENV_FILE=".env"                                                      # Environment file to use
 
 # Logging Configuration
 LOG_FILE="/var/log/sooner-mineral-deploy.log"                       # Log file path
@@ -264,15 +265,30 @@ pull_and_deploy() {
     
     # Build and start containers
     log "INFO" "Building and starting containers..."
-    if docker-compose up --build -d; then
-        log "INFO" "Successfully deployed to commit: $new_commit"
-        save_current_commit "$new_commit"
-        send_notification "Successfully deployed to commit: $new_commit"
-        return 0
+    if [ -f "$ENV_FILE" ]; then
+        log "INFO" "Using environment file: $ENV_FILE"
+        if docker-compose --env-file "$ENV_FILE" up --build -d; then
+            log "INFO" "Successfully deployed to commit: $new_commit"
+            save_current_commit "$new_commit"
+            send_notification "Successfully deployed to commit: $new_commit"
+            return 0
+        else
+            log "ERROR" "Failed to build and start containers"
+            send_notification "Failed to deploy commit: $new_commit"
+            return 1
+        fi
     else
-        log "ERROR" "Failed to build and start containers"
-        send_notification "Failed to deploy commit: $new_commit"
-        return 1
+        log "WARN" "Environment file $ENV_FILE not found, using default values"
+        if docker-compose up --build -d; then
+            log "INFO" "Successfully deployed to commit: $new_commit"
+            save_current_commit "$new_commit"
+            send_notification "Successfully deployed to commit: $new_commit"
+            return 0
+        else
+            log "ERROR" "Failed to build and start containers"
+            send_notification "Failed to deploy commit: $new_commit"
+            return 1
+        fi
     fi
 }
 

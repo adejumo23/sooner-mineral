@@ -5,8 +5,8 @@ services:
     ports:
       - "3050:3000"
     environment:
-      - NODE_ENV=production
-      - REACT_APP_ARCGIS_API_KEY=AAPTxy8BH1VEsoebNVZXo8HurGaZ510fug7IIlKmzxyaebyhSdvhCxtFtTk4uoKPXcjb8AjAuqAYZfaC3V9o6lsJNtSYB7IoLe-VOOl4esdoS6-KH2rU8m-DIsZyyir2CXRLO7V4DF3Zo4OQN4WIhnBJzG01xl8SltUH95Aov3L_BrFWhZ3cmAAVQGwA4GGiF2QPp4yB7ZL5i6ZzUC9ri4rJfHs1wUQp6zY4tji6PMKvFbA.AT1_CZOagX1D
+      - NODE_ENV: production
+      - REACT_APP_ARCGIS_API_KEY: ${REACT_APP_ARCGIS_API_KEY}
     depends_on:
       - db
     restart: unless-stopped
@@ -17,10 +17,10 @@ services:
     ports:
       - "3359:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD: rootpassword
-      - MYSQL_DATABASE: soonermineraldb
-      - MYSQL_USER: soonermineral
-      - MYSQL_PASSWORD: soonermineralpass
+      - MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE: ${MYSQL_DATABASE}
+      - MYSQL_USER: ${MYSQL_USER}
+      - MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
