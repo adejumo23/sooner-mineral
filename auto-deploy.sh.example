@@ -72,37 +72,45 @@ NC='\033[0m' # No Color
 # =============================================================================
 
 parse_arguments() {
-    case "${1:-}" in
-        --daemon)
-            DAEMON_MODE=true
-            ;;
-        --install-service)
-            INSTALL_SERVICE=true
-            ;;
-        --uninstall-service)
-            UNINSTALL_SERVICE=true
-            ;;
-        --status)
-            check_daemon_status
-            exit 0
-            ;;
-        --stop)
-            stop_daemon
-            exit 0
-            ;;
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        "")
-            DAEMON_MODE=false
-            ;;
-        *)
-            echo "Unknown option: $1"
-            show_help
-            exit 1
-            ;;
-    esac
+    # Initialize variables
+    DAEMON_MODE=false
+    INSTALL_SERVICE=false
+    UNINSTALL_SERVICE=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --daemon)
+                DAEMON_MODE=true
+                shift
+                ;;
+            --install-service)
+                INSTALL_SERVICE=true
+                shift
+                ;;
+            --uninstall-service)
+                UNINSTALL_SERVICE=true
+                shift
+                ;;
+            --status)
+                check_daemon_status
+                exit 0
+                ;;
+            --stop)
+                stop_daemon
+                exit 0
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
 }
 
 show_help() {
@@ -219,9 +227,11 @@ start_daemon() {
     fi
     
     # Start daemon with proper output redirection to log file
-    nohup "$0" --daemon-internal >> "$LOG_FILE" 2>&1 &
+    log "DEBUG" "Starting daemon with command: $0 --daemon"
+    nohup "$0" --daemon >> "$LOG_FILE" 2>&1 &
     local daemon_pid=$!
     echo "$daemon_pid" > "$PID_FILE"
+    log "DEBUG" "Daemon PID: $daemon_pid"
     
     # Give the daemon a moment to start and check if it's still running
     sleep 3
@@ -603,6 +613,11 @@ cleanup() {
 # =============================================================================
 
 main() {
+    log "DEBUG" "Main function called with arguments: $*"
+    log "DEBUG" "DAEMON_MODE: $DAEMON_MODE"
+    log "DEBUG" "INSTALL_SERVICE: $INSTALL_SERVICE"
+    log "DEBUG" "UNINSTALL_SERVICE: $UNINSTALL_SERVICE"
+    
     # Handle special arguments first
     if [ "$INSTALL_SERVICE" = true ]; then
         install_service
@@ -616,16 +631,20 @@ main() {
     
     # Handle daemon mode
     if [ "$DAEMON_MODE" = true ]; then
-        if [ "${1:-}" = "--daemon-internal" ]; then
-            # Internal daemon mode - run the actual monitoring
-            run_daemon
-        else
-            # External daemon mode - start the daemon
+        # Check if we're already in a daemon process (no TTY)
+        if [ -t 0 ]; then
+            # We have a TTY, so this is the initial daemon start
+            log "DEBUG" "Starting external daemon"
             start_daemon
             exit 0
+        else
+            # No TTY, we're already in daemon mode
+            log "DEBUG" "Running in daemon mode"
+            run_daemon
         fi
     else
         # Foreground mode
+        log "DEBUG" "Running in foreground mode"
         run_daemon
     fi
 }
