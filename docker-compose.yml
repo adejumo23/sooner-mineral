@@ -5,8 +5,8 @@ services:
     ports:
       - "3050:3000"
     environment:
-      - NODE_ENV: production
-      - REACT_APP_ARCGIS_API_KEY: ${REACT_APP_ARCGIS_API_KEY}
+      - NODE_ENV:production
+      - REACT_APP_ARCGIS_API_KEY:${REACT_APP_ARCGIS_API_KEY}
     depends_on:
       - db
     restart: unless-stopped
@@ -17,10 +17,10 @@ services:
     ports:
       - "3359:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE: ${MYSQL_DATABASE}
-      - MYSQL_USER: ${MYSQL_USER}
-      - MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD:${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE:${MYSQL_DATABASE}
+      - MYSQL_USER:${MYSQL_USER}
+      - MYSQL_PASSWORD:${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
