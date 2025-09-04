@@ -123,7 +123,7 @@ const UnitsPage: React.FC = () => {
     {
       header: 'Gross Acres',
       accessor: 'estimatedGrossAcres',
-      cell: (unit: Unit) => unit.estimatedGrossAcres.toLocaleString()
+      cell: (unit: Unit) => unit.estimatedGrossAcres ? unit.estimatedGrossAcres.toLocaleString() : 'N/A'
     },
     {
       header: 'Assigned Buyer',

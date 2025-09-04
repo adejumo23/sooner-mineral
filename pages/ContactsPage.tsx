@@ -459,10 +459,10 @@ const ContactsPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       <div className="font-medium">
-                        {contact.totalNMA.toLocaleString()} NMA
+                        {contact.totalNMA ? contact.totalNMA.toLocaleString() : '0'} NMA
                       </div>
                       <div className="text-gray-500">
-                        {contact.totalNRA.toLocaleString()} NRA
+                        {contact.totalNRA ? contact.totalNRA.toLocaleString() : '0'} NRA
                       </div>
                       <div className="text-xs text-gray-400">
                         {contact.linkedTractCount} tracts

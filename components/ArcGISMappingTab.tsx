@@ -533,7 +533,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
                   <div><span className="text-sc-slate">Target Formation:</span> <span className="text-white">{selectedFeature.data.targetFormation}</span></div>
                 )}
                 {selectedFeature.data.totalDepth && (
-                  <div><span className="text-sc-slate">Total Depth:</span> <span className="text-white">{selectedFeature.data.totalDepth.toLocaleString()} ft</span></div>
+                  <div><span className="text-sc-slate">Total Depth:</span> <span className="text-white">{selectedFeature.data.totalDepth?.toLocaleString()} ft</span></div>
                 )}
               </>
             )}
@@ -551,7 +551,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
                   <div><span className="text-sc-slate">Target Completion:</span> <span className="text-white">{formatDate(selectedFeature.data.targetCompletion)}</span></div>
                 )}
                 {selectedFeature.data.totalDepth && (
-                  <div><span className="text-sc-slate">Total Depth:</span> <span className="text-white">{selectedFeature.data.totalDepth.toLocaleString()} ft</span></div>
+                  <div><span className="text-sc-slate">Total Depth:</span> <span className="text-white">{selectedFeature.data.totalDepth?.toLocaleString()} ft</span></div>
                 )}
               </>
             )}

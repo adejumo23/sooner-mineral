@@ -6,38 +6,318 @@ let mockImportSessions: any[] = [];
 let mockStagingTables: any[] = [];
 let mockProductionTables: any[] = [];
 
-// Mock data for other entities
+// Mock data for other entities - populated with real database data
 let mockUsers: any[] = [
-  { id: 1, name: 'Admin User', email: 'admin@sooner.cap', role: 'admin' },
-  { id: 2, name: 'John Doe', email: 'john@sooner.cap', role: 'user' },
-  { id: 3, name: 'Jane Smith', email: 'jane@sooner.cap', role: 'user' }
+  { id: 'u1', name: 'Alice Admin', email: 'admin@sooner.cap', role: 'Administrator', roleId: '1' },
+  { id: 'u2', name: 'Bob Manager', email: 'manager@sooner.cap', role: 'Land Manager', roleId: '2' },
+  { id: 'u3', name: 'Charlie Viewer', email: 'viewer@sooner.cap', role: 'Viewer', roleId: '3' },
+  { id: 'u4', name: 'David Buyer', email: 'buyer@sooner.cap', role: 'Buyer', roleId: '4' }
 ];
 
 let mockTracts: any[] = [
-  { id: 1, name: 'Tract A', county: 'KINGFISHER', state: 'OK', acreage: 160.5 },
-  { id: 2, name: 'Tract B', county: 'GRADY', state: 'OK', acreage: 320.0 },
-  { id: 3, name: 'Tract C', county: 'CANADIAN', state: 'OK', acreage: 95.25 }
+  {
+    id: 't1',
+    state: 'TX',
+    county: 'Midland',
+    tractName: 'North Star Prospect',
+    legalDescription: 'Section 15, Block 2, T&P RR Co. Survey',
+    str: '15-02S-32E',
+    abstractNumber: 'A-1234',
+    grossAcres: 640.00,
+    netMineralAcres: 160.00,
+    royalty: 0.25,
+    nra: 320.00,
+    titleStatus: 'Verified',
+    assignedBuyerId: 'u4',
+    nraCapUsd: 15000.00,
+    sourceChannel: 'Broker',
+    heldByFund: true,
+    isLocked: false
+  },
+  {
+    id: 't2',
+    state: 'OK',
+    county: 'Love',
+    tractName: 'Red River Minerals',
+    legalDescription: 'W/2 of the SW/4 of Section 10, Township 8 South, Range 2 East',
+    str: '10-08S-02E',
+    grossAcres: 80.00,
+    netMineralAcres: 20.00,
+    royalty: 0.1875,
+    nra: 30.00,
+    titleStatus: 'In Progress',
+    assignedBuyerId: 'u4',
+    sourceChannel: 'Inbound',
+    heldByFund: false,
+    isLocked: true
+  }
 ];
 
 let mockUnits: any[] = [
-  { id: 1, name: 'Unit 1', tractId: 1, status: 'Active' },
-  { id: 2, name: 'Unit 2', tractId: 2, status: 'Pending' },
-  { id: 3, name: 'Unit 3', tractId: 3, status: 'Active' }
+  {
+    id: 'unit1',
+    unitName: 'Smith Unit #1',
+    operator: 'Pioneer Natural Resources',
+    apiNumbers: ['42-335-12345', '42-335-12346'],
+    targetFormations: ['Wolfcamp A', 'Wolfcamp B'],
+    status: 'Producing',
+    estimatedGrossAcres: 1280.00,
+    estimatedNetAcres: 960.00,
+    county: 'Midland',
+    state: 'TX',
+    linkedTractIds: ['t1', 't2'],
+    linkedContactIds: ['c1', 'c2', 'c3'],
+    assignedBuyerId: 'u4',
+    heldByFund: true,
+    exitStrategy: 'Hold',
+    isLocked: false,
+    notes: 'High-producing unit with excellent Wolfcamp A performance'
+  },
+  {
+    id: 'unit2',
+    unitName: 'Johnson Unit #2',
+    operator: 'Devon Energy',
+    apiNumbers: ['40-439-78901', '40-439-78902'],
+    targetFormations: ['Woodford', 'Hunton'],
+    status: 'Producing',
+    estimatedGrossAcres: 640.00,
+    estimatedNetAcres: 480.00,
+    county: 'Love',
+    state: 'OK',
+    linkedTractIds: ['t2'],
+    linkedContactIds: ['c4', 'c5'],
+    assignedBuyerId: 'u4',
+    heldByFund: false,
+    exitStrategy: 'Flip',
+    isLocked: true,
+    notes: 'Unit under due diligence - do not contact landowners'
+  },
+  {
+    id: 'unit3',
+    unitName: 'Wilson Unit #3',
+    operator: 'EOG Resources',
+    apiNumbers: ['48-113-45678'],
+    targetFormations: ['Eagle Ford'],
+    status: 'Permitted',
+    estimatedGrossAcres: 320.00,
+    estimatedNetAcres: 240.00,
+    county: 'Dallas',
+    state: 'TX',
+    linkedTractIds: ['t3'],
+    linkedContactIds: ['c1', 'c5'],
+    assignedBuyerId: null,
+    heldByFund: false,
+    exitStrategy: 'Hold',
+    isLocked: false,
+    notes: 'Newly permitted unit targeting Eagle Ford formation'
+  }
 ];
 
 let mockLeads: any[] = [
-  { id: 1, tractId: 1, buyer: 'Michelle', status: 'Active', notes: 'Interested in mineral rights' },
-  { id: 2, tractId: 2, buyer: 'Robert', status: 'Pending', notes: 'Large tract with mineral rights' }
+  {
+    id: 'l1',
+    contactId: 'c1',
+    tractId: 't1',
+    status: 'In Progress',
+    leadType: 'Acquisition',
+    priority: 'High',
+    assignedTo: 'u2',
+    notes: 'High priority lead - contact has significant mineral acreage',
+    createdBy: 'u1'
+  },
+  {
+    id: 'l2',
+    contactId: 'c2',
+    tractId: 't1',
+    status: 'Open',
+    leadType: 'Acquisition',
+    priority: 'Medium',
+    assignedTo: 'u2',
+    notes: 'Initial contact made, follow-up needed',
+    createdBy: 'u1'
+  },
+  {
+    id: 'l3',
+    contactId: 'c3',
+    tractId: 't1',
+    status: 'Qualified',
+    leadType: 'Acquisition',
+    priority: 'High',
+    assignedTo: 'u1',
+    notes: 'Entity contact, complex ownership structure',
+    createdBy: 'u2'
+  },
+  {
+    id: 'l4',
+    contactId: 'c4',
+    tractId: 't2',
+    status: 'Open',
+    leadType: 'Lease',
+    priority: 'Low',
+    assignedTo: 'u2',
+    notes: 'Contact interested in leasing options',
+    createdBy: 'u1'
+  }
 ];
 
 let mockContacts: any[] = [
-  { id: 1, name: 'Contact 1', email: 'contact1@example.com', phone: '555-0101' },
-  { id: 2, name: 'Contact 2', email: 'contact2@example.com', phone: '555-0102' }
+  {
+    id: 'c1',
+    name: 'John Smith',
+    email: 'john.smith@email.com',
+    phone: '(555) 123-4567',
+    address: '123 Main St, Oklahoma City, OK 73101',
+    entityType: 'Individual',
+    legalName: 'John Smith'
+  },
+  {
+    id: 'c2',
+    name: 'Sarah Johnson',
+    email: 'sarah.j@email.com',
+    phone: '(555) 234-5678',
+    address: '456 Oak Ave, Tulsa, OK 74101',
+    entityType: 'Individual',
+    legalName: 'Sarah Johnson'
+  },
+  {
+    id: 'c3',
+    name: 'ABC Minerals LLC',
+    email: 'contact@abcminerals.com',
+    phone: '(555) 345-6789',
+    address: '789 Business Blvd, Oklahoma City, OK 73102',
+    entityType: 'Entity',
+    legalName: 'ABC Minerals LLC, a Delaware Limited Liability Company'
+  },
+  {
+    id: 'c4',
+    name: 'Robert Wilson',
+    email: 'rob.wilson@email.com',
+    phone: '(555) 456-7890',
+    address: '321 Pine St, Edmond, OK 73034',
+    entityType: 'Individual',
+    legalName: 'Robert Wilson'
+  },
+  {
+    id: 'c5',
+    name: 'XYZ Energy Corp',
+    email: 'info@xyzenergy.com',
+    phone: '(555) 567-8901',
+    address: '654 Corporate Dr, Oklahoma City, OK 73103',
+    entityType: 'Entity',
+    legalName: 'XYZ Energy Corporation, a Texas Corporation'
+  }
 ];
 
 let mockAssignments: any[] = [
-  { id: 1, userId: 1, tractId: 1, unitId: 1, status: 'Active', dueDate: '2024-12-31' },
-  { id: 2, userId: 2, tractId: 2, unitId: 2, status: 'Pending', dueDate: '2024-12-31' }
+  {
+    id: 'a1',
+    userId: 'u4',
+    tractId: 't1',
+    unitId: 'unit1',
+    status: 'Active',
+    dueDate: '2024-12-31',
+    priority: 'High',
+    notes: 'High priority acquisition target',
+    assignedBy: 'u1',
+    assignedAt: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: 'a2',
+    userId: 'u4',
+    tractId: 't2',
+    unitId: 'unit2',
+    status: 'Pending',
+    dueDate: '2024-12-31',
+    priority: 'Medium',
+    notes: 'Due diligence in progress',
+    assignedBy: 'u2',
+    assignedAt: '2024-01-20T14:30:00Z'
+  }
+];
+
+// Real acreage schedule data from database
+let mockAcreageSchedule: any[] = [
+  {
+    id: 7788,
+    buyer: 'KINGFISHER',
+    county: 'KINGFISHER',
+    status: 'NEW',
+    str: '30-15N-06W',
+    legalDescription: 'NE4, 160 ACRES, MOL',
+    interestType: 'MINERALS',
+    owner: 'James M. Patrick and Margarett L. Patrick, H/W JT',
+    street: 'P.O. Box 1119',
+    city: 'Skiatook',
+    state: 'OK',
+    zip: '74070',
+    contact: '',
+    phoneNo: '',
+    email: '',
+    notes: 'Everything has been sold to various pro\'s - 9.30.2024 JMD',
+    nma: '80',
+    roy: '',
+    nri: '',
+    wellName: 'MCCARTHY 2,3,4,5',
+    allocation: '50%',
+    topsNma316th: '$10,000.00',
+    total: '',
+    lastOgl: '',
+    titleSource: '2012 OR'
+  },
+  {
+    id: 7789,
+    buyer: 'KINGFISHER',
+    county: 'KINGFISHER',
+    status: 'LVM/TXT/EMAIL',
+    str: '30-15N-06W',
+    legalDescription: 'NE4, 160 ACRES, MOL',
+    interestType: 'MINERALS',
+    owner: 'Glenna Sue Ahlden',
+    street: 'Rt 4 Box 121A',
+    city: 'Okarche',
+    state: 'OK',
+    zip: '73762',
+    contact: '',
+    phoneNo: '405.263.7686 -disc\n405.820.0552 -disc\n734.972.0484 -wrg#',
+    email: 'gahlden@tivejo.com',
+    notes: 'NEED TO UPDATE FROM DATE OF REPORT\n9.30.24- all #s listed aren\'t good; trying email',
+    nma: '40',
+    roy: '',
+    nri: '',
+    wellName: 'MCCARTHY 2,3,4,5',
+    allocation: '50%',
+    topsNma316th: '$10,000.00',
+    total: '',
+    lastOgl: '',
+    titleSource: '2012 OR'
+  },
+  {
+    id: 7791,
+    buyer: 'KINGFISHER',
+    county: 'KINGFISHER',
+    status: 'NEW',
+    str: '30-15N-06W',
+    legalDescription: 'LOTS 1&2 (82.12); E2 NW4, 162.12',
+    interestType: 'MINERALS',
+    owner: 'Jimmy D. North and Pamela North, Trustee or their successors in trust, under the Jimmy D. North Living Trust, dated August 15, 2002',
+    street: '5001 NW 4th',
+    city: 'Oklahoma City',
+    state: 'OK',
+    zip: '73127',
+    contact: '',
+    phoneNo: '',
+    email: '',
+    notes: '9.30.2024 Current -JMD',
+    nma: '81.06',
+    roy: '',
+    nri: '',
+    wellName: 'MCCARTHY 2,3,4,5',
+    allocation: '50%',
+    topsNma316th: '$10,000.00',
+    total: '',
+    lastOgl: '',
+    titleSource: '2012 OR'
+  }
 ];
 
 // Generate real Excel data based on filename
@@ -155,6 +435,13 @@ export const fetchTracts = async (): Promise<any[]> => {
   return mockTracts;
 };
 
+export const fetchTract = async (id: string): Promise<any> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  const tract = mockTracts.find(t => t.id === id);
+  if (!tract) throw new Error('Tract not found');
+  return tract;
+};
+
 export const createTract = async (tractData: any): Promise<any> => {
   await new Promise(resolve => setTimeout(resolve, apiDelay));
   const newTract = {
@@ -189,7 +476,7 @@ export const fetchUnits = async (filters?: any): Promise<any[]> => {
 
 export const fetchUnit = async (id: string): Promise<any> => {
   await new Promise(resolve => setTimeout(resolve, apiDelay));
-  const unit = mockUnits.find(u => u.id === parseInt(id));
+  const unit = mockUnits.find(u => u.id === id);
   if (!unit) throw new Error('Unit not found');
   return unit;
 };
@@ -392,7 +679,7 @@ export const fetchContacts = async (): Promise<any[]> => {
 
 export const fetchContact = async (id: string): Promise<any> => {
   await new Promise(resolve => setTimeout(resolve, apiDelay));
-  const contact = mockContacts.find(c => c.id === parseInt(id));
+  const contact = mockContacts.find(c => c.id === id);
   if (!contact) throw new Error('Contact not found');
   return contact;
 };
@@ -445,7 +732,7 @@ export const fetchLeads = async (): Promise<any[]> => {
 
 export const fetchLead = async (id: string): Promise<any> => {
   await new Promise(resolve => setTimeout(resolve, apiDelay));
-  const lead = mockLeads.find(l => l.id === parseInt(id));
+  const lead = mockLeads.find(l => l.id === id);
   if (!lead) throw new Error('Lead not found');
   return lead;
 };
@@ -478,7 +765,7 @@ export const deleteLead = async (id: string): Promise<void> => {
 
 export const fetchTractLeads = async (tractId: string): Promise<any[]> => {
   await new Promise(resolve => setTimeout(resolve, apiDelay));
-  return mockLeads.filter(l => l.tractId === parseInt(tractId));
+  return mockLeads.filter(l => l.tractId === tractId);
 };
 
 export const createTractLead = async (tractId: string, leadData: any): Promise<any> => {
@@ -547,7 +834,7 @@ export const fetchAssignments = async (filters?: any): Promise<any[]> => {
 
 export const fetchAssignment = async (id: string): Promise<any> => {
   await new Promise(resolve => setTimeout(resolve, apiDelay));
-  const assignment = mockAssignments.find(a => a.id === parseInt(id));
+  const assignment = mockAssignments.find(a => a.id === id);
   if (!assignment) throw new Error('Assignment not found');
   return assignment;
 };
@@ -836,86 +1123,34 @@ export const processExcelFile = async (file: File): Promise<any[]> => {
             }
           ];
         } else if (file.name.toLowerCase().includes('acreage') || file.name.toLowerCase().includes('schedule')) {
-          data = [
-            {
-              'id': 1,
-              'Tract ID': 'TR-001',
-              'Owner Name': 'John Smith',
-              'Acreage': 160.5,
-              'Mineral Rights': 'Yes',
-              'Surface Rights': 'No',
-              'Lease Status': 'Active',
-              'Expiration Date': '2025-12-31',
-              'Royalty Rate': '0.125',
-              'County': 'KINGFISHER',
-              'State': 'OK'
-            },
-            {
-              'id': 2,
-              'Tract ID': 'TR-002',
-              'Owner Name': 'Mary Johnson',
-              'Acreage': 320.0,
-              'Mineral Rights': 'Yes',
-              'Surface Rights': 'Yes',
-              'Lease Status': 'Pending',
-              'Expiration Date': '2026-06-30',
-              'Royalty Rate': '0.150',
-              'County': 'GRADY',
-              'State': 'OK'
-            },
-            {
-              'id': 3,
-              'Tract ID': 'TR-003',
-              'Owner Name': 'Robert Davis',
-              'Acreage': 95.25,
-              'Mineral Rights': 'No',
-              'Surface Rights': 'Yes',
-              'Lease Status': 'Expired',
-              'Expiration Date': '2024-03-15',
-              'Royalty Rate': '0.000',
-              'County': 'CANADIAN',
-              'State': 'OK'
-            },
-            {
-              'id': 4,
-              'Tract ID': 'TR-004',
-              'Owner Name': 'Lisa Wilson',
-              'Acreage': 450.75,
-              'Mineral Rights': 'Yes',
-              'Surface Rights': 'Yes',
-              'Lease Status': 'Active',
-              'Expiration Date': '2027-01-31',
-              'Royalty Rate': '0.200',
-              'County': 'OKLAHOMA',
-              'State': 'OK'
-            },
-            {
-              'id': 5,
-              'Tract ID': 'TR-005',
-              'Owner Name': 'Michael Brown',
-              'Acreage': 275.50,
-              'Mineral Rights': 'Yes',
-              'Surface Rights': 'No',
-              'Lease Status': 'Under Review',
-              'Expiration Date': '2025-09-30',
-              'Royalty Rate': '0.175',
-              'County': 'CLEVELAND',
-              'State': 'OK'
-            },
-            {
-              'id': 6,
-              'Tract ID': 'TR-006',
-              'Owner Name': 'Sarah Miller',
-              'Acreage': 180.25,
-              'Mineral Rights': 'Yes',
-              'Surface Rights': 'Yes',
-              'Lease Status': 'Active',
-              'Expiration Date': '2026-12-31',
-              'Royalty Rate': '0.125',
-              'County': 'LOGAN',
-              'State': 'OK'
-            }
-          ];
+          // Use real acreage schedule data from database
+          data = mockAcreageSchedule.map(item => ({
+            'id': item.id,
+            'Buyer': item.buyer,
+            'County': item.county,
+            'Status': item.status,
+            'STR': item.str,
+            'Legal Description': item.legalDescription,
+            'Interest Type': item.interestType,
+            'Owner': item.owner,
+            'Street': item.street,
+            'City': item.city,
+            'State': item.state,
+            'ZIP': item.zip,
+            'Contact': item.contact,
+            'Phone No': item.phoneNo,
+            'Email': item.email,
+            'Notes': item.notes,
+            'NMA': item.nma,
+            'ROY': item.roy,
+            'NRI': item.nri,
+            'Well Name': item.wellName,
+            'Allocation': item.allocation,
+            'Tops NMA 3/16th': item.topsNma316th,
+            'Total': item.total,
+            'Last OGL': item.lastOgl,
+            'Title Source': item.titleSource
+          }));
         } else {
           data = [
             {
@@ -1283,5 +1518,211 @@ export const assignRolesToPrivilege = async (privilegeId: string, roleIds: strin
     privilegeId: parseInt(privilegeId),
     roleIds: roleIds.map(id => parseInt(id)),
     assignedAt: new Date().toISOString()
+  };
+};
+
+// Mapping Dashboard API functions
+export const fetchMapAssets = async (filters?: any): Promise<any[]> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  return [
+    {
+      id: 'pw1',
+      name: 'Smith #1H',
+      type: 'well',
+      apiNumber: '42-335-12345',
+      operator: 'Pioneer Natural Resources',
+      status: 'Producing',
+      location: { lat: 31.9686, lng: -102.0776 },
+      spudDate: '2023-01-15',
+      completionDate: '2023-03-20',
+      totalDepth: 12000,
+      productionData: {
+        '2024-01': { oil: 150, gas: 500, water: 200 },
+        '2024-02': { oil: 145, gas: 480, water: 220 }
+      }
+    },
+    {
+      id: 'pw2',
+      name: 'Smith #2H',
+      type: 'well',
+      apiNumber: '42-335-12346',
+      operator: 'Pioneer Natural Resources',
+      status: 'Producing',
+      location: { lat: 31.9690, lng: -102.0780 },
+      spudDate: '2023-02-10',
+      completionDate: '2023-04-15',
+      totalDepth: 12000,
+      productionData: {
+        '2024-01': { oil: 160, gas: 520, water: 180 },
+        '2024-02': { oil: 155, gas: 500, water: 200 }
+      }
+    },
+    {
+      id: 'pw3',
+      name: 'Johnson #1',
+      type: 'well',
+      apiNumber: '40-439-78901',
+      operator: 'Devon Energy',
+      status: 'Producing',
+      location: { lat: 33.9137, lng: -97.0965 },
+      spudDate: '2023-03-05',
+      completionDate: '2023-05-10',
+      totalDepth: 11000,
+      productionData: {
+        '2024-01': { oil: 120, gas: 400, water: 150 },
+        '2024-02': { oil: 118, gas: 390, water: 160 }
+      }
+    },
+    {
+      id: 'p1',
+      name: 'Permit 42-335-12347',
+      type: 'permit',
+      permitNumber: '42-335-12347',
+      operator: 'Pioneer Natural Resources',
+      status: 'Drilling',
+      location: { lat: 31.9688, lng: -102.0778 },
+      permitDate: '2024-01-15',
+      spudDate: '2024-02-01',
+      totalDepth: 12000,
+      targetFormation: 'Wolfcamp A'
+    },
+    {
+      id: 'r1',
+      name: 'Pioneer Rig #15',
+      type: 'rig',
+      operator: 'Pioneer Natural Resources',
+      status: 'Active',
+      location: { lat: 31.9688, lng: -102.0778 },
+      rigType: 'Land',
+      spudDate: '2024-02-01',
+      targetCompletion: '2024-04-01',
+      totalDepth: 12000
+    }
+  ];
+};
+
+export const fetchMapOverlays = async (): Promise<any[]> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  return [
+    {
+      id: 1,
+      name: 'County Boundaries',
+      type: 'boundary',
+      visible: true,
+      opacity: 0.7,
+      isVisible: true,
+      legend: {
+        title: 'County Boundaries',
+        items: [
+          { color: '#4CAF50', label: 'Active County' },
+          { color: '#FFC107', label: 'Pending County' }
+        ]
+      }
+    },
+    {
+      id: 2,
+      name: 'Road Network',
+      type: 'road',
+      visible: true,
+      opacity: 0.5,
+      isVisible: true,
+      legend: {
+        title: 'Road Network',
+        items: [
+          { color: '#666666', label: 'Highway' },
+          { color: '#999999', label: 'Local Road' }
+        ]
+      }
+    },
+    {
+      id: 3,
+      name: 'Water Bodies',
+      type: 'water',
+      visible: false,
+      opacity: 0.8,
+      isVisible: false,
+      legend: {
+        title: 'Water Bodies',
+        items: [
+          { color: '#2196F3', label: 'River' },
+          { color: '#03DAC6', label: 'Lake' }
+        ]
+      }
+    }
+  ];
+};
+
+export const fetchMapLayerConfigs = async (): Promise<any[]> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  return [
+    {
+      id: 1,
+      layerId: 'wells',
+      name: 'Oil & Gas Wells',
+      visible: true,
+      style: {
+        color: '#ff6b6b',
+        size: 8,
+        opacity: 0.8
+      }
+    },
+    {
+      id: 2,
+      layerId: 'permits',
+      name: 'Drilling Permits',
+      visible: true,
+      style: {
+        color: '#4ecdc4',
+        size: 6,
+        opacity: 0.9
+      }
+    },
+    {
+      id: 3,
+      layerId: 'tracts',
+      name: 'Mineral Tracts',
+      visible: true,
+      style: {
+        color: '#45b7d1',
+        size: 4,
+        opacity: 0.6
+      }
+    }
+  ];
+};
+
+export const getMapFilterOptions = async (): Promise<any> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  return {
+    assetTypes: ['well', 'permit', 'tract', 'unit'],
+    statuses: ['active', 'pending', 'inactive', 'completed'],
+    counties: ['Kingfisher', 'Grady', 'Canadian', 'Oklahoma', 'Cleveland'],
+    states: ['Oklahoma', 'Texas', 'Kansas', 'New Mexico'],
+    operators: ['Devon Energy', 'Continental Resources', 'Chesapeake Energy', 'EOG Resources'],
+    assignmentStatuses: ['Unassigned', 'Assigned', 'In Negotiation', 'Under Review', 'Completed'],
+    dateRanges: {
+      min: '2020-01-01',
+      max: '2024-12-31'
+    }
+  };
+};
+
+export const logMapInteraction = async (interactionData: any): Promise<any> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  return {
+    id: Date.now(),
+    ...interactionData,
+    timestamp: new Date().toISOString()
+  };
+};
+
+export const exportMapData = async (exportData: any): Promise<any> => {
+  await new Promise(resolve => setTimeout(resolve, apiDelay));
+  return {
+    exportId: Date.now(),
+    ...exportData,
+    status: 'completed',
+    downloadUrl: '/api/exports/map-data.xlsx',
+    createdAt: new Date().toISOString()
   };
 };

@@ -388,7 +388,7 @@ const UnitDetailPage: React.FC = () => {
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Estimated Gross Acres</dt>
-                    <dd className="text-sm text-gray-900">{unit.estimatedGrossAcres.toLocaleString()}</dd>
+                    <dd className="text-sm text-gray-900">{unit.estimatedGrossAcres ? unit.estimatedGrossAcres.toLocaleString() : 'N/A'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Estimated Net Acres</dt>
@@ -558,7 +558,7 @@ const UnitDetailPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900 font-medium">
-                                {tract.grossAcres.toLocaleString()}
+                                {tract.grossAcres ? tract.grossAcres.toLocaleString() : 'N/A'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -738,10 +738,10 @@ const UnitDetailPage: React.FC = () => {
                               {(contact.royaltyPercentageWeighted * 100).toFixed(1)}%
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {contact.totalNMA.toLocaleString()}
+                              {contact.totalNMA ? contact.totalNMA.toLocaleString() : 'N/A'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {contact.totalNRA.toLocaleString()}
+                              {contact.totalNRA ? contact.totalNRA.toLocaleString() : 'N/A'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="flex flex-wrap gap-1">
@@ -819,13 +819,13 @@ const UnitDetailPage: React.FC = () => {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {unitContactsAggregated.reduce((sum, c) => sum + c.totalNMA, 0).toLocaleString()}
+                      {unitContactsAggregated.reduce((sum, c) => sum + (c.totalNMA || 0), 0).toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-500">Total NMA</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {unitContactsAggregated.reduce((sum, c) => sum + c.totalNRA, 0).toLocaleString()}
+                      {unitContactsAggregated.reduce((sum, c) => sum + (c.totalNRA || 0), 0).toLocaleString()}
                     </div>
                     <div className="text-sm text-gray-500">Total NRA</div>
                   </div>

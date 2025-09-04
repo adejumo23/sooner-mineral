@@ -187,7 +187,7 @@ const AssignmentsPage: React.FC = () => {
       cell: (assignment: Assignment) => (
         <div>
           <div className="font-medium text-white">
-            ${assignment.priceCapUsd.toLocaleString()}
+            ${assignment.priceCapUsd ? assignment.priceCapUsd.toLocaleString() : 'N/A'}
           </div>
           <div className="text-sm text-sc-slate">
             {assignment.priceCapType}

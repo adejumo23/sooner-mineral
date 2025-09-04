@@ -259,7 +259,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
                           {activity.actor.name}
                         </span>
                         <span className="text-sm text-gray-500">
-                          {activity.timestamp.toLocaleString()}
+                          {activity.timestamp ? activity.timestamp.toLocaleString() : 'N/A'}
                         </span>
                         {activity.isSystemGenerated && (
                           <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">

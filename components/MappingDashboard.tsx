@@ -333,9 +333,9 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
                     <option value="All">All Types</option>
-                    {filterOptions.assetTypes.map((type: string) => (
+                    {filterOptions?.assetTypes?.map((type: string) => (
                       <option key={type} value={type}>{type}</option>
-                    ))}
+                    )) || []}
                   </select>
                 </div>
 
@@ -350,9 +350,9 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
                     <option value="">All Counties</option>
-                    {filterOptions.counties.map((county: string) => (
+                    {filterOptions?.counties?.map((county: string) => (
                       <option key={county} value={county}>{county}</option>
-                    ))}
+                    )) || []}
                   </select>
                 </div>
 
@@ -367,9 +367,9 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
                     <option value="">All States</option>
-                    {filterOptions.states.map((state: string) => (
+                    {filterOptions?.states?.map((state: string) => (
                       <option key={state} value={state}>{state}</option>
-                    ))}
+                    )) || []}
                   </select>
                 </div>
 
@@ -384,9 +384,9 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
                     <option value="All">All Statuses</option>
-                    {filterOptions.assignmentStatuses.map((status: string) => (
+                    {filterOptions?.assignmentStatuses?.map((status: string) => (
                       <option key={status} value={status}>{status}</option>
-                    ))}
+                    )) || []}
                   </select>
                 </div>
 
@@ -442,7 +442,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
               {/* Overlay Toggles */}
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Overlays:</span>
-                {overlays.map(overlay => (
+                {overlays?.map(overlay => (
                   <button
                     key={overlay.id}
                     onClick={() => toggleOverlay(overlay.id)}
@@ -599,11 +599,11 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
             </div>
 
             {/* Overlay Legends */}
-            {overlays.filter(o => o.isVisible && o.legend).map(overlay => (
+            {overlays?.filter(o => o.isVisible && o.legend)?.map(overlay => (
               <div key={overlay.id} className="mb-6">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">{overlay.legend!.title}</h4>
                 <div className="space-y-2">
-                  {overlay.legend!.items.map((item, index) => (
+                  {overlay.legend?.items?.map((item, index) => (
                     <div key={index} className="flex items-center space-x-2">
                       <div 
                         className="w-4 h-4 rounded" 
@@ -621,7 +621,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
               <div className="border-t border-gray-200 pt-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Selected Assets ({selectedAssets.length})</h4>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {selectedAssets.map(asset => (
+                  {selectedAssets?.map(asset => (
                     <div key={asset.id} className="text-sm text-gray-600 p-2 bg-gray-50 rounded">
                       <div className="font-medium">{asset.assetType}: {asset.asset.id}</div>
                       <div className="text-xs text-gray-500">
