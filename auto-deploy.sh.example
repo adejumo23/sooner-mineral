@@ -8,36 +8,41 @@
 #
 # Usage: ./auto-deploy.sh
 #
-# SSH SETUP INSTRUCTIONS:
-# 1. Generate SSH key: ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
-# 2. Add public key to GitHub: cat ~/.ssh/id_rsa.pub (copy and add to GitHub)
-# 3. Test connection: ssh -T git@github.com
-# 4. Update GIT_REPO_URL below to use SSH format
+# SETUP INSTRUCTIONS:
+# 1. Copy .envrc.example to .envrc: cp .envrc.example .envrc
+# 2. Edit .envrc with your configuration values
+# 3. Generate SSH key: ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+# 4. Add public key to GitHub: cat ~/.ssh/id_rsa.pub (copy and add to GitHub)
+# 5. Test connection: ssh -T git@github.com
 # =============================================================================
 
 # =============================================================================
-# CONFIGURATION VARIABLES - CUSTOMIZE THESE VALUES
+# LOAD CONFIGURATION FROM .envrc FILE
 # =============================================================================
 
-# Git Configuration
-GIT_REPO_URL="git@github.com:your-username/sooner-mineral.git"       # Replace with your actual SSH repo URL
-GIT_BRANCH="main"                                                    # Branch to monitor
-SSH_KEY_PATH=""                                                      # Path to your SSH private key (optional, uses default ~/.ssh/id_rsa)
-SSH_KEY_PASSPHRASE=""                                                # SSH key passphrase (if your key is encrypted)
+# Default values (will be overridden by .envrc if it exists)
+GIT_REPO_URL="git@github.com:your-username/sooner-mineral.git"
+GIT_BRANCH="main"
+SSH_KEY_PATH=""
+SSH_KEY_PASSPHRASE=""
+DOCKER_COMPOSE_FILE="docker-compose.yml"
+PROJECT_DIRECTORY="/home/minnu/docker/sooner-mineral"
+SLEEP_INTERVAL=300
+ENV_FILE=".env"
+LOG_FILE="/var/log/sooner-mineral-deploy.log"
+MAX_LOG_SIZE=10485760
+WEBHOOK_URL=""
+NOTIFICATION_ENABLED=false
 
-# Docker Configuration
-DOCKER_COMPOSE_FILE="docker-compose.yml"                            # Docker compose file to use
-PROJECT_DIRECTORY="sooner-mineral"               # Full path to your project directory
-SLEEP_INTERVAL=300                                                   # Sleep interval in seconds (300 = 5 minutes)
-ENV_FILE=".env"                                                      # Environment file to use
-
-# Logging Configuration
-LOG_FILE="/var/log/sooner-mineral-deploy.log"                       # Log file path
-MAX_LOG_SIZE=10485760                                               # Max log size in bytes (10MB)
-
-# Notification Configuration (Optional)
-WEBHOOK_URL=""                                                       # Discord/Slack webhook URL for notifications
-NOTIFICATION_ENABLED=false                                          # Set to true to enable notifications
+# Load configuration from .envrc file if it exists
+if [ -f ".envrc" ]; then
+    echo "Loading configuration from .envrc file..."
+    source .envrc
+    echo "Configuration loaded successfully."
+else
+    echo "Warning: .envrc file not found. Using default values."
+    echo "Copy .envrc.example to .envrc and customize it for your environment."
+fi
 
 # =============================================================================
 # SCRIPT CONFIGURATION - DO NOT MODIFY
@@ -122,6 +127,63 @@ check_dependencies() {
     fi
     
     log "INFO" "All dependencies are available."
+}
+
+check_containers_running() {
+    log "DEBUG" "Checking if project containers are running..."
+    
+    # Check if containers defined in docker-compose.yml are running
+    local running_containers
+    if command -v docker-compose &> /dev/null; then
+        running_containers=$(docker-compose -f "$DOCKER_COMPOSE_FILE" ps --services --filter "status=running" 2>/dev/null | wc -l)
+    else
+        running_containers=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps --services --filter "status=running" 2>/dev/null | wc -l)
+    fi
+    
+    # Get total number of services defined in docker-compose.yml
+    local total_services
+    if command -v docker-compose &> /dev/null; then
+        total_services=$(docker-compose -f "$DOCKER_COMPOSE_FILE" config --services 2>/dev/null | wc -l)
+    else
+        total_services=$(docker compose -f "$DOCKER_COMPOSE_FILE" config --services 2>/dev/null | wc -l)
+    fi
+    
+    log "DEBUG" "Running containers: $running_containers/$total_services"
+    
+    if [ "$running_containers" -eq 0 ] || [ "$running_containers" -lt "$total_services" ]; then
+        log "WARN" "Not all project containers are running ($running_containers/$total_services). Starting containers..."
+        start_containers
+    else
+        log "DEBUG" "All project containers are running ($running_containers/$total_services)"
+    fi
+}
+
+start_containers() {
+    log "INFO" "Starting containers..."
+    
+    if [ -f "$ENV_FILE" ]; then
+        log "INFO" "Using environment file: $ENV_FILE"
+        if command -v docker-compose &> /dev/null; then
+            docker-compose --env-file "$ENV_FILE" up --build -d
+        else
+            docker compose --env-file "$ENV_FILE" up --build -d
+        fi
+    else
+        log "WARN" "Environment file $ENV_FILE not found, using default values"
+        if command -v docker-compose &> /dev/null; then
+            docker-compose up --build -d
+        else
+            docker compose up --build -d
+        fi
+    fi
+    
+    if [ $? -eq 0 ]; then
+        log "INFO" "Containers started successfully"
+        return 0
+    else
+        log "ERROR" "Failed to start containers"
+        return 1
+    fi
 }
 
 setup_ssh_auth() {
@@ -324,6 +386,9 @@ main() {
     save_current_commit "$initial_commit"
     log "INFO" "Initial commit saved: $initial_commit"
     
+    # Check if containers are running and start them if needed
+    check_containers_running
+    
     # Main monitoring loop
     while true; do
         rotate_log
@@ -338,6 +403,9 @@ main() {
         else
             log "DEBUG" "No changes detected, sleeping for $SLEEP_INTERVAL seconds..."
         fi
+        
+        # Check container status at the end of each loop iteration
+        check_containers_running
         
         sleep "$SLEEP_INTERVAL"
     done

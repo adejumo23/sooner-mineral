@@ -160,11 +160,17 @@ npm run preview
 For production servers, use the included auto-deploy script that monitors git changes and automatically rebuilds containers:
 
 ```bash
-# Make the script executable
-chmod +x auto-deploy.sh
+# Copy the configuration template
+cp .envrc.example .envrc
 
 # Edit configuration variables
-nano auto-deploy.sh
+nano .envrc
+
+# Make the script executable
+chmod +x auto-deploy.sh.example
+
+# Copy to actual script name
+cp auto-deploy.sh.example auto-deploy.sh
 
 # Run the auto-deploy script
 ./auto-deploy.sh
@@ -190,9 +196,9 @@ nano auto-deploy.sh
 
 4. **Update script configuration:**
    ```bash
-   # Edit auto-deploy.sh
-   GIT_REPO_URL="git@github.com:your-username/sooner-mineral.git"
-   PROJECT_DIRECTORY="/path/to/your/project"
+   # Edit .envrc file
+   export GIT_REPO_URL="git@github.com:your-username/sooner-mineral.git"
+   export PROJECT_DIRECTORY="/path/to/your/project"
    ```
 
 ## 🗺️ Features
