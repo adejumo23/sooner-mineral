@@ -1,5 +1,15 @@
-// Basic API service file
+// API service file with normalized database integration
 const apiDelay = 500;
+
+// Import normalized API functions
+import { 
+  fetchTracts as fetchNormalizedTracts,
+  fetchTract as fetchNormalizedTract,
+  fetchTractOwners as fetchNormalizedTractOwners,
+  fetchTractPricing as fetchNormalizedTractPricing,
+  searchTracts as searchNormalizedTracts,
+  fetchTractDashboard as fetchNormalizedTractDashboard
+} from './normalizedApi';
 
 // Mock data for import sessions
 let mockImportSessions: any[] = [];
@@ -14,6 +24,7 @@ let mockUsers: any[] = [
   { id: 'u4', name: 'David Buyer', email: 'buyer@sooner.cap', role: 'Buyer', roleId: '4' }
 ];
 
+// Mock tract data for fallback
 let mockTracts: any[] = [
   {
     id: 't1',
@@ -429,17 +440,89 @@ export const fetchRoles = async (): Promise<any[]> => {
   ];
 };
 
-// Tract management functions
-export const fetchTracts = async (): Promise<any[]> => {
-  await new Promise(resolve => setTimeout(resolve, apiDelay));
-  return mockTracts;
+// Tract management functions - now using normalized database
+export const fetchTracts = async (filters?: {
+  state?: string;
+  county?: string;
+  status?: string;
+  buyer?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<any[]> => {
+  try {
+    // Use normalized database queries
+    const tracts = await fetchNormalizedTracts(filters);
+    return tracts;
+  } catch (error) {
+    console.error('Error fetching tracts from normalized database:', error);
+    // Fallback to mock data if database fails
+    await new Promise(resolve => setTimeout(resolve, apiDelay));
+    return mockTracts;
+  }
 };
 
 export const fetchTract = async (id: string): Promise<any> => {
-  await new Promise(resolve => setTimeout(resolve, apiDelay));
-  const tract = mockTracts.find(t => t.id === id);
-  if (!tract) throw new Error('Tract not found');
-  return tract;
+  try {
+    // Use normalized database query
+    const tract = await fetchNormalizedTract(id);
+    return tract;
+  } catch (error) {
+    console.error('Error fetching tract from normalized database:', error);
+    // Fallback to mock data if database fails
+    await new Promise(resolve => setTimeout(resolve, apiDelay));
+    const tract = mockTracts.find(t => t.id === id);
+    if (!tract) throw new Error('Tract not found');
+    return tract;
+  }
+};
+
+// New tract functions using normalized database
+export const fetchTractOwners = async (tractId: string): Promise<any[]> => {
+  try {
+    return await fetchNormalizedTractOwners(tractId);
+  } catch (error) {
+    console.error('Error fetching tract owners:', error);
+    return [];
+  }
+};
+
+export const fetchTractPricing = async (tractId: string): Promise<any[]> => {
+  try {
+    return await fetchNormalizedTractPricing(tractId);
+  } catch (error) {
+    console.error('Error fetching tract pricing:', error);
+    return [];
+  }
+};
+
+export const searchTracts = async (searchTerm: string, limit: number = 50, offset: number = 0): Promise<any[]> => {
+  try {
+    return await searchNormalizedTracts(searchTerm, limit, offset);
+  } catch (error) {
+    console.error('Error searching tracts:', error);
+    return [];
+  }
+};
+
+export const fetchTractDashboard = async (): Promise<any> => {
+  try {
+    return await fetchNormalizedTractDashboard();
+  } catch (error) {
+    console.error('Error fetching tract dashboard:', error);
+    return {
+      totalTracts: 0,
+      workingTracts: 0,
+      droppedTracts: 0,
+      newTracts: 0,
+      assignedTracts: 0,
+      unassignedTracts: 0,
+      totalGrossAcres: 0,
+      totalNetMineralAcres: 0,
+      totalOwners: 0,
+      totalWells: 0,
+      avgNraPrice: 0
+    };
+  }
 };
 
 export const createTract = async (tractData: any): Promise<any> => {
