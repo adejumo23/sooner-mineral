@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../hooks/useAuth';
 import { LogoutIcon } from '../icons/Icons';
@@ -11,11 +11,20 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+
+  const sidebarWidth = sidebarCollapsed && !sidebarHovered ? 'ml-16' : 'ml-64';
 
   return (
     <div className="flex h-screen bg-orange-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-64">
+      <Sidebar 
+        isCollapsed={sidebarCollapsed}
+        isHovered={sidebarHovered}
+        onCollapseChange={setSidebarCollapsed}
+        onHoverChange={setSidebarHovered}
+      />
+      <div className={`flex-1 flex flex-col main-content ${sidebarWidth} transition-all duration-300 ease-in-out`}>
         <header className="flex justify-end items-center h-20 px-8 bg-white border-b border-orange-200 shadow-sm">
             <div className="flex items-center space-x-4">
                 <div className="text-right">
