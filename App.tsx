@@ -29,6 +29,7 @@ import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
 import TractTestComponent from './components/TractTestComponent';
+import DatabaseTestComponent from './components/DatabaseTestComponent';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -81,6 +82,7 @@ function App() {
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
           <Route path="/test-normalized" element={<TractTestComponent />} />
+          <Route path="/test-database" element={<DatabaseTestComponent />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>

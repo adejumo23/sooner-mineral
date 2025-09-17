@@ -1,0 +1,6 @@
+Name,Email,Phone,Department,Status
+Alice Johnson,alice.johnson@company.com,555-0101,Engineering,Active
+Bob Smith,bob.smith@company.com,555-0102,Marketing,Active
+Carol Davis,carol.davis@company.com,555-0103,Sales,Inactive
+David Wilson,david.wilson@company.com,555-0104,HR,Active
+

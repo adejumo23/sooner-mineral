@@ -64,7 +64,7 @@ CREATE TABLE sections (
     county_id VARCHAR(36) NOT NULL,
     section_number VARCHAR(10) NOT NULL,
     township VARCHAR(20),
-    range VARCHAR(20),
+    `range` VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (county_id) REFERENCES counties(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     UNIQUE KEY unique_section_county (section_number, county_id)

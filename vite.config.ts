@@ -15,11 +15,16 @@ export default defineConfig(({ mode }) => {
         }
       },
       optimizeDeps: {
-        // include: ['@arcgis/core'] // Temporarily disabled to resolve server startup issue
+        exclude: ['@arcgis/core', 'mysql2']
       },
       build: {
         rollupOptions: {
-          // external: ['@arcgis/core/assets/*'] // Temporarily disabled
+          external: ['@arcgis/core/assets/*']
+        }
+      },
+      server: {
+        fs: {
+          allow: ['..']
         }
       }
     };

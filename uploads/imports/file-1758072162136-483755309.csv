@@ -1,0 +1,5 @@
+Name,Email,Phone,Department,Status
+John Doe,john.doe@company.com,555-0101,Engineering,Active
+Jane Smith,jane.smith@company.com,555-0102,Marketing,Active
+Bob Johnson,bob.johnson@company.com,555-0103,Sales,Inactive
+Alice Brown,alice.brown@company.com,555-0104,HR,Active

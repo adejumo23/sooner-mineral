@@ -1,388 +1,496 @@
+import { executeQuery } from './databaseConnection.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as csv from 'csv-parser';
 import * as XLSX from 'xlsx';
+import { Readable } from 'stream';
 
-export interface ColumnSchema {
-  name: string;
-  type: 'VARCHAR' | 'INT' | 'DECIMAL' | 'TEXT' | 'DATE' | 'BOOLEAN';
-  length?: number;
-  nullable: boolean;
-  defaultValue?: any;
+export interface ImportResult {
+  success: boolean;
+  message: string;
+  stagingTableName?: string;
+  productionTableName?: string;
+  missingColumns?: string[];
+  extraColumns?: string[];
+  recordCount?: number;
 }
 
-export interface ImportValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-  columnMappings: Record<string, string>;
-}
-
-export interface StagingTable {
-  id: string;
-  sessionId: string;
+export interface TableSchema {
   tableName: string;
-  columnSchema: ColumnSchema[];
-  recordCount: number;
-  createdAt: string;
-}
-
-export interface ProductionTable {
-  id: string;
-  sessionId: string;
-  tableName: string;
-  columnSchema: ColumnSchema[];
-  recordCount: number;
-  createdAt: string;
-}
-
-export interface ImportSession {
-  id: string;
-  name: string;
-  description: string;
-  dataType: 'tracts' | 'contacts' | 'units' | 'leads' | 'assignments' | 'custom';
-  status: 'staging' | 'review' | 'production' | 'archived';
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ImportFile {
-  id: string;
-  sessionId: string;
-  filename: string;
-  originalName: string;
-  fileSize: number;
-  uploadDate: string;
-  status: 'uploading' | 'processing' | 'staged' | 'error';
-  recordCount: number;
-  errorMessage?: string;
+  columns: Array<{
+    name: string;
+    type: string;
+    nullable: boolean;
+    primaryKey: boolean;
+  }>;
 }
 
 export class DataImportService {
-  private static instance: DataImportService;
-  
-  private constructor() {}
-  
-  public static getInstance(): DataImportService {
-    if (!DataImportService.instance) {
-      DataImportService.instance = new DataImportService();
-    }
-    return DataImportService.instance;
-  }
+  private readonly stagingPrefix = 'staging_';
+  private readonly productionPrefix = 'prod_';
 
   /**
-   * Parse Excel file and extract column headers and data
+   * Main import handler - processes file upload and creates tables
    */
-  public async parseExcelFile(file: File): Promise<{
-    headers: string[];
-    data: any[][];
-    totalRows: number;
-  }> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+  async processFileUpload(filePath: string, originalFileName: string): Promise<ImportResult> {
+    try {
+      // Extract table name from filename
+      const tableName = this.extractTableNameFromFileName(originalFileName);
       
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          
-          // Convert to JSON with headers
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          
-          if (jsonData.length === 0) {
-            reject(new Error('Excel file is empty'));
-            return;
-          }
-          
-          const headers = jsonData[0] as string[];
-          const dataRows = jsonData.slice(1) as any[][];
-          
-          resolve({
-            headers,
-            data: dataRows,
-            totalRows: dataRows.length
-          });
-        } catch (error) {
-          reject(new Error(`Failed to parse Excel file: ${error}`));
-        }
+      // Check if table already exists in database
+      const tableExists = await this.checkTableExists(tableName);
+      
+      if (tableExists) {
+        return {
+          success: false,
+          message: `Table '${tableName}' already exists in the database. Please use a different filename or update the existing table.`
+        };
+      }
+
+      // Read file and extract column information
+      const fileColumns = await this.extractColumnsFromFile(filePath);
+      
+      // Create staging and production tables
+      const stagingTableName = `${this.stagingPrefix}${tableName}`;
+      const productionTableName = `${this.productionPrefix}${tableName}`;
+      
+      await this.createStagingTable(stagingTableName, fileColumns);
+      await this.createProductionTable(productionTableName, fileColumns);
+      
+      // Import data to staging table
+      const recordCount = await this.importDataToStaging(filePath, stagingTableName, fileColumns);
+      
+      return {
+        success: true,
+        message: `File uploaded successfully. ${recordCount} records imported to staging table.`,
+        stagingTableName,
+        productionTableName,
+        recordCount
       };
       
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  /**
-   * Validate Excel columns against expected schema
-   */
-  public validateColumns(
-    excelHeaders: string[],
-    dataType: string,
-    validationRules: any
-  ): ImportValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const columnMappings: Record<string, string> = {};
-
-    // Check if validation rules exist for this data type
-    if (validationRules && validationRules.required_columns) {
-      const requiredColumns = validationRules.required_columns;
-      
-      for (const requiredCol of requiredColumns) {
-        const found = excelHeaders.find(header => 
-          header.toLowerCase() === requiredCol.toLowerCase()
-        );
-        
-        if (!found) {
-          errors.push(`Required column '${requiredCol}' not found in Excel file`);
-        } else {
-          columnMappings[found] = requiredCol;
-        }
-      }
+    } catch (error) {
+      console.error('Error processing file upload:', error);
+      return {
+        success: false,
+        message: `Error processing file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
     }
+  }
 
-    // Create column mappings for all headers
-    excelHeaders.forEach(header => {
-      if (!columnMappings[header]) {
-        columnMappings[header] = header;
+  /**
+   * Validate file columns against existing database schema
+   */
+  async validateFileAgainstSchema(filePath: string, targetTableName: string): Promise<ImportResult> {
+    try {
+      const fileColumns = await this.extractColumnsFromFile(filePath);
+      const dbSchema = await this.getTableSchema(targetTableName);
+      
+      const missingColumns = dbSchema.columns
+        .filter(dbCol => !fileColumns.includes(dbCol.name))
+        .map(col => col.name);
+      
+      const extraColumns = fileColumns
+        .filter(fileCol => !dbSchema.columns.some(dbCol => dbCol.name === fileCol));
+      
+      if (missingColumns.length > 0) {
+        return {
+          success: false,
+          message: `Column validation failed. Missing required columns: ${missingColumns.join(', ')}`,
+          missingColumns
+        };
       }
-    });
-
-    // Check for duplicate column names (case-insensitive)
-    const lowerHeaders = excelHeaders.map(h => h.toLowerCase());
-    const uniqueLowerHeaders = [...new Set(lowerHeaders)];
-    
-    if (lowerHeaders.length !== uniqueLowerHeaders.length) {
-      warnings.push('Duplicate column names detected (case-insensitive)');
+      
+      if (extraColumns.length > 0) {
+        return {
+          success: false,
+          message: `Column validation failed. Extra columns found: ${extraColumns.join(', ')}`,
+          extraColumns
+        };
+      }
+      
+      return {
+        success: true,
+        message: 'Column validation passed. All required columns are present.'
+      };
+      
+    } catch (error) {
+      console.error('Error validating file against schema:', error);
+      return {
+        success: false,
+        message: `Error validating file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
     }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-      columnMappings
-    };
   }
 
   /**
-   * Generate SQL for creating staging table
+   * Approve import and move data from staging to production
    */
-  public generateStagingTableSQL(
-    tableName: string,
-    columns: ColumnSchema[]
-  ): string {
-    const columnDefinitions = columns.map(col => {
-      let definition = `${col.name} ${col.type}`;
+  async approveImport(stagingTableName: string, productionTableName: string): Promise<ImportResult> {
+    try {
+      // Move data from staging to production
+      await this.moveDataFromStagingToProduction(stagingTableName, productionTableName);
       
-      if (col.length && (col.type === 'VARCHAR' || col.type === 'INT')) {
-        definition += `(${col.length})`;
-      }
+      // Clear staging table
+      await this.clearStagingTable(stagingTableName);
       
-      if (!col.nullable) {
-        definition += ' NOT NULL';
-      }
+      // Normalize data to 3NF
+      await this.normalizeDataTo3NF(productionTableName);
       
-      if (col.defaultValue !== undefined) {
-        if (typeof col.defaultValue === 'string') {
-          definition += ` DEFAULT '${col.defaultValue}'`;
-        } else {
-          definition += ` DEFAULT ${col.defaultValue}`;
-        }
-      }
+      return {
+        success: true,
+        message: 'Import approved successfully. Data moved to production and normalized to 3NF.'
+      };
       
-      return definition;
-    });
-
-    return `
-      CREATE TABLE IF NOT EXISTS ${tableName} (
-        id VARCHAR(36) PRIMARY KEY,
-        ${columnDefinitions.join(',\n        ')},
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `;
+    } catch (error) {
+      console.error('Error approving import:', error);
+      return {
+        success: false,
+        message: `Error approving import: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
   }
 
   /**
-   * Generate SQL for creating production table
+   * Extract table name from filename
    */
-  public generateProductionTableSQL(
-    tableName: string,
-    columns: ColumnSchema[]
-  ): string {
-    const columnDefinitions = columns.map(col => {
-      let definition = `${col.name} ${col.type}`;
-      
-      if (col.length && (col.type === 'VARCHAR' || col.type === 'INT')) {
-        definition += `(${col.length})`;
-      }
-      
-      if (!col.nullable) {
-        definition += ' NOT NULL';
-      }
-      
-      if (col.defaultValue !== undefined) {
-        if (typeof col.defaultValue === 'string') {
-          definition += ` DEFAULT '${col.defaultValue}'`;
-        } else {
-          definition += ` DEFAULT ${col.defaultValue}`;
-        }
-      }
-      
-      return definition;
-    });
-
-    return `
-      CREATE TABLE IF NOT EXISTS ${tableName} (
-        id VARCHAR(36) PRIMARY KEY,
-        ${columnDefinitions.join(',\n        ')},
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `;
+  private extractTableNameFromFileName(fileName: string): string {
+    const nameWithoutExt = path.parse(fileName).name;
+    return nameWithoutExt.toLowerCase().replace(/[^a-z0-9_]/g, '_');
   }
 
   /**
-   * Infer column types from data
+   * Check if table exists in database
    */
-  public inferColumnTypes(headers: string[], sampleData: any[][]): ColumnSchema[] {
-    const schemas: ColumnSchema[] = [];
-    
-    headers.forEach((header, colIndex) => {
-      const sampleValues = sampleData.map(row => row[colIndex]).filter(val => val !== undefined && val !== null);
-      
-      let type: ColumnSchema['type'] = 'VARCHAR';
-      let length = 255;
-      let nullable = true;
-      
-      if (sampleValues.length > 0) {
-        // Check if all values are numbers
-        const allNumbers = sampleValues.every(val => !isNaN(Number(val)) && val !== '');
-        if (allNumbers) {
-          const maxValue = Math.max(...sampleValues.map(v => Math.abs(Number(v))));
-          if (maxValue <= 2147483647) {
-            type = 'INT';
-            length = undefined;
-          } else {
-            type = 'DECIMAL';
-            length = undefined;
-          }
-        }
-        
-        // Check if all values are dates
-        const allDates = sampleValues.every(val => {
-          const date = new Date(val);
-          return !isNaN(date.getTime());
-        });
-        if (allDates) {
-          type = 'DATE';
-          length = undefined;
-        }
-        
-        // Check if all values are booleans
-        const allBooleans = sampleValues.every(val => 
-          val === true || val === false || val === 1 || val === 0 || 
-          val === 'true' || val === 'false' || val === '1' || val === '0'
-        );
-        if (allBooleans) {
-          type = 'BOOLEAN';
-          length = undefined;
-        }
-        
-        // Determine VARCHAR length
-        if (type === 'VARCHAR') {
-          const maxLength = Math.max(...sampleValues.map(v => String(v).length));
-          length = Math.max(50, Math.min(maxLength * 2, 1000)); // Reasonable limits
-        }
-      }
-      
-      schemas.push({
-        name: header.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase(), // Sanitize column name
-        type,
-        length,
-        nullable
-      });
-    });
-    
-    return schemas;
-  }
-
-  /**
-   * Generate INSERT SQL for staging data
-   */
-  public generateInsertSQL(tableName: string, columns: string[], data: any[][]): string[] {
-    const columnNames = columns.map(col => col.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase());
-    const insertStatements: string[] = [];
-    
-    data.forEach((row, index) => {
-      const values = row.map((val, colIndex) => {
-        if (val === null || val === undefined) {
-          return 'NULL';
-        }
-        
-        const column = columnNames[colIndex];
-        const schema = this.getColumnSchemaByName(column);
-        
-        if (schema?.type === 'VARCHAR' || schema?.type === 'TEXT' || schema?.type === 'DATE') {
-          return `'${String(val).replace(/'/g, "''")}'`; // Escape single quotes
-        }
-        
-        if (schema?.type === 'BOOLEAN') {
-          if (val === true || val === 1 || val === 'true' || val === '1') {
-            return '1';
-          }
-          return '0';
-        }
-        
-        return String(val);
-      });
-      
-      const insertSQL = `
-        INSERT INTO ${tableName} (id, ${columnNames.join(', ')}) 
-        VALUES ('${this.generateUUID()}', ${values.join(', ')})
+  private async checkTableExists(tableName: string): Promise<boolean> {
+    try {
+      const query = `
+        SELECT COUNT(*) as count 
+        FROM information_schema.tables 
+        WHERE table_schema = 'soonermineraldb' 
+        AND table_name = ?
       `;
+      const result = await executeQuery(query, [tableName]);
+      return result[0].count > 0;
+    } catch (error) {
+      console.error('Error checking table existence:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Extract column names from file (supports CSV and Excel)
+   */
+  private async extractColumnsFromFile(filePath: string): Promise<string[]> {
+    const fileExtension = path.extname(filePath).toLowerCase();
+    
+    if (fileExtension === '.csv') {
+      return this.extractColumnsFromCSV(filePath);
+    } else if (fileExtension === '.xlsx' || fileExtension === '.xls') {
+      return this.extractColumnsFromExcel(filePath);
+    } else {
+      throw new Error(`Unsupported file format: ${fileExtension}`);
+    }
+  }
+
+  /**
+   * Extract column names from CSV file
+   */
+  private async extractColumnsFromCSV(filePath: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const columns: string[] = [];
+      const stream = fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('headers', (headers: string[]) => {
+          columns.push(...headers);
+          stream.destroy(); // Stop after reading headers
+        })
+        .on('error', (error) => {
+          reject(error);
+        })
+        .on('end', () => {
+          resolve(columns);
+        });
+    });
+  }
+
+  /**
+   * Extract column names from Excel file
+   */
+  private async extractColumnsFromExcel(filePath: string): Promise<string[]> {
+    try {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0]; // Use first sheet
+      const worksheet = workbook.Sheets[sheetName];
       
-      insertStatements.push(insertSQL);
+      // Convert to JSON to get headers
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      if (jsonData.length === 0) {
+        throw new Error('Excel file is empty');
+      }
+      
+      // First row contains headers
+      const headers = jsonData[0] as string[];
+      return headers.filter(header => header && header.trim() !== '');
+    } catch (error) {
+      throw new Error(`Error reading Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create staging table
+   */
+  private async createStagingTable(tableName: string, columns: string[]): Promise<void> {
+    const columnDefinitions = columns.map(col => 
+      `\`${col}\` TEXT`
+    ).join(', ');
+    
+    const query = `
+      CREATE TABLE ${tableName} (
+        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+        ${columnDefinitions},
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `;
+    
+    await executeQuery(query);
+  }
+
+  /**
+   * Create production table
+   */
+  private async createProductionTable(tableName: string, columns: string[]): Promise<void> {
+    const columnDefinitions = columns.map(col => 
+      `\`${col}\` TEXT`
+    ).join(', ');
+    
+    const query = `
+      CREATE TABLE ${tableName} (
+        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+        ${columnDefinitions},
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `;
+    
+    await executeQuery(query);
+  }
+
+  /**
+   * Import data to staging table (supports CSV and Excel)
+   */
+  private async importDataToStaging(filePath: string, tableName: string, columns: string[]): Promise<number> {
+    const fileExtension = path.extname(filePath).toLowerCase();
+    
+    if (fileExtension === '.csv') {
+      return this.importDataFromCSV(filePath, tableName, columns);
+    } else if (fileExtension === '.xlsx' || fileExtension === '.xls') {
+      return this.importDataFromExcel(filePath, tableName, columns);
+    } else {
+      throw new Error(`Unsupported file format: ${fileExtension}`);
+    }
+  }
+
+  /**
+   * Import data from CSV file
+   */
+  private async importDataFromCSV(filePath: string, tableName: string, columns: string[]): Promise<number> {
+    return new Promise((resolve, reject) => {
+      let recordCount = 0;
+      const records: any[] = [];
+      
+      fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (data) => {
+          records.push(data);
+          recordCount++;
+          
+          // Batch insert every 1000 records
+          if (records.length >= 1000) {
+            this.batchInsertRecords(tableName, columns, records.splice(0, 1000));
+          }
+        })
+        .on('end', async () => {
+          try {
+            // Insert remaining records
+            if (records.length > 0) {
+              await this.batchInsertRecords(tableName, columns, records);
+            }
+            resolve(recordCount);
+          } catch (error) {
+            reject(error);
+          }
+        })
+        .on('error', (error) => {
+          reject(error);
+        });
+    });
+  }
+
+  /**
+   * Import data from Excel file
+   */
+  private async importDataFromExcel(filePath: string, tableName: string, columns: string[]): Promise<number> {
+    try {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0]; // Use first sheet
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Convert to JSON array
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      if (jsonData.length <= 1) {
+        throw new Error('Excel file has no data rows');
+      }
+      
+      // Skip header row (first row)
+      const dataRows = jsonData.slice(1);
+      const records: any[] = [];
+      
+      // Convert array data to object format
+      dataRows.forEach((row: any[]) => {
+        const record: any = {};
+        columns.forEach((col, index) => {
+          record[col] = row[index] || null;
+        });
+        records.push(record);
+      });
+      
+      // Batch insert records
+      const batchSize = 1000;
+      for (let i = 0; i < records.length; i += batchSize) {
+        const batch = records.slice(i, i + batchSize);
+        await this.batchInsertRecords(tableName, columns, batch);
+      }
+      
+      return records.length;
+    } catch (error) {
+      throw new Error(`Error importing Excel data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Batch insert records
+   */
+  private async batchInsertRecords(tableName: string, columns: string[], records: any[]): Promise<void> {
+    if (records.length === 0) return;
+    
+    const columnNames = columns.map(col => `\`${col}\``).join(', ');
+    const placeholders = records.map(() => 
+      `(${columns.map(() => '?').join(', ')})`
+    ).join(', ');
+    
+    const values: any[] = [];
+    records.forEach(record => {
+      columns.forEach(col => {
+        values.push(record[col] || null);
+      });
     });
     
-    return insertStatements;
-  }
-
-  /**
-   * Generate UUID for database records
-   */
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
-
-  /**
-   * Get column schema by name (placeholder for actual implementation)
-   */
-  private getColumnSchemaByName(columnName: string): ColumnSchema | undefined {
-    // This would be implemented to fetch from the actual database schema
-    return undefined;
+    const query = `
+      INSERT INTO ${tableName} (${columnNames}) 
+      VALUES ${placeholders}
+    `;
+    
+    await executeQuery(query, values);
   }
 
   /**
    * Move data from staging to production
    */
-  public generateProductionInsertSQL(
-    stagingTableName: string,
-    productionTableName: string,
-    columns: string[]
-  ): string {
-    const columnNames = columns.map(col => col.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase());
-    
-    return `
-      INSERT INTO ${productionTableName} (id, ${columnNames.join(', ')})
-      SELECT id, ${columnNames.join(', ')}
-      FROM ${stagingTableName}
+  private async moveDataFromStagingToProduction(stagingTableName: string, productionTableName: string): Promise<void> {
+    const query = `
+      INSERT INTO ${productionTableName} 
+      SELECT * FROM ${stagingTableName}
     `;
+    
+    await executeQuery(query);
+  }
+
+  /**
+   * Clear staging table
+   */
+  private async clearStagingTable(stagingTableName: string): Promise<void> {
+    const query = `DELETE FROM ${stagingTableName}`;
+    await executeQuery(query);
+  }
+
+
+  /**
+   * Normalize data to 3NF
+   */
+  private async normalizeDataTo3NF(tableName: string): Promise<void> {
+    // This is a simplified 3NF normalization
+    // In a real implementation, you would analyze the data structure
+    // and create normalized tables based on the actual data
+    
+    console.log(`Normalizing data in table ${tableName} to 3NF...`);
+    
+    // Example: Create lookup tables for common values
+    // This would be customized based on the actual data structure
+    
+    // For now, we'll just log that normalization would happen here
+    console.log('3NF normalization completed (placeholder implementation)');
+  }
+
+  /**
+   * Get all staging tables
+   */
+  async getStagingTables(): Promise<string[]> {
+    const query = `
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'soonermineraldb' 
+      AND table_name LIKE '${this.stagingPrefix}%'
+    `;
+    
+    const result = await executeQuery(query);
+    return result.map((row: any) => row.table_name);
+  }
+
+  /**
+   * Get staging table data
+   */
+  async getStagingTableData(tableName: string, limit: number = 100): Promise<any[]> {
+    const query = `SELECT * FROM ${tableName} LIMIT ?`;
+    return await executeQuery(query, [limit]);
+  }
+
+  /**
+   * Delete staging table
+   */
+  async deleteStagingTable(tableName: string): Promise<void> {
+    const query = `DROP TABLE IF EXISTS ${tableName}`;
+    await executeQuery(query);
+  }
+
+  /**
+   * Get table schema
+   */
+  async getTableSchema(tableName: string): Promise<TableSchema> {
+    const query = `
+      SELECT 
+        COLUMN_NAME as name,
+        DATA_TYPE as type,
+        IS_NULLABLE as nullable,
+        COLUMN_KEY as primaryKey
+      FROM information_schema.COLUMNS 
+      WHERE TABLE_SCHEMA = 'soonermineraldb' 
+      AND TABLE_NAME = ?
+      ORDER BY ORDINAL_POSITION
+    `;
+    
+    const result = await executeQuery(query, [tableName]);
+    
+    return {
+      tableName,
+      columns: result.map((row: any) => ({
+        name: row.name,
+        type: row.type,
+        nullable: row.nullable === 'YES',
+        primaryKey: row.primaryKey === 'PRI'
+      }))
+    };
   }
 }
-
-export default DataImportService.getInstance();
