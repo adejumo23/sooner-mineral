@@ -255,6 +255,71 @@ JOIN acquisition_status_types ast ON at.acquisition_status_id = ast.id
 WHERE ast.name = 'WORKING' AND f.name = 'Wolfcamp A'
 ```
 
+## Recently Normalized Tables (December 2024)
+
+The following production tables have been successfully normalized and processed into the 3NF structure:
+
+### 1. **prod_texas_pricing**
+- **Source**: Texas pricing data with formation pricing information
+- **Normalized To**: 
+  - `counties` (Texas counties)
+  - `basins` (Midland, Delaware, etc.)
+  - `survey_companies` (T&P RR CO, HE&WT RR CO, etc.)
+  - `formations` (Wolfcamp A, Spraberry, Bone Spring, etc.)
+  - `properties` (consolidated property information)
+  - `formation_pricing` (price per acre by formation)
+
+### 2. **prod_oklahoma_pricing**
+- **Source**: Oklahoma pricing data with formation pricing information
+- **Normalized To**: 
+  - `counties` (Oklahoma counties like Kingfisher)
+  - `basins` (Anadarko Basin)
+  - `survey_companies` (Oklahoma survey companies)
+  - `formations` (Oklahoma-specific formations)
+  - `properties` (Oklahoma property information)
+  - `formation_pricing` (Oklahoma pricing data)
+
+### 3. **prod_acreage_schedule**
+- **Source**: Mineral rights ownership and acquisition tracking data
+- **Normalized To**:
+  - `counties` (Texas and Oklahoma counties)
+  - `sections` (Section-Township-Range data)
+  - `properties` (property information from S-T-R data)
+  - `owners` (mineral rights owners)
+  - `mineral_interests` (ownership details and acreage)
+  - `acquisition_status_types` (DROPPED, WORKING, etc.)
+  - `acquisition_activities` (acquisition activities)
+
+### 4. **prod_unit_summary**
+- **Source**: Well and unit operational data
+- **Normalized To**:
+  - `operators` (CLR, Pioneer, Devon, EOG, etc.)
+  - `well_status_types` (ORDER, PERMITTED, DRILLING, DUC, etc.)
+  - `unit_tiers` (AOI, RAN/POT, etc.)
+  - `unit_status_types` (ACTIVELY WORKING, WORKED/FOLLOW UP, etc.)
+  - `wells` (well information with allocation percentages)
+  - `units` (production units with pricing and owner counts)
+  - `properties` (well properties)
+
+### Normalization Process
+
+The normalization was performed using an automated process that:
+
+1. **Analyzed** each production table structure
+2. **Extracted** unique values for lookup tables
+3. **Created** normalized records with proper relationships
+4. **Mapped** data from denormalized to normalized structure
+5. **Preserved** all original data while eliminating redundancy
+
+### Data Quality Improvements
+
+After normalization:
+- **Eliminated** data redundancy across all tables
+- **Ensured** referential integrity through foreign keys
+- **Standardized** naming conventions and data formats
+- **Created** proper indexes for optimal query performance
+- **Established** single source of truth for all reference data
+
 ## Conclusion
 
 The normalized database structure provides a solid foundation for the Sooner Mineral application with:

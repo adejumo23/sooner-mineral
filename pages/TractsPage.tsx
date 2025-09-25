@@ -64,6 +64,9 @@ const TractsPage: React.FC = () => {
         county: formData.get('county') as string,
         legalDescription: formData.get('legalDescription') as string,
         str: formData.get('str') as string || undefined,
+        sectionNumber: formData.get('sectionNumber') as string || undefined,
+        township: formData.get('township') as string || undefined,
+        range: formData.get('range') as string || undefined,
         abstractNumber: formData.get('abstractNumber') as string || undefined,
         anum: formData.get('anum') as string || undefined,
         grossAcres: parseFloat(formData.get('grossAcres') as string),
@@ -108,6 +111,27 @@ const TractsPage: React.FC = () => {
       accessor: 'county',
       cell: (tract: Tract) => (
         <span className="text-sm text-gray-900">{tract.county}</span>
+      )
+    },
+    {
+      header: 'Section',
+      accessor: 'sectionNumber',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-gray-900">{tract.sectionNumber || 'N/A'}</span>
+      )
+    },
+    {
+      header: 'Township',
+      accessor: 'township',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-gray-900">{tract.township || 'N/A'}</span>
+      )
+    },
+    {
+      header: 'Range',
+      accessor: 'range',
+      cell: (tract: Tract) => (
+        <span className="text-sm text-gray-900">{tract.range || 'N/A'}</span>
       )
     },
     {
@@ -202,7 +226,7 @@ const TractsPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <div>
-                    <label htmlFor="str" className="block text-sm font-medium text-sc-slate mb-1">STR</label>
+                    <label htmlFor="str" className="block text-sm font-medium text-sc-slate mb-1">STR (Combined)</label>
                     <Input id="str" name="str" type="text" defaultValue={editingTract?.str} />
                 </div>
                 <div>
@@ -212,6 +236,22 @@ const TractsPage: React.FC = () => {
                 <div>
                     <label htmlFor="anum" className="block text-sm font-medium text-sc-slate mb-1">ANUM</label>
                     <Input id="anum" name="anum" type="text" defaultValue={editingTract?.anum} />
+                </div>
+            </div>
+            
+            {/* STR Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label htmlFor="sectionNumber" className="block text-sm font-medium text-sc-slate mb-1">Section Number</label>
+                    <Input id="sectionNumber" name="sectionNumber" type="text" defaultValue={editingTract?.sectionNumber} />
+                </div>
+                <div>
+                    <label htmlFor="township" className="block text-sm font-medium text-sc-slate mb-1">Township</label>
+                    <Input id="township" name="township" type="text" defaultValue={editingTract?.township} />
+                </div>
+                <div>
+                    <label htmlFor="range" className="block text-sm font-medium text-sc-slate mb-1">Range</label>
+                    <Input id="range" name="range" type="text" defaultValue={editingTract?.range} />
                 </div>
             </div>
             

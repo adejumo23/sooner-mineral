@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { initializeDatabase } from './services/databaseConnection.js';
-import importRoutes from './routes/importRoutes';
+import { initializeDatabase } from './services/databaseConnection.ts';
+import importRoutes from './routes/importRoutes.ts';
 
 const app = express();
 const PORT = process.env.PORT || 3001;

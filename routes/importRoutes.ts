@@ -8,7 +8,7 @@ import {
   deleteStagingTable, 
   getTableSchema,
   upload 
-} from '../services/importApi.js';
+} from '../services/importApi.ts';
 
 const router = Router();
 

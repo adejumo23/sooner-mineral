@@ -34,6 +34,12 @@ export const LAYER_CONFIG = {
     color: [255, 107, 53, 0.8], // Orange
     symbol: "polygon"
   },
+  sections: {
+    id: "sections",
+    title: "Township Sections",
+    color: [59, 130, 246, 0.7], // Blue
+    symbol: "polygon"
+  },
   producingWells: {
     id: "producing-wells",
     title: "Producing Wells",
@@ -260,6 +266,39 @@ export const createGraphicsFromData = (data: any[], type: string, layerConfig: a
           status: item.status,
           formation: item.formation
         };
+        break;
+      case 'tract':
+        // For tracts, create a section boundary polygon
+        if (item.centroid_lat && item.centroid_lon) {
+          const tractCenter = new Point({
+            longitude: item.centroid_lon,
+            latitude: item.centroid_lat,
+            spatialReference: SpatialReference.WGS84
+          });
+          // Create a section-sized polygon (approximately 1 mile x 1 mile)
+          const sectionRadius = 0.005; // Roughly 0.5 mile radius for a section
+          geometry = createPolygonFromCenter(tractCenter, sectionRadius);
+          attributes = {
+            tractId: item.tract_id,
+            areaAcres: item.area_acres,
+            sectionNumber: item.section_number,
+            township: item.township,
+            range: item.range,
+            str: `${item.section_number}-${item.township}-${item.range}`
+          };
+        } else {
+          // Fallback to a point if no coordinates
+          geometry = new Point({
+            longitude: -102.0776, // Default Midland, TX coordinates
+            latitude: 31.9686,
+            spatialReference: SpatialReference.WGS84
+          });
+          attributes = {
+            tractId: item.tract_id,
+            areaAcres: item.area_acres,
+            str: 'Unknown Location'
+          };
+        }
         break;
       default:
         geometry = new Point({

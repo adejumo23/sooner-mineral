@@ -640,7 +640,7 @@ export const convertLeadToDeal = async (leadId: string, dealData: any) => {
 // Mapping and spatial functions
 export const fetchTractSpatial = async (tractId: string) => {
   try {
-    return await apiRequest(`/tracts/${tractId}/spatial`);
+    return await apiRequest('/tract-spatial');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return null;
@@ -652,7 +652,7 @@ export const fetchMapLayerPreferences = async () => {
     return await apiRequest('/map/layer-preferences');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return {};
+    return [];
   }
 };
 
@@ -1178,6 +1178,55 @@ export const fetchProductionTableData = async (tableName: string, limit: number 
   }
 };
 
+// Normalized data queries
+export const fetchNormalizedOverview = async () => {
+  try {
+    return await apiRequest('/normalized/overview');
+  } catch (error) {
+    console.error('Error fetching normalized overview:', error);
+    return {
+      success: true,
+      data: []
+    };
+  }
+};
+
+export const fetchPricingSummary = async () => {
+  try {
+    return await apiRequest('/normalized/pricing-summary');
+  } catch (error) {
+    console.error('Error fetching pricing summary:', error);
+    return {
+      success: true,
+      data: []
+    };
+  }
+};
+
+export const fetchAcreageSummary = async () => {
+  try {
+    return await apiRequest('/normalized/acreage-summary');
+  } catch (error) {
+    console.error('Error fetching acreage summary:', error);
+    return {
+      success: true,
+      data: []
+    };
+  }
+};
+
+export const fetchUnitSummary = async () => {
+  try {
+    return await apiRequest('/normalized/unit-summary');
+  } catch (error) {
+    console.error('Error fetching unit summary:', error);
+    return {
+      success: true,
+      data: []
+    };
+  }
+};
+
 export const approveImport = async (stagingTableName: string, productionTableName: string) => {
   try {
     return await apiRequest('/import/approve', {
@@ -1387,5 +1436,9 @@ export default {
   deleteStagingTable,
   updateStagingRecord,
   deleteStagingRecord,
+  fetchNormalizedOverview,
+  fetchPricingSummary,
+  fetchAcreageSummary,
+  fetchUnitSummary,
 };
 

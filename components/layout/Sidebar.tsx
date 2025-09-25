@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon, DocumentArrowUpIcon } from '../icons/Icons';
+import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon, DocumentArrowUpIcon, TableCellsIcon, CurrencyDollarIcon } from '../icons/Icons';
 import './Sidebar.css';
 
 const navigation = [
@@ -16,6 +16,8 @@ const navigation = [
   { name: 'Calendar & Tasks', href: '/calendar-tasks', icon: CheckListIcon },
   { name: 'Document Generation', href: '/document-generation', icon: DocumentIcon },
   { name: 'Data Import', href: '/data-import', icon: DocumentArrowUpIcon },
+  { name: 'Acreage Schedule', href: '/acreage-schedule', icon: TableCellsIcon },
+  { name: 'Pricing', href: '/pricing', icon: CurrencyDollarIcon },
   { name: 'Reporting', href: '/reporting', icon: ChartBarIcon },
   { name: 'ESG Tracking', href: '/esg', icon: GlobeAltIcon },
   { name: 'Users', href: '/users', icon: UserGroupIcon },

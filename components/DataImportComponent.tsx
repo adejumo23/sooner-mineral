@@ -43,13 +43,19 @@ const DataImportComponent: React.FC = () => {
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-  const [activeTab, setActiveTab] = useState<'upload' | 'staging' | 'production'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'staging' | 'production' | 'normalized'>('upload');
   const [productionData, setProductionData] = useState<any[]>([]);
   const [selectedProductionTable, setSelectedProductionTable] = useState<string>('');
   const [productionTables, setProductionTables] = useState<StagingTable[]>([]);
   const [showStagingSubTable, setShowStagingSubTable] = useState(false);
   const [currentUploadedTable, setCurrentUploadedTable] = useState<string>('');
   const [currentProductionTable, setCurrentProductionTable] = useState<string>('');
+  
+  // Normalized data state
+  const [normalizedOverview, setNormalizedOverview] = useState<any[]>([]);
+  const [pricingSummary, setPricingSummary] = useState<any[]>([]);
+  const [acreageSummary, setAcreageSummary] = useState<any[]>([]);
+  const [unitSummary, setUnitSummary] = useState<any[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -184,10 +190,12 @@ const DataImportComponent: React.FC = () => {
     try {
       const response = await apiClient.fetchStagingTables();
       if (response.success) {
-        const tables = response.stagingTables.map((tableName: string) => ({
+        // Handle both response structures: stagingTables array or data array
+        const tableNames = response.stagingTables || response.data || [];
+        const tables = Array.isArray(tableNames) ? tableNames.map((tableName: string) => ({
           tableName,
           recordCount: 0
-        }));
+        })) : [];
         setStagingTables(tables);
       } else {
         console.error('Failed to fetch staging tables:', response.message);
@@ -204,10 +212,12 @@ const DataImportComponent: React.FC = () => {
     try {
       const response = await apiClient.fetchProductionTables();
       if (response.success) {
-        const tables = response.productionTables.map((tableName: string) => ({
+        // Handle both response structures: productionTables array or data array
+        const tableNames = response.productionTables || response.data || [];
+        const tables = Array.isArray(tableNames) ? tableNames.map((tableName: string) => ({
           tableName,
           recordCount: 0
-        }));
+        })) : [];
         setProductionTables(tables);
       } else {
         console.error('Failed to fetch production tables:', response.message);
@@ -277,6 +287,33 @@ const DataImportComponent: React.FC = () => {
       setProductionData([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch normalized data
+  const fetchNormalizedData = async () => {
+    try {
+      const [overviewRes, pricingRes, acreageRes, unitRes] = await Promise.all([
+        apiClient.fetchNormalizedOverview(),
+        apiClient.fetchPricingSummary(),
+        apiClient.fetchAcreageSummary(),
+        apiClient.fetchUnitSummary()
+      ]);
+
+      if (overviewRes.success && Array.isArray(overviewRes.data)) {
+        setNormalizedOverview(overviewRes.data);
+      }
+      if (pricingRes.success && Array.isArray(pricingRes.data)) {
+        setPricingSummary(pricingRes.data);
+      }
+      if (acreageRes.success && Array.isArray(acreageRes.data)) {
+        setAcreageSummary(acreageRes.data);
+      }
+      if (unitRes.success && Array.isArray(unitRes.data)) {
+        setUnitSummary(unitRes.data);
+      }
+    } catch (error) {
+      console.error('Error fetching normalized data:', error);
     }
   };
 
@@ -462,6 +499,7 @@ const DataImportComponent: React.FC = () => {
   useEffect(() => {
     fetchStagingTables();
     fetchProductionTables();
+    fetchNormalizedData();
   }, []);
 
   const filteredData = getFilteredAndSortedData();
@@ -514,6 +552,12 @@ const DataImportComponent: React.FC = () => {
           onClick={() => setActiveTab('production')}
         >
           🏭 Production Tables ({productionTables.length})
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'normalized' ? 'active' : ''}`}
+          onClick={() => setActiveTab('normalized')}
+        >
+          📊 Normalized Data
         </button>
       </div>
 
@@ -1027,6 +1071,143 @@ const DataImportComponent: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Normalized Data Tab */}
+      {activeTab === 'normalized' && (
+        <div className="tab-content">
+          <div className="normalized-section">
+            <div className="section-header">
+              <div className="section-title">
+                <h3>📊 Normalized Data Overview</h3>
+                <p>View the 3NF normalized data structure and summaries</p>
+              </div>
+              <button 
+                className="refresh-btn"
+                onClick={fetchNormalizedData}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+
+            {/* Data Overview */}
+            <div className="data-overview-grid">
+              <div className="overview-card">
+                <h4>📈 Data Overview</h4>
+                <div className="overview-stats">
+                  {Array.isArray(normalizedOverview) && normalizedOverview.map((item, index) => (
+                    <div key={index} className="stat-item">
+                      <span className="stat-label">{item.table_name}:</span>
+                      <span className="stat-value">{item.record_count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pricing Summary */}
+              <div className="overview-card">
+                <h4>💰 Pricing Summary</h4>
+                <div className="summary-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Formation</th>
+                        <th>Records</th>
+                        <th>Avg Price</th>
+                        <th>Min Price</th>
+                        <th>Max Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(pricingSummary) && pricingSummary.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.formation}</td>
+                          <td>{item.pricing_records}</td>
+                          <td>${parseFloat(item.avg_price).toLocaleString()}</td>
+                          <td>${parseFloat(item.min_price).toLocaleString()}</td>
+                          <td>${parseFloat(item.max_price).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Acreage Summary */}
+              <div className="overview-card">
+                <h4>🏞️ Acreage Summary</h4>
+                <div className="summary-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>County</th>
+                        <th>Owners</th>
+                        <th>Interests</th>
+                        <th>Total Acres</th>
+                        <th>Avg Interest</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(acreageSummary) && acreageSummary.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.county}</td>
+                          <td>{item.unique_owners}</td>
+                          <td>{item.mineral_interests}</td>
+                          <td>{parseFloat(item.total_acres).toLocaleString()}</td>
+                          <td>{parseFloat(item.avg_interest).toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Unit Summary */}
+              <div className="overview-card">
+                <h4>⛽ Unit Summary</h4>
+                <div className="summary-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Operator</th>
+                        <th>Units</th>
+                        <th>Wells</th>
+                        <th>Avg Allocation</th>
+                        <th>Avg Pricing</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(unitSummary) && unitSummary.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.operator}</td>
+                          <td>{item.total_units}</td>
+                          <td>{item.total_wells}</td>
+                          <td>{parseFloat(item.avg_allocation).toFixed(2)}%</td>
+                          <td>${parseFloat(item.avg_pricing).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Query Information */}
+            <div className="query-info">
+              <h4>🔍 Available Queries</h4>
+              <p>Use the SQL queries in <code>database/normalized_data_queries.sql</code> to explore the normalized data in detail.</p>
+              <div className="query-examples">
+                <h5>Example Queries:</h5>
+                <ul>
+                  <li><strong>Pricing by Formation:</strong> View pricing data grouped by geological formations</li>
+                  <li><strong>Mineral Interests by County:</strong> See ownership distribution across counties</li>
+                  <li><strong>Unit Performance by Operator:</strong> Compare operator performance metrics</li>
+                  <li><strong>Cross-Reference Analysis:</strong> Find properties with both pricing and mineral interest data</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}

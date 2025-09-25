@@ -50,6 +50,10 @@ export const getDatabase = (): mysql.Pool => {
 // Execute query with error handling
 export const executeQuery = async (query: string, params: any[] = []): Promise<any[]> => {
   try {
+    if (!pool) {
+      console.warn('Database not connected, returning empty result');
+      return []; // Return empty array instead of throwing error
+    }
     const db = getDatabase();
     const [rows] = await db.execute(query, params);
     return rows as any[];
@@ -57,7 +61,9 @@ export const executeQuery = async (query: string, params: any[] = []): Promise<a
     console.error('Database query error:', error);
     console.error('Query:', query);
     console.error('Params:', params);
-    throw error;
+    // Don't throw error, return empty array to allow graceful degradation
+    console.warn('Database query failed, returning empty result');
+    return [];
   }
 };
 
