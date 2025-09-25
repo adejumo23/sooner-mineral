@@ -28,6 +28,9 @@ export interface Tract {
   tractName: string;
   legalDescription: string;
   str?: string;
+  sectionNumber?: string;
+  township?: string;
+  range?: string;
   abstractNumber?: string;
   anum?: string;
   grossAcres: number;
@@ -334,13 +337,25 @@ export interface LeadNote {
 
 export interface TractSpatial {
   id: string;
-  tractId: string;
+  tract_id: string;
+  geometry?: any;
+  centroid_lat?: number;
+  centroid_lon?: number;
+  area_acres?: number;
+  section_number?: string;
+  township?: string;
+  range?: string;
+  str?: string;
+  created_at: string;
+  updated_at: string;
+  // Legacy fields for compatibility
+  tractId?: string;
   latitude?: number;
   longitude?: number;
-  geometryType: 'Point' | 'Polygon' | 'STR';
-  geometryData?: any; // GeoJSON or STR data
-  createdAt: string;
-  updatedAt: string;
+  geometryType?: 'Point' | 'Polygon' | 'STR';
+  geometryData?: any;
+  createdAt?: string;
+  updatedAt?: string;
   tract?: Tract;
 }
 

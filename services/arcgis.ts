@@ -1,19 +1,20 @@
-import Map from "@arcgis/core/Map";
-import MapView from "@arcgis/core/views/MapView";
-import SceneView from "@arcgis/core/views/SceneView";
-import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
-import Graphic from "@arcgis/core/Graphic";
-import Point from "@arcgis/core/geometry/Point";
-import Polygon from "@arcgis/core/geometry/Polygon";
-import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
-import SimpleLineSymbol from "@arcgis/core/symbols/SimpleLineSymbol";
-import SimpleFillSymbol from "@arcgis/core/symbols/SimpleFillSymbol";
-import TextSymbol from "@arcgis/core/symbols/TextSymbol";
-import Color from "@arcgis/core/Color";
-import PopupTemplate from "@arcgis/core/PopupTemplate";
-import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
-import * as geometryEngine from "@arcgis/core/geometry/geometryEngine";
-import SpatialReference from "@arcgis/core/geometry/SpatialReference";
+// Dynamic imports for ArcGIS modules to avoid prototype errors
+let Map: any;
+let MapView: any;
+let SceneView: any;
+let GraphicsLayer: any;
+let Graphic: any;
+let Point: any;
+let Polygon: any;
+let SimpleMarkerSymbol: any;
+let SimpleLineSymbol: any;
+let SimpleFillSymbol: any;
+let TextSymbol: any;
+let Color: any;
+let PopupTemplate: any;
+let FeatureLayer: any;
+let geometryEngine: any;
+let SpatialReference: any;
 
 // ArcGIS Configuration
 export const ARCGIS_CONFIG = {
@@ -22,7 +23,7 @@ export const ARCGIS_CONFIG = {
   basemapId: "satellite",
   center: [-102.0776, 31.9686], // Default center (Midland, TX)
   zoom: 12,
-  spatialReference: SpatialReference.WGS84
+  spatialReference: null // Will be set after modules are loaded
 };
 
 // Map Layer Configuration
@@ -31,6 +32,12 @@ export const LAYER_CONFIG = {
     id: "tract-boundary",
     title: "Tract Boundary",
     color: [255, 107, 53, 0.8], // Orange
+    symbol: "polygon"
+  },
+  sections: {
+    id: "sections",
+    title: "Township Sections",
+    color: [59, 130, 246, 0.7], // Blue
     symbol: "polygon"
   },
   producingWells: {
@@ -61,6 +68,9 @@ export const LAYER_CONFIG = {
 
 // Utility functions for creating map symbols
 export const createSymbol = (type: string, color: number[], size: number = 12) => {
+  if (!Color) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
   const colorObj = new Color(color);
   
   switch (type) {
@@ -111,6 +121,10 @@ export const createSymbol = (type: string, color: number[], size: number = 12) =
 
 // Create popup template for features
 export const createPopupTemplate = (type: string) => {
+  if (!PopupTemplate) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const title = type === 'well' ? 'Well Information' :
                 type === 'permit' ? 'Permit Information' :
                 type === 'rig' ? 'Rig Information' :
@@ -179,6 +193,10 @@ const getFieldInfos = (type: string) => {
 
 // Create graphics from data
 export const createGraphicsFromData = (data: any[], type: string, layerConfig: any) => {
+  if (!Point || !Polygon || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   return data.map(item => {
     let geometry;
     let attributes: any = {};
@@ -249,6 +267,39 @@ export const createGraphicsFromData = (data: any[], type: string, layerConfig: a
           formation: item.formation
         };
         break;
+      case 'tract':
+        // For tracts, create a section boundary polygon
+        if (item.centroid_lat && item.centroid_lon) {
+          const tractCenter = new Point({
+            longitude: item.centroid_lon,
+            latitude: item.centroid_lat,
+            spatialReference: SpatialReference.WGS84
+          });
+          // Create a section-sized polygon (approximately 1 mile x 1 mile)
+          const sectionRadius = 0.005; // Roughly 0.5 mile radius for a section
+          geometry = createPolygonFromCenter(tractCenter, sectionRadius);
+          attributes = {
+            tractId: item.tract_id,
+            areaAcres: item.area_acres,
+            sectionNumber: item.section_number,
+            township: item.township,
+            range: item.range,
+            str: `${item.section_number}-${item.township}-${item.range}`
+          };
+        } else {
+          // Fallback to a point if no coordinates
+          geometry = new Point({
+            longitude: -102.0776, // Default Midland, TX coordinates
+            latitude: 31.9686,
+            spatialReference: SpatialReference.WGS84
+          });
+          attributes = {
+            tractId: item.tract_id,
+            areaAcres: item.area_acres,
+            str: 'Unknown Location'
+          };
+        }
+        break;
       default:
         geometry = new Point({
           longitude: item.longitude,
@@ -314,9 +365,71 @@ export const filterByDistance = (features: any[], centerLat: number, centerLon: 
 
 // Load ArcGIS modules
 export const loadModules = async () => {
-  // ArcGIS modules are already imported at the top
-  // This function exists for compatibility with existing code
-  return Promise.resolve();
+  try {
+    // Dynamically import ArcGIS modules to avoid prototype errors
+    const [
+      MapModule,
+      MapViewModule,
+      SceneViewModule,
+      GraphicsLayerModule,
+      GraphicModule,
+      PointModule,
+      PolygonModule,
+      SimpleMarkerSymbolModule,
+      SimpleLineSymbolModule,
+      SimpleFillSymbolModule,
+      TextSymbolModule,
+      ColorModule,
+      PopupTemplateModule,
+      FeatureLayerModule,
+      GeometryEngineModule,
+      SpatialReferenceModule
+    ] = await Promise.all([
+      import("@arcgis/core/Map"),
+      import("@arcgis/core/views/MapView"),
+      import("@arcgis/core/views/SceneView"),
+      import("@arcgis/core/layers/GraphicsLayer"),
+      import("@arcgis/core/Graphic"),
+      import("@arcgis/core/geometry/Point"),
+      import("@arcgis/core/geometry/Polygon"),
+      import("@arcgis/core/symbols/SimpleMarkerSymbol"),
+      import("@arcgis/core/symbols/SimpleLineSymbol"),
+      import("@arcgis/core/symbols/SimpleFillSymbol"),
+      import("@arcgis/core/symbols/TextSymbol"),
+      import("@arcgis/core/Color"),
+      import("@arcgis/core/PopupTemplate"),
+      import("@arcgis/core/layers/FeatureLayer"),
+      import("@arcgis/core/geometry/geometryEngine"),
+      import("@arcgis/core/geometry/SpatialReference")
+    ]);
+
+    // Assign the imported modules to our variables
+    Map = MapModule.default;
+    MapView = MapViewModule.default;
+    SceneView = SceneViewModule.default;
+    GraphicsLayer = GraphicsLayerModule.default;
+    Graphic = GraphicModule.default;
+    Point = PointModule.default;
+    Polygon = PolygonModule.default;
+    SimpleMarkerSymbol = SimpleMarkerSymbolModule.default;
+    SimpleLineSymbol = SimpleLineSymbolModule.default;
+    SimpleFillSymbol = SimpleFillSymbolModule.default;
+    TextSymbol = TextSymbolModule.default;
+    Color = ColorModule.default;
+    PopupTemplate = PopupTemplateModule.default;
+    FeatureLayer = FeatureLayerModule.default;
+    geometryEngine = GeometryEngineModule;
+    SpatialReference = SpatialReferenceModule.default;
+
+    // Set the spatial reference in config
+    ARCGIS_CONFIG.spatialReference = SpatialReference.WGS84;
+
+    console.log('ArcGIS modules loaded successfully');
+    return Promise.resolve();
+  } catch (error) {
+    console.error('Failed to load ArcGIS modules:', error);
+    throw error;
+  }
 };
 
 // Create contact map view
@@ -326,6 +439,10 @@ export const createContactMapView = async (
   tracts: any[], 
   units: any[]
 ) => {
+  if (!Map || !MapView) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   // Create a new map
   const map = new Map({
     basemap: ARCGIS_CONFIG.basemapId,
@@ -346,6 +463,10 @@ export const createContactMapView = async (
 
 // Create general map view for mapping dashboard
 export const createMapView = async (container: HTMLElement) => {
+  if (!Map || !MapView) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   // Create a new map
   const map = new Map({
     basemap: ARCGIS_CONFIG.basemapId,
@@ -373,6 +494,10 @@ export const addLayerToMap = async (view: any, layer: any) => {
 
 // Create tract layer for mapping dashboard
 export const createTractLayerForMap = async (tractAssets: any[]) => {
+  if (!GraphicsLayer || !Polygon || !SimpleFillSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'tracts-map',
     title: 'Tracts'
@@ -413,6 +538,10 @@ export const createTractLayerForMap = async (tractAssets: any[]) => {
 
 // Create unit layer for mapping dashboard
 export const createUnitLayerForMap = async (unitAssets: any[]) => {
+  if (!GraphicsLayer || !Polygon || !SimpleFillSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'units-map',
     title: 'Units'
@@ -453,6 +582,10 @@ export const createUnitLayerForMap = async (unitAssets: any[]) => {
 
 // Create tract layer
 export const createTractLayer = async (tractSpatialData: any[], options: any = {}) => {
+  if (!GraphicsLayer || !Polygon || !Point || !SimpleFillSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'tracts',
     title: 'Tracts'
@@ -504,6 +637,10 @@ export const createTractLayer = async (tractSpatialData: any[], options: any = {
 
 // Create unit layer
 export const createUnitLayer = async (unitData: any[], options: any = {}) => {
+  if (!GraphicsLayer || !Polygon || !SimpleFillSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'units',
     title: 'Units'
@@ -544,6 +681,10 @@ export const createUnitLayer = async (unitData: any[], options: any = {}) => {
 
 // Create wells layer
 export const createWellsLayer = async (wells: any[]) => {
+  if (!GraphicsLayer || !Point || !SimpleMarkerSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'wells',
     title: 'Producing Wells'
@@ -583,6 +724,10 @@ export const createWellsLayer = async (wells: any[]) => {
 
 // Create permits layer
 export const createPermitsLayer = async (permits: any[]) => {
+  if (!GraphicsLayer || !Point || !SimpleMarkerSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'permits',
     title: 'Permits'
@@ -623,6 +768,10 @@ export const createPermitsLayer = async (permits: any[]) => {
 
 // Create rigs layer
 export const createRigsLayer = async (rigs: any[]) => {
+  if (!GraphicsLayer || !Point || !SimpleMarkerSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'rigs',
     title: 'Rigs'
@@ -663,6 +812,10 @@ export const createRigsLayer = async (rigs: any[]) => {
 
 // Create distress signals layer
 export const createDistressSignalsLayer = async (signals: any[], options: any = {}) => {
+  if (!GraphicsLayer || !Point || !SimpleMarkerSymbol || !Graphic || !SpatialReference) {
+    throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
+  }
+  
   const layer = new GraphicsLayer({
     id: 'distressSignals',
     title: 'Distress Signals'

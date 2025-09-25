@@ -49,6 +49,13 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
     }
   }, [tractId, arcgisLoaded, useFallbackMap]);
 
+  // Add section graphics when tract spatial data is available
+  useEffect(() => {
+    if (arcgisLoaded && tractSpatial && !useFallbackMap) {
+      addSectionGraphics();
+    }
+  }, [arcgisLoaded, tractSpatial, useFallbackMap]);
+
   const initializeMap = async (container: HTMLElement) => {
     if (!container) {
       console.error('Map container is not available');
@@ -98,6 +105,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       console.log('Creating graphics layers...');
       const graphicsLayers = {
         tractBoundary: new GraphicsLayer({ id: "tract-boundary", title: "Tract Boundary" }),
+        sections: new GraphicsLayer({ id: "sections", title: "Township Sections" }),
         producingWells: new GraphicsLayer({ id: "producing-wells", title: "Producing Wells" }),
         permits: new GraphicsLayer({ id: "permits", title: "Permits" }),
         rigs: new GraphicsLayer({ id: "rigs", title: "Rigs" }),
@@ -142,7 +150,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       ]);
       
       setTractSpatial(spatial);
-      setLayerPreferences(preferences);
+      setLayerPreferences(Array.isArray(preferences) ? preferences : []);
 
       if (spatial?.latitude && spatial?.longitude) {
         // Update map center to tract location
@@ -240,7 +248,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       await api.updateMapLayerPreference(layerName, { isVisible, opacity });
       
       setLayerPreferences(prev => 
-        prev.map(p => p.layerName === layerName ? { ...p, isVisible } : p)
+        Array.isArray(prev) ? prev.map(p => p.layerName === layerName ? { ...p, isVisible } : p) : []
       );
 
       // Update layer visibility
@@ -265,7 +273,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       await api.updateMapLayerPreference(layerName, { isVisible, opacity });
       
       setLayerPreferences(prev => 
-        prev.map(p => p.layerName === layerName ? { ...p, opacity } : p)
+        Array.isArray(prev) ? prev.map(p => p.layerName === layerName ? { ...p, opacity } : p) : []
       );
 
       // Update layer opacity
@@ -278,11 +286,13 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
   };
 
   const getLayerVisibility = (layerName: string): boolean => {
+    if (!Array.isArray(layerPreferences)) return true;
     const preference = layerPreferences.find(p => p.layerName === layerName);
     return preference?.isVisible ?? true;
   };
 
   const getLayerOpacity = (layerName: string): number => {
+    if (!Array.isArray(layerPreferences)) return 0.8;
     const preference = layerPreferences.find(p => p.layerName === layerName);
     return preference?.opacity ?? 0.8;
   };
@@ -303,6 +313,108 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Add section graphics to the map
+  const addSectionGraphics = async () => {
+    if (!mapView || !tractSpatial || !layers.sections) return;
+
+    try {
+      // Clear existing section graphics
+      layers.sections.removeAll();
+
+      // Get the current section number
+      const currentSection = parseInt(tractSpatial.section_number || '1');
+      
+      // Create a 6x6 grid of sections
+      const sectionSize = 0.01; // Approximate size in degrees
+      const centerLat = tractSpatial.centroid_lat || tractSpatial.latitude || 35.8617;
+      const centerLon = tractSpatial.centroid_lon || tractSpatial.longitude || -97.9365;
+
+      // Calculate the starting position (top-left corner of the 6x6 grid)
+      const startLat = centerLat + (sectionSize * 2.5); // Start from top
+      const startLon = centerLon - (sectionSize * 2.5); // Start from left
+
+      for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 6; col++) {
+          const sectionNum = row * 6 + col + 1;
+          const isCurrentSection = sectionNum === currentSection;
+          
+          // Calculate section boundaries
+          const sectionLat = startLat - (row * sectionSize);
+          const sectionLon = startLon + (col * sectionSize);
+          
+          // Create section polygon
+          const sectionPolygon = {
+            type: "polygon",
+            rings: [[
+              [sectionLon, sectionLat],
+              [sectionLon + sectionSize, sectionLat],
+              [sectionLon + sectionSize, sectionLat - sectionSize],
+              [sectionLon, sectionLat - sectionSize],
+              [sectionLon, sectionLat]
+            ]]
+          };
+
+          // Create section graphic
+          const sectionGraphic = {
+            geometry: sectionPolygon,
+            symbol: {
+              type: "simple-fill",
+              color: isCurrentSection ? [59, 130, 246, 0.7] : [200, 200, 200, 0.3],
+              outline: {
+                color: isCurrentSection ? [59, 130, 246] : [100, 100, 100],
+                width: isCurrentSection ? 2 : 1
+              }
+            },
+            attributes: {
+              sectionNumber: sectionNum,
+              isCurrentSection: isCurrentSection,
+              township: tractSpatial.township,
+              range: tractSpatial.range,
+              str: `${sectionNum}-${tractSpatial.township}-${tractSpatial.range}`
+            },
+            popupTemplate: {
+              title: `Section ${sectionNum}`,
+              content: `
+                <div>
+                  <p><strong>Section:</strong> ${sectionNum}</p>
+                  <p><strong>Township:</strong> ${tractSpatial.township || 'N/A'}</p>
+                  <p><strong>Range:</strong> ${tractSpatial.range || 'N/A'}</p>
+                  <p><strong>STR:</strong> ${sectionNum}-${tractSpatial.township}-${tractSpatial.range}</p>
+                  ${isCurrentSection ? '<p><strong>Current Tract Section</strong></p>' : ''}
+                </div>
+              `
+            }
+          };
+
+          // Add text label for section number
+          const textGraphic = {
+            geometry: {
+              type: "point",
+              longitude: sectionLon + (sectionSize / 2),
+              latitude: sectionLat - (sectionSize / 2)
+            },
+            symbol: {
+              type: "text",
+              text: sectionNum.toString(),
+              color: isCurrentSection ? "white" : "black",
+              font: {
+                size: 12,
+                weight: isCurrentSection ? "bold" : "normal"
+              }
+            }
+          };
+
+          layers.sections.add(sectionGraphic);
+          layers.sections.add(textGraphic);
+        }
+      }
+
+      console.log('Section graphics added to map');
+    } catch (error) {
+      console.error('Error adding section graphics:', error);
+    }
   };
 
   // Show error with fallback option
@@ -389,31 +501,82 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
         {/* Fallback Map Display */}
         {useFallbackMap && !isLoading && (
-          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center rounded-lg">
-            <div className="text-center p-8">
-              <div className="text-4xl mb-4">🗺️</div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Tract Overview</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                <div className="bg-white p-3 rounded shadow">
-                  <div className="font-semibold text-blue-600">{wells.length}</div>
-                  <div className="text-gray-600">Producing Wells</div>
+          <div className="absolute inset-0 bg-gray-100 rounded-lg overflow-hidden">
+            <div className="h-full flex flex-col">
+              {/* Header */}
+              <div className="bg-blue-600 text-white p-4">
+                <h3 className="text-lg font-semibold">Tract Section Map</h3>
+                <p className="text-sm text-blue-100">
+                  {tractSpatial?.township && tractSpatial?.range 
+                    ? `Township ${tractSpatial.township}, Range ${tractSpatial.range}`
+                    : 'Section Information'
+                  }
+                </p>
+              </div>
+              
+              {/* Section Grid */}
+              <div className="flex-1 p-4">
+                <div className="mb-4">
+                  <h4 className="font-semibold text-gray-700 mb-2">Section Grid (6x6 Township)</h4>
+                  <div className="grid grid-cols-6 gap-1 max-w-md mx-auto">
+                    {Array.from({ length: 36 }, (_, i) => {
+                      const sectionNum = i + 1;
+                      const isCurrentSection = sectionNum.toString() === tractSpatial?.section_number;
+                      
+                      return (
+                        <div
+                          key={sectionNum}
+                          className={`
+                            w-12 h-12 border border-gray-400 flex items-center justify-center text-xs font-medium
+                            ${isCurrentSection 
+                              ? 'bg-blue-500 text-white border-blue-600' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }
+                          `}
+                        >
+                          {sectionNum}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="mt-4 text-center text-sm text-gray-600">
+                    <p><strong>Current Section:</strong> {tractSpatial?.section_number || 'N/A'}</p>
+                    <p><strong>STR:</strong> {tractSpatial?.str || 'N/A'}</p>
+                  </div>
                 </div>
-                <div className="bg-white p-3 rounded shadow">
-                  <div className="font-semibold text-yellow-600">{permits.length}</div>
-                  <div className="text-gray-600">Active Permits</div>
+                
+                {/* Tract Information */}
+                <div className="bg-white p-4 rounded shadow">
+                  <h4 className="font-semibold text-gray-800 mb-2">Tract Details</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><span className="text-gray-600">Section:</span> <span className="font-semibold">{tractSpatial?.section_number || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">Township:</span> <span className="font-semibold">{tractSpatial?.township || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">Range:</span> <span className="font-semibold">{tractSpatial?.range || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">STR:</span> <span className="font-semibold">{tractSpatial?.str || 'N/A'}</span></div>
+                  </div>
                 </div>
-                <div className="bg-white p-3 rounded shadow">
-                  <div className="font-semibold text-pink-600">{rigs.length}</div>
-                  <div className="text-gray-600">Active Rigs</div>
-                </div>
-                <div className="bg-white p-3 rounded shadow">
-                  <div className="font-semibold text-purple-600">{units.length}</div>
-                  <div className="text-gray-600">Nearby Units</div>
+                
+                {/* Summary Stats */}
+                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-blue-600">{wells.length}</div>
+                    <div className="text-gray-600">Producing Wells</div>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-yellow-600">{permits.length}</div>
+                    <div className="text-gray-600">Active Permits</div>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-pink-600">{rigs.length}</div>
+                    <div className="text-gray-600">Active Rigs</div>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-purple-600">{units.length}</div>
+                    <div className="text-gray-600">Nearby Units</div>
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
-                Configure REACT_APP_ARCGIS_API_KEY for full mapping features.
-              </p>
             </div>
           </div>
         )}

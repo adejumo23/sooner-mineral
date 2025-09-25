@@ -15,11 +15,37 @@ export default defineConfig(({ mode }) => {
         }
       },
       optimizeDeps: {
-        // include: ['@arcgis/core'] // Temporarily disabled to resolve server startup issue
+        exclude: ['@arcgis/core', 'mysql2']
       },
       build: {
+        chunkSizeWarningLimit: 1000,
+        sourcemap: false,
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: true,
+            drop_debugger: true,
+          },
+        },
         rollupOptions: {
-          // external: ['@arcgis/core/assets/*'] // Temporarily disabled
+          external: ['@arcgis/core/assets/*'],
+          output: {
+            manualChunks: {
+              vendor: ['react', 'react-dom', 'react-router-dom'],
+            },
+          },
+        },
+      },
+      server: {
+        fs: {
+          allow: ['..']
+        },
+        proxy: {
+          '/api': {
+            target: 'http://localhost:3001',
+            changeOrigin: true,
+            secure: false
+          }
         }
       }
     };

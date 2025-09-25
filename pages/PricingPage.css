@@ -1,0 +1,915 @@
+/* ============================================================================
+   PRICING PAGE STYLES - CLEAN PROFESSIONAL DESIGN
+   ============================================================================ */
+
+.pricing-page {
+  min-height: 100vh;
+  background: #fafbfc;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  max-width: 100vw;
+  color: #1a1a1a;
+}
+
+.pricing-page.compact-mode {
+  font-size: 0.9rem;
+}
+
+/* ============================================================================
+   HEADER - CLEAN MODERN DESIGN
+   ============================================================================ */
+
+.page-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 1.875rem;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-left h1::before {
+  content: "💰";
+  font-size: 1.5rem;
+}
+
+.header-left p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Quick Stats */
+.quick-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  background: #f3f4f6;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Action Groups */
+.action-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.action-btn {
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #374151;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.action-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   TAB NAVIGATION - CLEAN DESIGN
+   ============================================================================ */
+
+.tab-navigation {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 2rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tab-btn:hover {
+  color: #374151;
+  background: #f9fafb;
+}
+
+.tab-btn.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background: #f8faff;
+}
+
+/* ============================================================================
+   SUMMARY CARDS - MODERN CARD DESIGN
+   ============================================================================ */
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.card-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.card-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.card-content p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+/* ============================================================================
+   FILTERS - CLEAN FILTER DESIGN
+   ============================================================================ */
+
+.filters-section {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #ffffff;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #ffffff;
+  min-width: 120px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clear-filters-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.clear-filters-btn:hover {
+  background: #dc2626;
+}
+
+/* ============================================================================
+   DATA TABLE - MODERN TABLE DESIGN
+   ============================================================================ */
+
+.data-section {
+  padding: 1rem;
+  background: white;
+  min-height: 300px;
+}
+
+/* Table View */
+.table-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  max-width: 100%;
+  width: 100%;
+}
+
+.pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 0.8rem;
+  table-layout: fixed;
+}
+
+.pricing-table th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 0.8rem;
+}
+
+.pricing-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.3s ease;
+}
+
+.pricing-table th.sortable:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.pricing-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Column width constraints */
+.pricing-table th:nth-child(1), .pricing-table td:nth-child(1) { width: 40px; } /* Checkbox */
+.pricing-table th:nth-child(2), .pricing-table td:nth-child(2) { width: 12%; } /* County */
+.pricing-table th:nth-child(3), .pricing-table td:nth-child(3) { width: 15%; } /* Basin */
+.pricing-table th:nth-child(4), .pricing-table td:nth-child(4) { width: 15%; } /* Survey Company */
+.pricing-table th:nth-child(5), .pricing-table td:nth-child(5) { width: 12%; } /* Formation */
+.pricing-table th:nth-child(6), .pricing-table td:nth-child(6) { width: 12%; } /* S-T-R/Section */
+.pricing-table th:nth-child(7), .pricing-table td:nth-child(7) { width: 12%; } /* Price */
+.pricing-table th:nth-child(8), .pricing-table td:nth-child(8) { width: 10%; } /* Actions */
+
+.data-row {
+  transition: background 0.3s ease;
+}
+
+.data-row:hover {
+  background: #f8f9fa;
+}
+
+.data-row.selected {
+  background: #eff6ff !important;
+  border-left: 3px solid #3b82f6;
+}
+
+.data-row.favorite {
+  border-left: 3px solid #ef4444;
+}
+
+/* Checkbox and Actions */
+.checkbox-column {
+  width: 40px;
+  text-align: center;
+}
+
+.actions-column {
+  width: 120px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.action-btn-small {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  color: #6b7280;
+}
+
+.action-btn-small:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.action-btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn-small.favorited {
+  background: #fecaca;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* Cell Styling */
+.owner-cell {
+  font-weight: 500;
+  color: #495057;
+}
+
+.number-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+/* Price Cell */
+.price-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #059669;
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   PAGINATION - CLEAN PAGINATION
+   ============================================================================ */
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+}
+
+.pagination button {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination button.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 1rem;
+}
+
+/* ============================================================================
+   MODAL - MODERN MODAL DESIGN
+   ============================================================================ */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-body.scrollable {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.detail-input {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #ffffff;
+}
+
+.detail-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.detail-value {
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.price-highlight {
+  color: #059669;
+  font-weight: 600;
+}
+
+.modal-footer {
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.save-btn, .cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #2563eb;
+}
+
+.cancel-btn {
+  background: #6b7280;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #4b5563;
+}
+
+/* ============================================================================
+   ADVANCED PANELS - MODERN PANEL DESIGN
+   ============================================================================ */
+
+.filters-panel,
+.export-menu,
+.bulk-edit-panel,
+.comparison-panel,
+.insights-panel,
+.analytics-panel,
+.column-manager-panel,
+.shortcuts-panel,
+.tutorial-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 1rem 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.filters-content {
+  padding: 1.5rem;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.price-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-range span {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.filters-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filters-header,
+.export-header,
+.bulk-edit-header,
+.comparison-header,
+.insights-header,
+.analytics-header,
+.column-manager-header,
+.shortcuts-header,
+.tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 8px 8px 0 0;
+}
+
+.filters-header h3,
+.export-header h3,
+.bulk-edit-header h3,
+.comparison-header h3,
+.insights-header h3,
+.analytics-header h3,
+.column-manager-header h3,
+.shortcuts-header h3,
+.tutorial-header h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.close-filters-btn,
+.close-export-btn,
+.close-bulk-edit-btn,
+.close-comparison-btn,
+.close-insights-btn,
+.close-analytics-btn,
+.close-column-manager-btn,
+.close-shortcuts-btn,
+.close-tutorial-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-filters-btn:hover,
+.close-export-btn:hover,
+.close-bulk-edit-btn:hover,
+.close-comparison-btn:hover,
+.close-insights-btn:hover,
+.close-analytics-btn:hover,
+.close-column-manager-btn:hover,
+.close-shortcuts-btn:hover,
+.close-tutorial-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* ============================================================================
+   DARK MODE
+   ============================================================================ */
+
+.pricing-page.dark-mode {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.pricing-page.dark-mode .page-header {
+  background: #1f2937;
+  border-bottom-color: #374151;
+}
+
+.pricing-page.dark-mode .tab-navigation {
+  background: #1f2937;
+  border-bottom-color: #374151;
+}
+
+.pricing-page.dark-mode .summary-card,
+.pricing-page.dark-mode .filters-panel,
+.pricing-page.dark-mode .export-menu,
+.pricing-page.dark-mode .bulk-edit-panel,
+.pricing-page.dark-mode .comparison-panel,
+.pricing-page.dark-mode .insights-panel,
+.pricing-page.dark-mode .analytics-panel,
+.pricing-page.dark-mode .column-manager-panel,
+.pricing-page.dark-mode .shortcuts-panel,
+.pricing-page.dark-mode .tutorial-panel {
+  background: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+}
+
+.pricing-page.dark-mode .pricing-table {
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+.pricing-page.dark-mode .pricing-table th {
+  background: #374151;
+  color: #f9fafb;
+}
+
+.pricing-page.dark-mode .pricing-table td {
+  border-color: #374151;
+}
+
+.pricing-page.dark-mode .data-row:hover {
+  background: #374151;
+}
+
+.pricing-page.dark-mode .data-row.selected {
+  background: #1e3a8a !important;
+}
+
+.pricing-page.dark-mode .action-btn {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f9fafb;
+}
+
+.pricing-page.dark-mode .action-btn:hover {
+  background: #4b5563;
+}
+
+.pricing-page.dark-mode .action-btn.active {
+  background: #3b82f6;
+  color: white;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .summary-cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  
+  .header-actions {
+    gap: 0.5rem;
+  }
+  
+  .action-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .summary-cards {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .search-input {
+    min-width: auto;
+  }
+  
+  .table-container {
+    margin: 1rem;
+  }
+  
+  .pricing-table {
+    font-size: 0.8rem;
+  }
+  
+  .pricing-table th,
+  .pricing-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: 0.75rem;
+  }
+  
+  .tab-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .action-btn-small {
+    min-width: 1.5rem;
+    padding: 0.25rem;
+  }
+}

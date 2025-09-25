@@ -65,8 +65,8 @@ CREATE TABLE rigs (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Units data
-CREATE TABLE units (
+-- Units data (mapping/spatial units)
+CREATE TABLE mapping_units (
     id VARCHAR(36) PRIMARY KEY,
     unit_name VARCHAR(255),
     operator VARCHAR(255),

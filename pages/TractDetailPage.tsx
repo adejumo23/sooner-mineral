@@ -169,7 +169,7 @@ const TractDetailPage: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <span className="text-gray-600 text-sm">STR</span>
+                    <span className="text-gray-600 text-sm">STR (Combined)</span>
                     <div className="text-gray-900 font-medium">{tract.str || 'N/A'}</div>
                   </div>
                   <div>
@@ -179,6 +179,25 @@ const TractDetailPage: React.FC = () => {
                   <div>
                     <span className="text-gray-600 text-sm">ANUM</span>
                     <div className="text-gray-900 font-medium">{tract.anum || 'N/A'}</div>
+                  </div>
+                </div>
+                
+                {/* STR Breakdown */}
+                <div className="mt-4">
+                  <h4 className="text-md font-medium text-gray-900 mb-3">STR Breakdown</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <span className="text-gray-600 text-sm">Section Number</span>
+                      <div className="text-gray-900 font-medium">{tract.sectionNumber || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">Township</span>
+                      <div className="text-gray-900 font-medium">{tract.township || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">Range</span>
+                      <div className="text-gray-900 font-medium">{tract.range || 'N/A'}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -251,7 +270,18 @@ const TractDetailPage: React.FC = () => {
         )}
 
         {activeTab === 'mapping' && (
-          <ArcGISMappingTab tractId={tract.id} tractName={tract.tractName} />
+          <ArcGISMappingTab 
+            tractId={tract.id} 
+            tractName={tract.tractName}
+            tract={{
+              sectionNumber: tract.sectionNumber,
+              township: tract.township,
+              range: tract.range,
+              county: tract.county,
+              state: tract.state,
+              str: tract.str
+            }}
+          />
         )}
 
         {activeTab === 'title-chain' && (

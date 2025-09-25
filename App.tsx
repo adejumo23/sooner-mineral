@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './src/theme';
 import MainLayout from './components/layout/MainLayout';
@@ -26,9 +25,13 @@ import ReportingPage from './pages/ReportingPage';
 import ESGPage from './pages/ESGPage';
 import LPPortalPage from './pages/LPPortalPage';
 import DataImportPage from './pages/DataImportPage';
+import AcreageSchedulePage from './pages/AcreageSchedulePage';
+import PricingPage from './pages/PricingPage';
 import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
+import TractTestComponent from './components/TractTestComponent';
+import DatabaseTestComponent from './components/DatabaseTestComponent';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -77,9 +80,13 @@ function App() {
           <Route path="/esg" element={<ESGPage />} />
           <Route path="/lp-portal" element={<LPPortalPage />} />
           <Route path="/data-import" element={<DataImportPage />} />
+            <Route path="/acreage-schedule" element={<AcreageSchedulePage />} />
+            <Route path="/pricing" element={<PricingPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
+          <Route path="/test-normalized" element={<TractTestComponent />} />
+          <Route path="/test-database" element={<DatabaseTestComponent />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>

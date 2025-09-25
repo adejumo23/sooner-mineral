@@ -21,11 +21,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const autoLogin = async () => {
       try {
+        console.log('Attempting auto-login...');
         // Auto-login with a default user for development
-        const userData = await api.login('admin@sooner.cap', 'password');
-        setUser(userData);
+        const response = await Promise.race([
+          api.login({ email: 'admin@sooner.cap', password: 'password' }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Login timeout')), 5000)
+          )
+        ]);
+        console.log('Auto-login successful:', response);
+        setUser(response.user);
       } catch (error) {
-        console.log('Auto-login failed, user will need to login manually');
+        console.error('Auto-login failed:', error);
+        console.log('User will need to login manually');
       } finally {
         setLoading(false);
       }
@@ -37,8 +45,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password?: string) => {
     setLoading(true);
     try {
-      const userData = await api.login(email, password);
-      setUser(userData);
+      const response = await api.login({ email, password });
+      setUser(response.user);
     } finally {
       setLoading(false);
     }

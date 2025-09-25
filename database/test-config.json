@@ -1,0 +1,7 @@
+{
+  "host": "localhost",
+  "port": 3359,
+  "user": "soonermineral",
+  "password": "soonermineralpass",
+  "database": "soonermineral_test"
+}

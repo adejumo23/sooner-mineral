@@ -13,7 +13,7 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application with increased memory
 RUN npm run build
 
 # Install serve to run the built app
