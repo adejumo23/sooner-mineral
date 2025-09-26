@@ -16,6 +16,9 @@ COPY . .
 # Build the application with increased memory
 RUN npm run build
 
+# Run the database dump
+RUN npm run dump:deploy database/full-db-dump.sql database/production-config.json
+
 # Install serve to run the built app
 RUN npm install -g serve
 
