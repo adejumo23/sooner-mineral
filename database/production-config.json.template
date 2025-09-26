@@ -1,9 +1,9 @@
 {
-  "host": "your-production-host.com",
+  "host": "mysql",
   "port": 3306,
-  "user": "your-production-username",
-  "password": "your-production-password",
-  "database": "soonermineral_production",
+  "user": "soonermineral",
+  "password": "soonermineralpass",
+  "database": "soonermineraldb",
   "ssl": {
     "rejectUnauthorized": false
   },
