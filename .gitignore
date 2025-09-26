@@ -20,9 +20,5 @@ auto-deploy.sh
 .last_commit
 
 # Database dumps and large files
-database/*.sql
 database/deployment-logs/
 uploads/imports/
-*.xlsx
-*.csv
-test.csv
