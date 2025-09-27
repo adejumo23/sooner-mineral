@@ -22,6 +22,3 @@ auto-deploy.sh
 # Database dumps and large files
 database/deployment-logs/
 uploads/imports/
-*.xlsx
-*.csv
-test.csv
