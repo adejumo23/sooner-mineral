@@ -20,8 +20,8 @@ async function testDatabaseIntegration() {
 
     // Connect to database using Docker Compose service
     connection = await mysql.createConnection({
-      host: 'localhost',
-      port: 3359, // Docker Compose exposed port
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 3359, // Docker Compose exposed port
       user: process.env.MYSQL_USER || 'soonermineral',
       password: process.env.MYSQL_PASSWORD || 'soonermineralpass',
       database: process.env.MYSQL_DATABASE || 'soonermineraldb'

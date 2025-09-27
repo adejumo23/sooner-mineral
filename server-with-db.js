@@ -28,8 +28,8 @@ let dataImportService;
 const connectToDatabase = async () => {
   try {
     dbConnection = await mysql.createConnection({
-      host: 'localhost',
-      port: 3359,
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 3359,
       user: process.env.MYSQL_USER || 'soonermineral',
       password: process.env.MYSQL_PASSWORD || 'soonermineralpass',
       database: process.env.MYSQL_DATABASE || 'soonermineraldb'

@@ -53,7 +53,7 @@ npm install @types/mysql2 --save-dev
 ## 🔗 **Step 3: Environment Configuration**
 
 The application will use the existing `.env` file with these settings:
-- **DB_HOST**: localhost
+- **DB_HOST**: sooner-mineral-db
 - **DB_PORT**: 3359
 - **DB_USER**: soonermineral
 - **DB_PASSWORD**: soonermineralpass

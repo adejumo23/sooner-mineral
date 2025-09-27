@@ -1,0 +1,13 @@
+{
+  "host": "mysql",
+  "port": 3359,
+  "user": "soonermineral",
+  "password": "PxMOlwF79CbpWlUisH4dpAjg2qiWujd4",
+  "database": "soonermineraldb",
+  "ssl": {
+    "rejectUnauthorized": false
+  },
+  "connectionLimit": 10,
+  "acquireTimeout": 60000,
+  "timeout": 60000
+}

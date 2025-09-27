@@ -1,5 +1,5 @@
 {
-  "host": "localhost",
+  "host": "sooner-mineral-db",
   "port": 3359,
   "user": "soonermineral",
   "password": "soonermineralpass",

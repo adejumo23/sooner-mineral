@@ -1,18 +1,19 @@
 services:
   # React Web Application
   web:
-    build: .
+    image: docker-registry.desiumami.org/sooner-mineral-web:latest
     ports:
       - "3050:3000"
     environment:
       - NODE_ENV:production
       - REACT_APP_ARCGIS_API_KEY:${REACT_APP_ARCGIS_API_KEY}
     depends_on:
-      - db
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
 
   # MySQL Database
-  db:
+  mysql:
     image: mysql:8.0
     ports:
       - "3359:3306"
@@ -26,6 +27,15 @@ services:
       - ./database:/docker-entrypoint-initdb.d
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
-
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # dummy:
+  #   image: debian:latest # A lightweight image that can be used for simple commands
+  #   command: tail -F /dev/null
+  #   networks:
+  #     - sooner-mineral
 volumes:
   mysql_data:
