@@ -1,3 +1,4 @@
+# docker compose -f docker-compose.yml pull web && docker compose -f docker-compose.yml up -d
 services:
   # React Web Application
   web:
