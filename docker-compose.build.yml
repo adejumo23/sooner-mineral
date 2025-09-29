@@ -2,7 +2,11 @@
 services:
   # React Web Application
   web:
-    build: .
+    build:
+      context: "."
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: docker-registry.desiumami.org/sooner-mineral-web:latest
     ports:
       - "3050:3000"
