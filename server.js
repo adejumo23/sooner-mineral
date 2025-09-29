@@ -6,7 +6,7 @@ import importRoutes from './routes/importRoutes.ts';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-console.log(process.env, "In server.js");
+
 // Middleware
 app.use(cors());
 app.use(express.json());
