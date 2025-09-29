@@ -1,3 +1,8 @@
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+console.log(process.env, "In apiClient.ts");
+
 // API client for making HTTP requests to the server
 const API_BASE_URL = process.env['API_BASE_URL'] || 'http://localhost:3002';
 
