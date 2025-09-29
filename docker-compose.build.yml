@@ -9,6 +9,7 @@ services:
     environment:
       - NODE_ENV:production
       - REACT_APP_ARCGIS_API_KEY:${REACT_APP_ARCGIS_API_KEY}
+      - API_BASE_URL:${API_BASE_URL}
     depends_on:
       mysql:
         condition: service_healthy
