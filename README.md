@@ -187,7 +187,7 @@ cp auto-deploy.sh.example auto-deploy.sh
 ./auto-deploy.sh --install-service  # Install as system service
 ```
 
-### Auto-Deploy Options
+### Auto-Deploy Options:
 
 - **Foreground Mode**: `./auto-deploy.sh` - Run with visible output
 - **Daemon Mode**: `./auto-deploy.sh --daemon` - Run in background
