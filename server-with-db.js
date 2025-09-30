@@ -2494,6 +2494,171 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
   }
 });
 
+// Get all contacts
+app.get('/api/contacts', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT DISTINCT
+        OWNER as name,
+        CONTACT as contact,
+        STREET as street,
+        CITY as city,
+        ST as state,
+        ZIP as zip,
+        PHONE_EMAIL as phoneEmail,
+        CURRENT_UNIT_NAME as unitName,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE OWNER IS NOT NULL AND OWNER != ''
+      ORDER BY OWNER
+    `;
+
+    const [rows] = await dbConnection.execute(query);
+    
+    // Transform contacts data
+    const contacts = rows.map((row, index) => ({
+      id: `contact-${index}`,
+      name: row.name,
+      contact: row.contact,
+      street: row.street,
+      city: row.city,
+      state: row.state,
+      zip: row.zip,
+      phoneEmail: row.phoneEmail,
+      unitName: row.unitName,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    res.json(contacts);
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching contacts', 
+      error: error.message 
+    });
+  }
+});
+
+// Get all leads
+app.get('/api/leads', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT DISTINCT
+        OWNER as name,
+        CONTACT as contact,
+        STREET as street,
+        CITY as city,
+        ST as state,
+        ZIP as zip,
+        PHONE_EMAIL as phoneEmail,
+        CURRENT_UNIT_NAME as unitName,
+        GROSS_ACRES as grossAcres,
+        NET_MINERAL_ACRES as netMineralAcres,
+        ROYALTY as royalty,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE OWNER IS NOT NULL AND OWNER != ''
+      ORDER BY OWNER
+    `;
+
+    const [rows] = await dbConnection.execute(query);
+    
+    // Transform leads data
+    const leads = rows.map((row, index) => ({
+      id: `lead-${index}`,
+      name: row.name,
+      contact: row.contact,
+      street: row.street,
+      city: row.city,
+      state: row.state,
+      zip: row.zip,
+      phoneEmail: row.phoneEmail,
+      unitName: row.unitName,
+      grossAcres: row.grossAcres,
+      netMineralAcres: row.netMineralAcres,
+      royalty: row.royalty,
+      status: 'Active',
+      priority: 'Medium',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    res.json(leads);
+  } catch (error) {
+    console.error('Error fetching leads:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching leads', 
+      error: error.message 
+    });
+  }
+});
+
+// Get all assignments
+app.get('/api/assignments', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT DISTINCT
+        OWNER as contactName,
+        CURRENT_UNIT_NAME as unitName,
+        GROSS_ACRES as grossAcres,
+        NET_MINERAL_ACRES as netMineralAcres,
+        ROYALTY as royalty,
+        NRA as nra,
+        OWNERSHIP_PERCENTAGE as ownershipPercentage,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE OWNER IS NOT NULL AND OWNER != ''
+      ORDER BY OWNER
+    `;
+
+    const [rows] = await dbConnection.execute(query);
+    
+    // Transform assignments data
+    const assignments = rows.map((row, index) => ({
+      id: `assignment-${index}`,
+      contactName: row.contactName,
+      unitName: row.unitName,
+      grossAcres: row.grossAcres,
+      netMineralAcres: row.netMineralAcres,
+      royalty: row.royalty,
+      nra: row.nra,
+      ownershipPercentage: row.ownershipPercentage,
+      buyer: 'Unassigned',
+      status: 'Pending',
+      priority: 'Medium',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    res.json(assignments);
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching assignments', 
+      error: error.message 
+    });
+  }
+});
+
 // =============================================================================
 // Data Import API Endpoints
 // =============================================================================
