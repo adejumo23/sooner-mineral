@@ -13,6 +13,16 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Accept build arguments for environment variables
+ARG API_BASE_URL
+ARG REACT_APP_ARCGIS_API_KEY
+ARG GEMINI_API_KEY
+
+# Set environment variables for the build process
+ENV API_BASE_URL=$API_BASE_URL
+ENV REACT_APP_ARCGIS_API_KEY=$REACT_APP_ARCGIS_API_KEY
+ENV GEMINI_API_KEY=$GEMINI_API_KEY
+
 # Run the database dump
 # RUN npm run dump:deploy database/full-db-dump.sql database/production-config.json
 

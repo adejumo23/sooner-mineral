@@ -6,6 +6,10 @@ services:
       context: "."
       platforms:
         - "linux/amd64"
+      args:
+        - API_BASE_URL=${API_BASE_URL}
+        - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
+        - GEMINI_API_KEY=${GEMINI_API_KEY}
     image: docker-registry.desiumami.org/sooner-mineral-web:latest
     ports:
       - "3050:3000"
