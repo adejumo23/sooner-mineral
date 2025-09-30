@@ -1,13 +1,31 @@
-import { executeQuery } from './databaseConnection.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import csv from 'csv-parser';
 import XLSX from 'xlsx';
 
 export class DataImportService {
-  constructor() {
+  constructor(dbConnection) {
+    this.dbConnection = dbConnection;
     this.stagingPrefix = 'staging_';
     this.productionPrefix = 'prod_';
+  }
+
+  // Helper method to execute queries using the provided database connection
+  async executeQuery(query, params = []) {
+    try {
+      if (!this.dbConnection) {
+        console.warn('Database not connected, returning empty result');
+        return [];
+      }
+      const [rows] = await this.dbConnection.execute(query, params);
+      return rows;
+    } catch (error) {
+      console.error('Database query error:', error);
+      console.error('Query:', query);
+      console.error('Params:', params);
+      console.warn('Database query failed, returning empty result');
+      return [];
+    }
   }
 
   /**
@@ -150,7 +168,7 @@ export class DataImportService {
         WHERE table_schema = 'soonermineraldb' 
         AND table_name = ?
       `;
-      const result = await executeQuery(query, [tableName]);
+      const result = await this.executeQuery(query, [tableName]);
       return result[0].count > 0;
     } catch (error) {
       console.error('Error checking table existence:', error);
@@ -235,7 +253,7 @@ export class DataImportService {
       )
     `;
     
-    await executeQuery(query);
+    await this.executeQuery(query);
   }
 
   /**
@@ -255,7 +273,7 @@ export class DataImportService {
       )
     `;
     
-    await executeQuery(query);
+    await this.executeQuery(query);
   }
 
   /**
@@ -376,7 +394,7 @@ export class DataImportService {
       VALUES ${placeholders}
     `;
     
-    await executeQuery(query, values);
+    await this.executeQuery(query, values);
   }
 
   /**
@@ -388,7 +406,7 @@ export class DataImportService {
       SELECT * FROM ${stagingTableName}
     `;
     
-    await executeQuery(query);
+    await this.executeQuery(query);
   }
 
   /**
@@ -396,7 +414,7 @@ export class DataImportService {
    */
   async clearStagingTable(stagingTableName) {
     const query = `DELETE FROM ${stagingTableName}`;
-    await executeQuery(query);
+    await this.executeQuery(query);
   }
 
   /**
@@ -407,7 +425,7 @@ export class DataImportService {
     
     try {
       // Get the data from the production table
-      const data = await executeQuery(`SELECT * FROM ${tableName} LIMIT 1000`);
+      const data = await this.executeQuery(`SELECT * FROM ${tableName} LIMIT 1000`);
       
       if (data.length === 0) {
         console.log(`No data found in table ${tableName}, skipping normalization`);
@@ -573,7 +591,7 @@ export class DataImportService {
       AND table_name LIKE '${this.stagingPrefix}%'
     `;
     
-    const result = await executeQuery(query);
+    const result = await this.executeQuery(query);
     return result.map((row) => row.table_name);
   }
 
@@ -582,7 +600,7 @@ export class DataImportService {
    */
   async getStagingTableData(tableName, limit = 100) {
     const query = `SELECT * FROM ${tableName} LIMIT ?`;
-    return await executeQuery(query, [limit]);
+    return await this.executeQuery(query, [limit]);
   }
 
   /**
@@ -590,7 +608,7 @@ export class DataImportService {
    */
   async deleteStagingTable(tableName) {
     const query = `DROP TABLE IF EXISTS ${tableName}`;
-    await executeQuery(query);
+    await this.executeQuery(query);
   }
 
   /**
@@ -658,7 +676,7 @@ export class DataImportService {
       ORDER BY ORDINAL_POSITION
     `;
     
-    const result = await executeQuery(query, [tableName]);
+    const result = await this.executeQuery(query, [tableName]);
     
     return {
       tableName,
@@ -676,13 +694,13 @@ export class DataImportService {
     const countyId = `county_${countyName.toLowerCase().replace(/\s+/g, '_')}`;
     const stateId = stateCode === 'TX' ? 'state_tx' : stateCode === 'OK' ? 'state_ok' : 'state_tx';
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM counties WHERE id = ?',
       [countyId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO counties (id, state_id, name) VALUES (?, ?, ?)',
         [countyId, stateId, countyName]
       );
@@ -695,13 +713,13 @@ export class DataImportService {
   async ensureBasinExists(basinName) {
     const basinId = `basin_${basinName.toLowerCase().replace(/\s+/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM basins WHERE id = ?',
       [basinId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO basins (id, name, description) VALUES (?, ?, ?)',
         [basinId, basinName, `Basin in ${basinName} region`]
       );
@@ -714,13 +732,13 @@ export class DataImportService {
   async ensureSurveyCompanyExists(surveyName) {
     const surveyId = `survey_${surveyName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM survey_companies WHERE id = ?',
       [surveyId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO survey_companies (id, name, description) VALUES (?, ?, ?)',
         [surveyId, surveyName, `Survey company: ${surveyName}`]
       );
@@ -733,13 +751,13 @@ export class DataImportService {
   async ensureFormationExists(formationName) {
     const formationId = `formation_${formationName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM formations WHERE id = ?',
       [formationId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO formations (id, name, description) VALUES (?, ?, ?)',
         [formationId, formationName, `${formationName} formation`]
       );
@@ -753,13 +771,13 @@ export class DataImportService {
     const propertyId = `prop_${row.Unique_ID.replace(/[^a-z0-9]/g, '_')}`;
     const countyId = `county_${row.County.toLowerCase().replace(/\s+/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM properties WHERE id = ?',
       [propertyId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO properties (id, county_id, unique_id, legal_description, gross_acres) VALUES (?, ?, ?, ?, ?)',
         [propertyId, countyId, row.Unique_ID, row.Legal_Description || '', parseFloat(row.Gross_Acres) || 0]
       );
@@ -772,13 +790,13 @@ export class DataImportService {
   async ensureFormationPricingExists(propertyId, formationName, price) {
     const formationId = `formation_${formationName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM formation_pricing WHERE property_id = ? AND formation_id = ?',
       [propertyId, formationId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO formation_pricing (id, property_id, formation_id, price_per_acre) VALUES (?, ?, ?, ?)',
         [`fp_${propertyId}_${formationId}`, propertyId, formationId, price]
       );
@@ -789,13 +807,13 @@ export class DataImportService {
   async ensureAcquisitionStatusExists(statusName) {
     const statusId = `acq_status_${statusName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM acquisition_status_types WHERE id = ?',
       [statusId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO acquisition_status_types (id, name, description) VALUES (?, ?, ?)',
         [statusId, statusName, `Acquisition status: ${statusName}`]
       );
@@ -808,13 +826,13 @@ export class DataImportService {
   async ensureAcquisitionActivityExists(activityName) {
     const activityId = `activity_${activityName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM acquisition_activities WHERE id = ?',
       [activityId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO acquisition_activities (id, name, description) VALUES (?, ?, ?)',
         [activityId, activityName, `Acquisition activity: ${activityName}`]
       );
@@ -828,14 +846,14 @@ export class DataImportService {
     const sectionId = `section_${str.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const countyId = `county_${county.toLowerCase().replace(/\s+/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM sections WHERE id = ?',
       [sectionId]
     );
     
     if (exists.length === 0) {
       const parts = str.split('-');
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO sections (id, county_id, section_number, township, range) VALUES (?, ?, ?, ?, ?)',
         [sectionId, countyId, parts[0] || '', parts[1] || '', parts[2] || '']
       );
@@ -849,13 +867,13 @@ export class DataImportService {
     const ownerId = `owner_${ownerName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const ownerTypeId = `owner_type_${ownerType.toLowerCase()}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM owners WHERE id = ?',
       [ownerId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO owners (id, owner_type_id, legal_name, display_name) VALUES (?, ?, ?, ?)',
         [ownerId, ownerTypeId, ownerName, ownerName]
       );
@@ -869,13 +887,13 @@ export class DataImportService {
     const propertyId = `prop_${row['S_T_R']?.replace(/[^a-z0-9]/g, '_')}_${row.COUNTY?.replace(/\s+/g, '_')}`;
     const countyId = `county_${row.COUNTY.toLowerCase().replace(/\s+/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM properties WHERE id = ?',
       [propertyId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO properties (id, county_id, unique_id, legal_description) VALUES (?, ?, ?, ?)',
         [propertyId, countyId, row['S_T_R'], `Section ${row.SEC}, Township ${row.TWN}, Range ${row.RNG}`]
       );
@@ -888,13 +906,13 @@ export class DataImportService {
   async ensureMineralInterestExists(propertyId, ownerId, row) {
     const interestId = `mineral_${propertyId}_${ownerId}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM mineral_interests WHERE id = ?',
       [interestId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO mineral_interests (id, property_id, owner_id, interest_type_id, net_mineral_acres) VALUES (?, ?, ?, ?, ?)',
         [interestId, propertyId, ownerId, 'interest_type_minerals', parseFloat(row.NET_MINERAL_ACRES) || 0]
       );
@@ -905,13 +923,13 @@ export class DataImportService {
   async ensureOperatorExists(operatorName) {
     const operatorId = `op_${operatorName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM operators WHERE id = ?',
       [operatorId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO operators (id, name, description) VALUES (?, ?, ?)',
         [operatorId, operatorName, `Operator: ${operatorName}`]
       );
@@ -924,13 +942,13 @@ export class DataImportService {
   async ensureWellStatusExists(statusName) {
     const statusId = `well_status_${statusName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM well_status_types WHERE id = ?',
       [statusId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO well_status_types (id, name, description) VALUES (?, ?, ?)',
         [statusId, statusName, `Well status: ${statusName}`]
       );
@@ -943,14 +961,14 @@ export class DataImportService {
   async ensureUnitTierExists(tierName) {
     const tierId = `tier_${tierName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM unit_tiers WHERE id = ?',
       [tierId]
     );
     
     if (exists.length === 0) {
       const priority = tierName === 'AOI' ? 1 : tierName === 'AOI - Tier 2' ? 2 : 3;
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO unit_tiers (id, name, description, priority_order) VALUES (?, ?, ?, ?)',
         [tierId, tierName, `Unit tier: ${tierName}`, priority]
       );
@@ -963,13 +981,13 @@ export class DataImportService {
   async ensureUnitStatusExists(statusName) {
     const statusId = `unit_status_${statusName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM unit_status_types WHERE id = ?',
       [statusId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO unit_status_types (id, name, description) VALUES (?, ?, ?)',
         [statusId, statusName, `Unit status: ${statusName}`]
       );
@@ -988,26 +1006,26 @@ export class DataImportService {
     const propertyId = `prop_well_${row['Well Name'].toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const countyId = `county_${row.County?.toLowerCase().replace(/\s+/g, '_') || 'unknown'}`;
     
-    const wellExists = await executeQuery(
+    const wellExists = await this.executeQuery(
       'SELECT id FROM wells WHERE id = ?',
       [wellId]
     );
     
     if (wellExists.length === 0) {
       // Ensure property exists
-      const propExists = await executeQuery(
+      const propExists = await this.executeQuery(
         'SELECT id FROM properties WHERE id = ?',
         [propertyId]
       );
       
       if (propExists.length === 0) {
-        await executeQuery(
+        await this.executeQuery(
           'INSERT INTO properties (id, county_id, unique_id, legal_description) VALUES (?, ?, ?, ?)',
           [propertyId, countyId, row['Well Name'], `Well property: ${row['Well Name']}`]
         );
       }
       
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO wells (id, well_name, operator_id, property_id, well_status_id, allocation_percentage) VALUES (?, ?, ?, ?, ?, ?)',
         [wellId, row['Well Name'], operatorId, propertyId, statusId, parseFloat(row['Allocation %']) || 0]
       );
@@ -1022,13 +1040,13 @@ export class DataImportService {
     const tierId = `tier_${row['Tier/Class']?.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const statusId = `unit_status_${row.Status?.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     
-    const exists = await executeQuery(
+    const exists = await this.executeQuery(
       'SELECT id FROM units WHERE id = ?',
       [unitId]
     );
     
     if (exists.length === 0) {
-      await executeQuery(
+      await this.executeQuery(
         'INSERT INTO units (id, well_id, tier_id, unit_status_id, tops_price_3_16th, number_of_owners) VALUES (?, ?, ?, ?, ?, ?)',
         [unitId, wellId, tierId, statusId, parseFloat(row['Tops Price 3/16th']) || 0, parseInt(row['# of Owners']) || 0]
       );

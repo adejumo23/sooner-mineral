@@ -38,7 +38,7 @@ const connectToDatabase = async () => {
     
     // Initialize data import service after database connection
     try {
-      dataImportService = new DataImportService();
+      dataImportService = new DataImportService(dbConnection);
       console.log('✅ Data import service initialized');
     } catch (error) {
       console.error('❌ Failed to initialize data import service:', error.message);
