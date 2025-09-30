@@ -12,6 +12,12 @@
       // Ensure light theme is applied immediately
       document.documentElement.classList.remove('dark');
       document.documentElement.setAttribute('data-theme', 'light');
+      document.body.classList.remove('dark');
+      document.body.setAttribute('data-theme', 'light');
+      // Force light theme styles
+      document.documentElement.style.setProperty('--bg-primary', '#ffffff');
+      document.documentElement.style.setProperty('--bg-secondary', '#f8fafc');
+      document.documentElement.style.setProperty('--text-primary', '#1e293b');
     </script>
   <script type="importmap">
 {
