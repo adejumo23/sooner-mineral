@@ -8,7 +8,7 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import csv from 'csv-parser';
 import * as fs from 'fs';
-import { DataImportService } from './services/dataImportService.ts';
+import { DataImportService } from './services/dataImportService.js';
 
 // Load environment variables
 dotenv.config();
@@ -2489,6 +2489,398 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching unit contacts aggregated', 
+      error: error.message 
+    });
+  }
+});
+
+// =============================================================================
+// Data Import API Endpoints
+// =============================================================================
+
+// Get all staging tables
+app.get('/api/import/staging-tables', async (req, res) => {
+  try {
+    if (!dataImportService) {
+      return res.status(500).json({ success: false, message: 'Data import service not available' });
+    }
+
+    const stagingTables = await dataImportService.getStagingTables();
+    res.json({
+      success: true,
+      stagingTables
+    });
+  } catch (error) {
+    console.error('Error fetching staging tables:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching staging tables', 
+      error: error.message 
+    });
+  }
+});
+
+// Get staging table data
+app.get('/api/import/staging-data/:tableName', async (req, res) => {
+  try {
+    if (!dataImportService) {
+      return res.status(500).json({ success: false, message: 'Data import service not available' });
+    }
+
+    const { tableName } = req.params;
+    const { limit = 100 } = req.query;
+    
+    const data = await dataImportService.getStagingTableData(tableName, parseInt(limit));
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Error fetching staging table data:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching staging table data', 
+      error: error.message 
+    });
+  }
+});
+
+// Get production tables
+app.get('/api/import/production-tables', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'soonermineraldb' 
+      AND table_name LIKE 'prod_%'
+    `;
+    
+    const [rows] = await dbConnection.execute(query);
+    const productionTables = rows.map(row => row.table_name);
+    
+    res.json({
+      success: true,
+      productionTables
+    });
+  } catch (error) {
+    console.error('Error fetching production tables:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching production tables', 
+      error: error.message 
+    });
+  }
+});
+
+// Get production table data
+app.get('/api/import/production-data/:tableName', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const { tableName } = req.params;
+    const { limit = 100 } = req.query;
+    
+    const query = `SELECT * FROM ${tableName} LIMIT ?`;
+    const [rows] = await dbConnection.execute(query, [parseInt(limit)]);
+    
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error fetching production table data:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching production table data', 
+      error: error.message 
+    });
+  }
+});
+
+// Approve import (move from staging to production)
+app.post('/api/import/approve', async (req, res) => {
+  try {
+    if (!dataImportService) {
+      return res.status(500).json({ success: false, message: 'Data import service not available' });
+    }
+
+    const { stagingTableName, productionTableName } = req.body;
+    
+    if (!stagingTableName || !productionTableName) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'stagingTableName and productionTableName are required' 
+      });
+    }
+
+    const result = await dataImportService.approveImport(stagingTableName, productionTableName);
+    res.json(result);
+  } catch (error) {
+    console.error('Error approving import:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error approving import', 
+      error: error.message 
+    });
+  }
+});
+
+// Delete staging table
+app.delete('/api/import/staging-table/:tableName', async (req, res) => {
+  try {
+    if (!dataImportService) {
+      return res.status(500).json({ success: false, message: 'Data import service not available' });
+    }
+
+    const { tableName } = req.params;
+    await dataImportService.deleteStagingTable(tableName);
+    
+    res.json({
+      success: true,
+      message: `Staging table ${tableName} deleted successfully`
+    });
+  } catch (error) {
+    console.error('Error deleting staging table:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deleting staging table', 
+      error: error.message 
+    });
+  }
+});
+
+// Update staging record
+app.put('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const { tableName, recordId } = req.params;
+    const updateData = req.body;
+    
+    // Build dynamic update query
+    const setClause = Object.keys(updateData)
+      .map(key => `\`${key}\` = ?`)
+      .join(', ');
+    
+    const values = Object.values(updateData);
+    values.push(recordId);
+    
+    const query = `UPDATE ${tableName} SET ${setClause} WHERE id = ?`;
+    await dbConnection.execute(query, values);
+    
+    res.json({
+      success: true,
+      message: 'Record updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating staging record:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating staging record', 
+      error: error.message 
+    });
+  }
+});
+
+// Delete staging record
+app.delete('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const { tableName, recordId } = req.params;
+    
+    const query = `DELETE FROM ${tableName} WHERE id = ?`;
+    await dbConnection.execute(query, [recordId]);
+    
+    res.json({
+      success: true,
+      message: 'Record deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting staging record:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deleting staging record', 
+      error: error.message 
+    });
+  }
+});
+
+// Normalize existing production tables
+app.post('/api/import/normalize', async (req, res) => {
+  try {
+    if (!dataImportService) {
+      return res.status(500).json({ success: false, message: 'Data import service not available' });
+    }
+
+    const result = await dataImportService.normalizeExistingProductionTables();
+    res.json(result);
+  } catch (error) {
+    console.error('Error normalizing production tables:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error normalizing production tables', 
+      error: error.message 
+    });
+  }
+});
+
+// Get normalized data overview
+app.get('/api/normalized/overview', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    // Get counts from normalized tables
+    const queries = [
+      'SELECT COUNT(*) as count FROM properties',
+      'SELECT COUNT(*) as count FROM owners',
+      'SELECT COUNT(*) as count FROM mineral_interests',
+      'SELECT COUNT(*) as count FROM wells',
+      'SELECT COUNT(*) as count FROM units'
+    ];
+
+    const results = await Promise.all(
+      queries.map(query => dbConnection.execute(query))
+    );
+
+    const overview = {
+      properties: results[0][0][0].count,
+      owners: results[1][0][0].count,
+      mineralInterests: results[2][0][0].count,
+      wells: results[3][0][0].count,
+      units: results[4][0][0].count
+    };
+
+    res.json({
+      success: true,
+      data: overview
+    });
+  } catch (error) {
+    console.error('Error fetching normalized overview:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching normalized overview', 
+      error: error.message 
+    });
+  }
+});
+
+// Get pricing summary
+app.get('/api/normalized/pricing-summary', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT 
+        f.name as formation,
+        AVG(fp.price_per_acre) as avg_price,
+        MIN(fp.price_per_acre) as min_price,
+        MAX(fp.price_per_acre) as max_price,
+        COUNT(*) as record_count
+      FROM formation_pricing fp
+      JOIN formations f ON fp.formation_id = f.id
+      GROUP BY f.id, f.name
+      ORDER BY avg_price DESC
+    `;
+
+    const [rows] = await dbConnection.execute(query);
+    
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error fetching pricing summary:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching pricing summary', 
+      error: error.message 
+    });
+  }
+});
+
+// Get acreage summary
+app.get('/api/normalized/acreage-summary', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT 
+        c.name as county,
+        SUM(mi.net_mineral_acres) as total_acres,
+        COUNT(DISTINCT mi.owner_id) as owner_count,
+        COUNT(DISTINCT mi.property_id) as property_count
+      FROM mineral_interests mi
+      JOIN properties p ON mi.property_id = p.id
+      JOIN counties c ON p.county_id = c.id
+      GROUP BY c.id, c.name
+      ORDER BY total_acres DESC
+    `;
+
+    const [rows] = await dbConnection.execute(query);
+    
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error fetching acreage summary:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching acreage summary', 
+      error: error.message 
+    });
+  }
+});
+
+// Get unit summary
+app.get('/api/normalized/unit-summary', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({ success: false, message: 'Database not connected' });
+    }
+
+    const query = `
+      SELECT 
+        ut.name as tier,
+        us.name as status,
+        COUNT(*) as unit_count,
+        AVG(u.tops_price_3_16th) as avg_tops_price,
+        AVG(u.number_of_owners) as avg_owners
+      FROM units u
+      JOIN unit_tiers ut ON u.tier_id = ut.id
+      JOIN unit_status_types us ON u.unit_status_id = us.id
+      GROUP BY ut.id, ut.name, us.id, us.name
+      ORDER BY unit_count DESC
+    `;
+
+    const [rows] = await dbConnection.execute(query);
+    
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    console.error('Error fetching unit summary:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching unit summary', 
       error: error.message 
     });
   }
