@@ -4,11 +4,12 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for build)
-RUN npm install
+# Install dependencies with cache mount
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    npm ci --only=production --silent
 
 # Copy source code
 COPY . .
@@ -23,13 +24,14 @@ ENV API_BASE_URL=$API_BASE_URL
 ENV REACT_APP_ARCGIS_API_KEY=$REACT_APP_ARCGIS_API_KEY
 ENV GEMINI_API_KEY=$GEMINI_API_KEY
 
-# Run the database dump
-# RUN npm run dump:deploy database/full-db-dump.sql database/production-config.json
+# Install dev dependencies for build
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    npm install --only=dev --silent
 
-# Build the application with increased memory
-# RUN npm run build
-# set DOCKER_BUILDKIT=true
-RUN --mount=type=cache,target=/app/node_modules/.cache npm run build
+# Build the application with optimizations
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    --mount=type=cache,target=/app/dist \
+    npm run build
 
 
 # Install serve to run the built app

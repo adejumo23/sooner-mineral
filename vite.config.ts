@@ -21,18 +21,14 @@ export default defineConfig(({ mode }) => {
       build: {
         chunkSizeWarningLimit: 1000,
         sourcemap: false,
-        minify: 'terser',
-        terserOptions: {
-          compress: {
-            drop_console: true,
-            drop_debugger: true,
-          },
-        },
+        minify: 'esbuild', // Faster than terser
+        target: 'es2020', // Modern target for faster builds
         rollupOptions: {
           external: ['@arcgis/core/assets/*'],
           output: {
             manualChunks: {
               vendor: ['react', 'react-dom', 'react-router-dom'],
+              arcgis: ['@arcgis/core'],
             },
           },
         },
