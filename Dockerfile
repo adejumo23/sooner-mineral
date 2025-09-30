@@ -27,6 +27,8 @@ RUN --mount=type=cache,target=/app/node_modules/.cache \
     --mount=type=cache,target=/app/dist \
     npm run build
 
+# Debug: List the contents of the dist folder
+RUN ls -la dist/
 
 # Install serve to run the built app
 RUN npm install -g serve
@@ -35,4 +37,4 @@ RUN npm install -g serve
 EXPOSE 3000
 
 # Start the application
-CMD ["serve", "-s", "dist", "-l", "3000", "--single"] 
+CMD ["serve", "-s", "dist", "-l", "3000"] 
