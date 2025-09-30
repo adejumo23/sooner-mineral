@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './AcreageSchedulePage.css';
+import { fetchAcreageSchedule } from '../services/apiClient';
 
 interface AcreageRecord {
   COUNTY: string;
@@ -59,8 +60,9 @@ const AcreageSchedulePage: React.FC = () => {
     const fetchAcreageData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/normalized/recreate-acreage-schedule');
-        const result = await response.json();
+        const result = await fetchAcreageSchedule();
+        
+        console.log('Acreage data received:', result);
         
         if (result.success) {
           setAcreageData(result.data);

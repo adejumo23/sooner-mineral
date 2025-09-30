@@ -1252,6 +1252,19 @@ export const fetchTexasPricing = async () => {
   }
 };
 
+// Acreage schedule functions
+export const fetchAcreageSchedule = async () => {
+  try {
+    return await apiRequest('/normalized/recreate-acreage-schedule');
+  } catch (error) {
+    console.error('Error fetching acreage schedule:', error);
+    return {
+      success: false,
+      data: []
+    };
+  }
+};
+
 export const approveImport = async (stagingTableName: string, productionTableName: string) => {
   try {
     return await apiRequest('/import/approve', {
@@ -1467,5 +1480,6 @@ export default {
   fetchUnitSummary,
   fetchOklahomaPricing,
   fetchTexasPricing,
+  fetchAcreageSchedule,
 };
 
