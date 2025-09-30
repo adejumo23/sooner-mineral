@@ -10,6 +10,7 @@
 #   ./auto-deploy.sh                    # Run in foreground
 #   ./auto-deploy.sh --daemon           # Run in background
 #   ./auto-deploy.sh --install-service  # Install as systemd service
+#   also run sudo systemctl enable sooner-mineral-deploy
 #   ./auto-deploy.sh --uninstall-service # Remove systemd service
 #
 # SETUP INSTRUCTIONS:
