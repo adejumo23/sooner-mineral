@@ -1,11 +1,11 @@
-# docker compose -f docker-compose.yml pull web && docker compose -f docker-compose.yml up -d
+# docker compose -f docker-compose.yml pull app && docker compose -f docker-compose.yml up -d
 services:
   # Combined Frontend + Backend Application
   app:
     image: docker-registry.desiumami.org/sooner-mineral-app:latest
     ports:
       - "3050:3000"  # Frontend
-      - "3001:3001"  # Backend API
+      - "3051:3001"  # Backend API
     environment:
       - NODE_ENV=production
       - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
