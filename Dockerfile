@@ -24,7 +24,6 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Build the application with optimizations
 RUN --mount=type=cache,target=/app/node_modules/.cache \
-    --mount=type=cache,target=/app/dist \
     npm run build
 
 # Debug: List the contents of the dist folder
