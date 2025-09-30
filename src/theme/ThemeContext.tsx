@@ -26,21 +26,43 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (savedTheme) {
       return savedTheme === 'dark';
     }
-    // Default to light mode
+    // Default to light mode (false = light theme)
     return false;
   });
+
+  // Initialize theme on mount
+  useEffect(() => {
+    // Ensure we start with light theme by removing any dark class
+    document.documentElement.classList.remove('dark');
+    // Also ensure body doesn't have dark class
+    document.body.classList.remove('dark');
+    // Set data attribute for theme
+    document.documentElement.setAttribute('data-theme', 'light');
+  }, []);
 
   useEffect(() => {
     // Apply theme to document
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
     }
     
     // Save theme preference to localStorage
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  // Ensure light theme is applied on first load
+  useEffect(() => {
+    // Remove any existing dark class and ensure light theme is applied
+    document.documentElement.classList.remove('dark');
+    // Force light theme if no preference is saved
+    if (!localStorage.getItem('theme')) {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
