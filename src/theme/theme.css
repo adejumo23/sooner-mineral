@@ -1,27 +1,30 @@
-/* Light Theme Styles (Default) - Original colors */
+/* Light Theme Styles (Default) */
 :root {
   --bg-primary: #ffffff;
-  --bg-secondary: #fef7ed; /* Warm cream background */
+  --bg-secondary: #f8fafc;
   --bg-tertiary: #f1f5f9;
-  --text-primary: #334155; /* Dark gray for text */
-  --text-secondary: #64748b; /* Medium gray for secondary text */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
   --text-muted: #94a3b8;
-  --border-primary: #fed7aa; /* Light orange border */
+  --border-primary: #e2e8f0;
   --border-secondary: #cbd5e1;
-  --accent-primary: #f97316; /* Orange */
+  --accent-primary: #f97316;
   --accent-secondary: #fb923c;
-  --sidebar-bg: #fb923c; /* Orange sidebar */
-  --sidebar-header-bg: #ea580c; /* Darker orange for sidebar header */
-  --sidebar-border: #c2410c; /* Darker orange border */
 }
 
-/* Force light theme by default - but preserve original styling */
+/* Force light theme by default - remove any dark classes */
+html, body {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Only apply dark theme when explicitly requested */
 html:not(.dark) {
   background-color: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
 }
 
-/* Override only the problematic dark theme classes */
+/* Override any dark theme that might be applied by default */
 html:not(.dark) .bg-gray-900 {
   background-color: var(--bg-secondary) !important;
 }
@@ -32,6 +35,12 @@ html:not(.dark) .text-white {
 
 html:not(.dark) .text-gray-300 {
   color: var(--text-secondary) !important;
+}
+
+/* Force light theme on all elements by default */
+html:not(.dark) * {
+  background-color: inherit !important;
+  color: inherit !important;
 }
 
 /* Override Tailwind dark mode classes when not in dark mode */
@@ -48,27 +57,6 @@ html:not(.dark) .dark\:text-gray-300 {
 }
 
 html:not(.dark) .dark\:border-gray-700 {
-  border-color: var(--border-primary) !important;
-}
-
-/* Preserve original light theme styling */
-html:not(.dark) .bg-orange-50 {
-  background-color: var(--bg-secondary) !important;
-}
-
-html:not(.dark) .bg-white {
-  background-color: var(--bg-primary) !important;
-}
-
-html:not(.dark) .text-gray-900 {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .text-gray-700 {
-  color: var(--text-secondary) !important;
-}
-
-html:not(.dark) .border-orange-200 {
   border-color: var(--border-primary) !important;
 }
 
