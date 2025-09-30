@@ -1,7 +1,7 @@
 # docker compose -f docker-compose.build.yml build && docker compose -f docker-compose.build.yml push
 services:
-  # React Web Application
-  web:
+  # Combined Frontend + Backend Application
+  app:
     build:
       context: "."
       platforms:
@@ -9,17 +9,30 @@ services:
       args:
         - API_BASE_URL=${API_BASE_URL}
         - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
-    image: docker-registry.desiumami.org/sooner-mineral-web:latest
+        - DB_HOST=${DB_HOST}
+        - DB_PORT=${DB_PORT}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+    image: docker-registry.desiumami.org/sooner-mineral-app:latest
     ports:
-      - "3050:3000"
+      - "3050:3000"  # Frontend
+      - "3001:3001"  # Backend API
     environment:
-      - NODE_ENV:production
-      - REACT_APP_ARCGIS_API_KEY:${REACT_APP_ARCGIS_API_KEY}
-      - API_BASE_URL:${API_BASE_URL}
+      - NODE_ENV=production
+      - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
+      - API_BASE_URL=${API_BASE_URL}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
     depends_on:
       mysql:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - app_uploads:/app/uploads
 # MySQL Database
   mysql:
     image: docker-registry.desiumami.org/mysql:8.0
@@ -61,3 +74,4 @@ services:
   #     - sooner-mineral
 volumes:
   mysql_data:
+  app_uploads:
