@@ -155,6 +155,15 @@ npm run preview
 
 ## 🤖 Automated Deployment
 
+### Push changes to prod
+Run this command after commiting/merging into main branch. Checkout main branch on your local
+
+```
+git checkout main
+git pull
+docker compose -f docker-compose.build.yml build && docker compose -f docker-compose.build.yml push
+```
+
 ### Auto-Deploy Script
 
 For production servers, use the included auto-deploy script that monitors git changes and automatically rebuilds containers:
