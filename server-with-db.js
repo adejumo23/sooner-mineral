@@ -509,7 +509,6 @@ app.post('/api/import/normalize-existing', async (req, res) => {
     
     console.log('Normalizing existing production tables...');
     const result = await dataImportService.normalizeExistingProductionTables();
-    const result = { success: false, message: 'Data import service temporarily disabled' };
     
     res.json(result);
   } catch (error) {
