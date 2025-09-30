@@ -1,43 +1,4 @@
-/* Light Theme Styles (Default) */
-:root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --border-primary: #e2e8f0;
-  --border-secondary: #cbd5e1;
-  --accent-primary: #f97316;
-  --accent-secondary: #fb923c;
-}
-
-/* Force light theme by default - remove any dark classes */
-html, body {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Only apply dark theme when explicitly requested */
-html:not(.dark) {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Override any dark theme that might be applied by default */
-html:not(.dark) .bg-gray-900 {
-  background-color: var(--bg-secondary) !important;
-}
-
-html:not(.dark) .text-white {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .text-gray-300 {
-  color: var(--text-secondary) !important;
-}
-
-/* Dark Theme Styles (Only when .dark class is present) */
+/* Dark Theme Styles */
 .dark {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2d2d2d;
@@ -47,6 +8,20 @@ html:not(.dark) .text-gray-300 {
   --text-muted: #808080;
   --border-primary: #404040;
   --border-secondary: #555555;
+  --accent-primary: #f97316;
+  --accent-secondary: #fb923c;
+}
+
+/* Light Theme Styles */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-primary: #e2e8f0;
+  --border-secondary: #cbd5e1;
   --accent-primary: #f97316;
   --accent-secondary: #fb923c;
 }
