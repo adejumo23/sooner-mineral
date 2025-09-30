@@ -8,6 +8,11 @@
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/src/theme/theme.css">
+    <script>
+      // Ensure light theme is applied immediately
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+    </script>
   <script type="importmap">
 {
   "imports": {
@@ -19,7 +24,7 @@
 }
 </script>
 </head>
-  <body class="bg-primary-50 text-neutral-900">
+  <body class="bg-primary-50 text-neutral-900" data-theme="light">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
