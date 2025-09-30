@@ -14,19 +14,18 @@ export default defineConfig(({ mode }) => {
         }
       },
       optimizeDeps: {
-        exclude: ['@arcgis/core', 'mysql2']
+        exclude: ['mysql2', '@arcgis/core']
       },
       build: {
         chunkSizeWarningLimit: 1000,
         sourcemap: false,
-        minify: 'esbuild', // Faster than terser
-        target: 'es2020', // Modern target for faster builds
+        minify: 'esbuild',
+        target: 'esnext',
         rollupOptions: {
-          external: ['@arcgis/core/assets/*'],
+          external: ['@arcgis/core'],
           output: {
             manualChunks: {
               vendor: ['react', 'react-dom', 'react-router-dom'],
-              arcgis: ['@arcgis/core'],
             },
           },
         },
