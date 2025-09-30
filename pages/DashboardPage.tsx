@@ -278,7 +278,7 @@ const DashboardPage: React.FC = () => {
     },
     {
       name: 'Integration Hub',
-      description: 'Third-party system integrations and APIs',
+      description: 'Third-party system integrations and API\'s',
       href: '/integrations',
       icon: Cog6ToothIcon,
       category: 'future',
