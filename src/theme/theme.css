@@ -37,29 +37,6 @@ html:not(.dark) .text-gray-300 {
   color: var(--text-secondary) !important;
 }
 
-/* Force light theme on all elements by default */
-html:not(.dark) * {
-  background-color: inherit !important;
-  color: inherit !important;
-}
-
-/* Override Tailwind dark mode classes when not in dark mode */
-html:not(.dark) .dark\:bg-gray-900 {
-  background-color: var(--bg-secondary) !important;
-}
-
-html:not(.dark) .dark\:text-white {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .dark\:text-gray-300 {
-  color: var(--text-secondary) !important;
-}
-
-html:not(.dark) .dark\:border-gray-700 {
-  border-color: var(--border-primary) !important;
-}
-
 /* Dark Theme Styles (Only when .dark class is present) */
 .dark {
   --bg-primary: #1a1a1a;

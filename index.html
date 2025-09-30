@@ -8,26 +8,6 @@
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/src/theme/theme.css">
-    <style>
-      /* Force light theme by default - override any dark theme */
-      html, body {
-        background-color: #f8fafc !important;
-        color: #1e293b !important;
-      }
-      html:not(.dark) {
-        background-color: #f8fafc !important;
-        color: #1e293b !important;
-      }
-      html:not(.dark) .bg-gray-900 {
-        background-color: #f8fafc !important;
-      }
-      html:not(.dark) .text-white {
-        color: #1e293b !important;
-      }
-      html:not(.dark) .text-gray-300 {
-        color: #64748b !important;
-      }
-    </style>
     <script>
       // Ensure light theme is applied immediately
       document.documentElement.classList.remove('dark');
@@ -38,10 +18,6 @@
       document.documentElement.style.setProperty('--bg-primary', '#ffffff');
       document.documentElement.style.setProperty('--bg-secondary', '#f8fafc');
       document.documentElement.style.setProperty('--text-primary', '#1e293b');
-      // Override any dark theme that might be applied
-      document.documentElement.style.setProperty('background-color', '#f8fafc', 'important');
-      document.body.style.setProperty('background-color', '#f8fafc', 'important');
-      document.body.style.setProperty('color', '#1e293b', 'important');
     </script>
   <script type="importmap">
 {
