@@ -9,23 +9,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/src/theme/theme.css">
     <style>
-      /* Force light theme by default - override any dark theme */
+      /* Force light theme by default - use original colors */
       html, body {
-        background-color: #f8fafc !important;
-        color: #1e293b !important;
+        background-color: #fef7ed !important; /* Warm cream */
+        color: #334155 !important; /* Dark gray */
       }
       html:not(.dark) {
-        background-color: #f8fafc !important;
-        color: #1e293b !important;
+        background-color: #fef7ed !important; /* Warm cream */
+        color: #334155 !important; /* Dark gray */
       }
       html:not(.dark) .bg-gray-900 {
-        background-color: #f8fafc !important;
+        background-color: #fef7ed !important; /* Warm cream */
       }
       html:not(.dark) .text-white {
-        color: #1e293b !important;
+        color: #334155 !important; /* Dark gray */
       }
       html:not(.dark) .text-gray-300 {
-        color: #64748b !important;
+        color: #64748b !important; /* Medium gray */
       }
     </style>
     <script>
@@ -34,14 +34,14 @@
       document.documentElement.setAttribute('data-theme', 'light');
       document.body.classList.remove('dark');
       document.body.setAttribute('data-theme', 'light');
-      // Force light theme styles
+      // Force light theme styles - use original colors
       document.documentElement.style.setProperty('--bg-primary', '#ffffff');
-      document.documentElement.style.setProperty('--bg-secondary', '#f8fafc');
-      document.documentElement.style.setProperty('--text-primary', '#1e293b');
+      document.documentElement.style.setProperty('--bg-secondary', '#fef7ed'); /* Warm cream */
+      document.documentElement.style.setProperty('--text-primary', '#334155'); /* Dark gray */
       // Override any dark theme that might be applied
-      document.documentElement.style.setProperty('background-color', '#f8fafc', 'important');
-      document.body.style.setProperty('background-color', '#f8fafc', 'important');
-      document.body.style.setProperty('color', '#1e293b', 'important');
+      document.documentElement.style.setProperty('background-color', '#fef7ed', 'important'); /* Warm cream */
+      document.body.style.setProperty('background-color', '#fef7ed', 'important'); /* Warm cream */
+      document.body.style.setProperty('color', '#334155', 'important'); /* Dark gray */
     </script>
   <script type="importmap">
 {
