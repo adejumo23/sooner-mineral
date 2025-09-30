@@ -1227,6 +1227,31 @@ export const fetchUnitSummary = async () => {
   }
 };
 
+// Pricing data functions
+export const fetchOklahomaPricing = async () => {
+  try {
+    return await apiRequest('/pricing/oklahoma');
+  } catch (error) {
+    console.error('Error fetching Oklahoma pricing:', error);
+    return {
+      success: false,
+      data: []
+    };
+  }
+};
+
+export const fetchTexasPricing = async () => {
+  try {
+    return await apiRequest('/pricing/texas');
+  } catch (error) {
+    console.error('Error fetching Texas pricing:', error);
+    return {
+      success: false,
+      data: []
+    };
+  }
+};
+
 export const approveImport = async (stagingTableName: string, productionTableName: string) => {
   try {
     return await apiRequest('/import/approve', {
@@ -1440,5 +1465,7 @@ export default {
   fetchPricingSummary,
   fetchAcreageSummary,
   fetchUnitSummary,
+  fetchOklahomaPricing,
+  fetchTexasPricing,
 };
 

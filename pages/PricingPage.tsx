@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './PricingPage.css';
+import { fetchOklahomaPricing, fetchTexasPricing } from '../services/apiClient';
 
 interface PricingRecord {
   id: number;
@@ -92,25 +93,24 @@ const PricingPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [oklahomaRes, texasRes] = await Promise.all([
-          fetch('/api/pricing/oklahoma'),
-          fetch('/api/pricing/texas')
+        const [oklahomaData, texasData] = await Promise.all([
+          fetchOklahomaPricing(),
+          fetchTexasPricing()
         ]);
 
-        if (oklahomaRes.ok) {
-          const oklahomaData = await oklahomaRes.json();
-          console.log('Oklahoma data received:', oklahomaData);
+        console.log('Oklahoma data received:', oklahomaData);
+        console.log('Texas data received:', texasData);
+        
+        if (oklahomaData.success) {
           setOklahomaData(oklahomaData.data || []);
         } else {
-          console.error('Oklahoma API error:', oklahomaRes.status, oklahomaRes.statusText);
+          console.error('Oklahoma API error:', oklahomaData);
         }
 
-        if (texasRes.ok) {
-          const texasData = await texasRes.json();
-          console.log('Texas data received:', texasData);
+        if (texasData.success) {
           setTexasData(texasData.data || []);
         } else {
-          console.error('Texas API error:', texasRes.status, texasRes.statusText);
+          console.error('Texas API error:', texasData);
         }
       } catch (error) {
         console.error('Error fetching pricing data:', error);
