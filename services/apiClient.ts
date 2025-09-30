@@ -1,5 +1,5 @@
 // API client for making HTTP requests to the server
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002';
 
 // Helper function to make API requests
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
