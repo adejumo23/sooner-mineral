@@ -645,7 +645,7 @@ pull_and_deploy() {
     if [ -f "$ENV_FILE" ]; then
         log "INFO" "Using environment file: $ENV_FILE"
         if command -v docker-compose &> /dev/null; then
-            if docker-compose --env-file "$ENV_FILE" up --build -d; then
+            if docker-compose --env-file "$ENV_FILE" -f "$DOCKER_COMPOSE_FILE" pull app && docker-compose --env-file "$ENV_FILE" -f "$DOCKER_COMPOSE_FILE" up -d; then
                 log "INFO" "Successfully deployed to commit: $new_local_commit"
                 save_current_commit "$remote_commit"
                 send_notification "Successfully deployed to commit: $new_local_commit"
@@ -656,7 +656,7 @@ pull_and_deploy() {
                 return 1
             fi
         else
-            if docker compose --env-file "$ENV_FILE" up --build -d; then
+            if docker compose --env-file "$ENV_FILE" -f "$DOCKER_COMPOSE_FILE" pull app && docker compose --env-file "$ENV_FILE" -f "$DOCKER_COMPOSE_FILE" up -d; then
                 log "INFO" "Successfully deployed to commit: $new_local_commit"
                 save_current_commit "$remote_commit"
                 send_notification "Successfully deployed to commit: $new_local_commit"
