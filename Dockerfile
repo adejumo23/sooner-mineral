@@ -17,7 +17,10 @@ COPY . .
 # RUN npm run dump:deploy database/full-db-dump.sql database/production-config.json
 
 # Build the application with increased memory
-RUN npm run build
+# RUN npm run build
+# set DOCKER_BUILDKIT=true
+RUN --mount=type=cache,target=/app/node_modules/.cache npm run build
+
 
 # Install serve to run the built app
 RUN npm install -g serve
