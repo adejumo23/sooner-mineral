@@ -1,6 +1,7 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './src/theme';
+import { ThemeProvider } from './src/theme/ThemeContext';
+import './src/theme/theme.css';
 import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
