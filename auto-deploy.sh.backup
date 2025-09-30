@@ -1,0 +1,824 @@
+#!/bin/bash
+
+# =============================================================================
+# Auto-Deploy Script for Sooner Mineral Application
+# =============================================================================
+# This script monitors the git repository for changes and automatically
+# rebuilds the Docker containers when updates are detected.
+#
+# Usage: 
+#   ./auto-deploy.sh                    # Run in foreground
+#   ./auto-deploy.sh --daemon           # Run in background
+#   ./auto-deploy.sh --install-service  # Install as systemd service
+#   ./auto-deploy.sh --uninstall-service # Remove systemd service
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy .envrc.example to .envrc: cp .envrc.example .envrc
+# 2. Edit .envrc with your configuration values
+# 3. Generate SSH key: ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+# 4. Add public key to GitHub: cat ~/.ssh/id_rsa.pub (copy and add to GitHub)
+# 5. Test connection: ssh -T git@github.com
+# 6. For system startup: ./auto-deploy.sh --install-service
+# =============================================================================
+
+# =============================================================================
+# LOAD CONFIGURATION FROM .envrc FILE
+# =============================================================================
+
+# Default values (will be overridden by .envrc if it exists)
+GIT_REPO_URL="git@github.com:your-username/sooner-mineral.git"
+GIT_BRANCH="main"
+SSH_KEY_PATH=""
+SSH_KEY_PASSPHRASE=""
+DOCKER_COMPOSE_FILE="docker-compose.yml"
+PROJECT_DIRECTORY="/home/minnu/docker/sooner-mineral"
+SLEEP_INTERVAL=300
+ENV_FILE=".env"
+LOG_FILE="/var/log/sooner-mineral-deploy.log"
+MAX_LOG_SIZE=10485760
+WEBHOOK_URL=""
+NOTIFICATION_ENABLED=false
+
+# Fail-safe configuration
+MAX_CONSECUTIVE_FAILURES=3
+CONTAINER_CHECK_INTERVAL=60
+FAILURE_COUNT=0
+LAST_SUCCESSFUL_DEPLOY=""
+
+# Load configuration from .envrc file if it exists
+if [ -f ".envrc" ]; then
+    echo "Loading configuration from .envrc file..."
+    source .envrc
+    echo "Configuration loaded successfully."
+else
+    echo "Warning: .envrc file not found. Using default values."
+    echo "Copy .envrc.example to .envrc and customize it for your environment."
+fi
+
+# =============================================================================
+# SCRIPT CONFIGURATION - DO NOT MODIFY
+# =============================================================================
+
+SCRIPT_NAME="$(basename "$0")"
+CURRENT_DIR="$(pwd)"
+LAST_COMMIT_FILE="$PROJECT_DIRECTORY/.last_commit"
+PID_FILE="/var/run/sooner-mineral-deploy.pid"
+SERVICE_NAME="sooner-mineral-deploy"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# =============================================================================
+# ARGUMENT PARSING
+# =============================================================================
+
+parse_arguments() {
+    # Initialize variables
+    DAEMON_MODE=false
+    INSTALL_SERVICE=false
+    UNINSTALL_SERVICE=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --daemon)
+                DAEMON_MODE=true
+                shift
+                ;;
+            --install-service)
+                INSTALL_SERVICE=true
+                shift
+                ;;
+            --uninstall-service)
+                UNINSTALL_SERVICE=true
+                shift
+                ;;
+            --status)
+                check_daemon_status
+                exit 0
+                ;;
+            --stop)
+                stop_daemon
+                exit 0
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+show_help() {
+    echo "Usage: $SCRIPT_NAME [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --daemon           Run in background (daemon mode)"
+    echo "  --status           Check daemon status"
+    echo "  --stop             Stop running daemon"
+    echo "  --install-service  Install as systemd service for auto-start"
+    echo "  --uninstall-service Remove systemd service"
+    echo "  --help, -h         Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $SCRIPT_NAME                    # Run in foreground"
+    echo "  $SCRIPT_NAME --daemon           # Run in background"
+    echo "  $SCRIPT_NAME --status           # Check daemon status"
+    echo "  $SCRIPT_NAME --stop             # Stop daemon"
+    echo "  $SCRIPT_NAME --install-service  # Install as system service"
+}
+
+# =============================================================================
+# SERVICE MANAGEMENT FUNCTIONS
+# =============================================================================
+
+install_service() {
+    log "INFO" "Installing systemd service..."
+    
+    # Check if running as root
+    if [ "$EUID" -ne 0 ]; then
+        log "ERROR" "This operation requires root privileges. Please run with sudo."
+        exit 1
+    fi
+    
+    # Get the full path to the script
+    local script_path="$(realpath "$0")"
+    local script_dir="$(dirname "$script_path")"
+    
+    # Create systemd service file
+    cat > "$SERVICE_FILE" << EOF
+[Unit]
+Description=Sooner Mineral Auto-Deploy Service
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=$script_dir
+ExecStart=$script_path --daemon
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sooner-mineral-deploy
+
+# Environment
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Reload systemd and enable service
+    systemctl daemon-reload
+    systemctl enable "$SERVICE_NAME"
+    
+    log "INFO" "Service installed successfully!"
+    log "INFO" "To start the service: sudo systemctl start $SERVICE_NAME"
+    log "INFO" "To check status: sudo systemctl status $SERVICE_NAME"
+    log "INFO" "To view logs: sudo journalctl -u $SERVICE_NAME -f"
+}
+
+uninstall_service() {
+    log "INFO" "Uninstalling systemd service..."
+    
+    # Check if running as root
+    if [ "$EUID" -ne 0 ]; then
+        log "ERROR" "This operation requires root privileges. Please run with sudo."
+        exit 1
+    fi
+    
+    # Stop and disable service
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+    
+    # Remove service file
+    rm -f "$SERVICE_FILE"
+    
+    # Reload systemd
+    systemctl daemon-reload
+    
+    log "INFO" "Service uninstalled successfully!"
+}
+
+# =============================================================================
+# DAEMON MANAGEMENT FUNCTIONS
+# =============================================================================
+
+start_daemon() {
+    log "INFO" "Starting auto-deploy daemon..."
+    
+    # Check if already running
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            log "WARN" "Daemon is already running (PID: $pid)"
+            exit 1
+        else
+            log "INFO" "Removing stale PID file"
+            rm -f "$PID_FILE"
+        fi
+    fi
+    
+    # Start daemon with proper output redirection to log file
+    log "DEBUG" "Starting daemon with command: $0 --daemon"
+    nohup "$0" --daemon >> "$LOG_FILE" 2>&1 &
+    local daemon_pid=$!
+    echo "$daemon_pid" > "$PID_FILE"
+    log "DEBUG" "Daemon PID: $daemon_pid"
+    
+    # Give the daemon a moment to start and check if it's still running
+    sleep 3
+    
+    if kill -0 "$daemon_pid" 2>/dev/null; then
+        log "INFO" "Daemon started successfully with PID: $daemon_pid"
+        log "INFO" "PID file: $PID_FILE"
+        log "INFO" "Log file: $LOG_FILE"
+        log "INFO" "To stop daemon: kill $daemon_pid"
+        log "INFO" "To view logs: tail -f $LOG_FILE"
+    else
+        log "ERROR" "Daemon failed to start or exited immediately"
+        log "ERROR" "Check the log file for errors: tail -f $LOG_FILE"
+        rm -f "$PID_FILE"
+        exit 1
+    fi
+}
+
+stop_daemon() {
+    log "INFO" "Stopping auto-deploy daemon..."
+    
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill "$pid"
+            rm -f "$PID_FILE"
+            log "INFO" "Daemon stopped (PID: $pid)"
+        else
+            log "WARN" "Daemon is not running"
+            rm -f "$PID_FILE"
+        fi
+    else
+        log "WARN" "No PID file found"
+    fi
+}
+
+check_daemon_status() {
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "Daemon is running (PID: $pid)"
+            echo "PID file: $PID_FILE"
+            echo "Log file: $LOG_FILE"
+            echo "To view logs: tail -f $LOG_FILE"
+            echo "To stop daemon: kill $pid"
+        else
+            echo "Daemon is not running (stale PID file)"
+            rm -f "$PID_FILE"
+        fi
+    else
+        echo "Daemon is not running (no PID file)"
+    fi
+}
+
+# =============================================================================
+# FAIL-SAFE FUNCTIONS
+# =============================================================================
+
+handle_deployment_failure() {
+    local error_message="$1"
+    FAILURE_COUNT=$((FAILURE_COUNT + 1))
+    
+    log "ERROR" "Deployment failed: $error_message"
+    log "ERROR" "Consecutive failures: $FAILURE_COUNT/$MAX_CONSECUTIVE_FAILURES"
+    
+    if [ "$FAILURE_COUNT" -ge "$MAX_CONSECUTIVE_FAILURES" ]; then
+        log "CRITICAL" "Maximum consecutive failures reached ($MAX_CONSECUTIVE_FAILURES)"
+        log "CRITICAL" "Stopping deployment attempts to prevent system overload"
+        send_notification "CRITICAL: Auto-deploy stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures"
+        
+        # Wait longer before retrying
+        log "INFO" "Waiting 30 minutes before retry..."
+        sleep 1800
+        FAILURE_COUNT=0
+    fi
+}
+
+handle_deployment_success() {
+    FAILURE_COUNT=0
+    LAST_SUCCESSFUL_DEPLOY=$(date '+%Y-%m-%d %H:%M:%S')
+    log "INFO" "Deployment successful. Reset failure count."
+}
+
+check_system_health() {
+    # Check if Docker is running
+    if ! docker info >/dev/null 2>&1; then
+        log "ERROR" "Docker is not running or not accessible"
+        return 1
+    fi
+    
+    # Check disk space (fail if less than 1GB free)
+    local available_space=$(df / | awk 'NR==2 {print $4}')
+    if [ "$available_space" -lt 1048576 ]; then  # 1GB in KB
+        log "ERROR" "Low disk space: $(df -h / | awk 'NR==2 {print $4}') available"
+        return 1
+    fi
+    
+    # Check if we can write to log file
+    if ! touch "$LOG_FILE" 2>/dev/null; then
+        log "ERROR" "Cannot write to log file: $LOG_FILE"
+        return 1
+    fi
+    
+    return 0
+}
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    case $level in
+        "INFO")
+            echo -e "${GREEN}[INFO]${NC} $message"
+            ;;
+        "WARN")
+            echo -e "${YELLOW}[WARN]${NC} $message"
+            ;;
+        "ERROR")
+            echo -e "${RED}[ERROR]${NC} $message"
+            ;;
+        "DEBUG")
+            echo -e "${BLUE}[DEBUG]${NC} $message"
+            ;;
+    esac
+    
+    # Write to log file
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+}
+
+rotate_log() {
+    if [ -f "$LOG_FILE" ] && [ $(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LOG_FILE" 2>/dev/null) -gt $MAX_LOG_SIZE ]; then
+        log "INFO" "Rotating log file (size exceeded $MAX_LOG_SIZE bytes)"
+        mv "$LOG_FILE" "${LOG_FILE}.old"
+        touch "$LOG_FILE"
+    fi
+}
+
+send_notification() {
+    local message="$1"
+    if [ "$NOTIFICATION_ENABLED" = true ] && [ -n "$WEBHOOK_URL" ]; then
+        curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"🤖 Sooner Mineral Auto-Deploy: $message\"}" \
+            "$WEBHOOK_URL" 2>/dev/null || log "WARN" "Failed to send notification"
+    fi
+}
+
+check_dependencies() {
+    log "INFO" "Checking dependencies..."
+    
+    # Check if git is installed
+    if ! command -v git &> /dev/null; then
+        log "ERROR" "Git is not installed. Please install git first."
+        exit 1
+    fi
+    
+    # Check if docker is installed
+    if ! command -v docker &> /dev/null; then
+        log "ERROR" "Docker is not installed. Please install Docker first."
+        exit 1
+    fi
+    
+    # Check if docker-compose is installed
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+        log "ERROR" "Docker Compose is not installed. Please install Docker Compose first."
+        exit 1
+    fi
+    
+    log "INFO" "All dependencies are available."
+}
+
+check_containers_running() {
+    log "DEBUG" "Checking if project containers are running..."
+    
+    # Check if containers defined in docker-compose.yml are running
+    local running_containers
+    if command -v docker-compose &> /dev/null; then
+        running_containers=$(docker-compose -f "$DOCKER_COMPOSE_FILE" ps --services --filter "status=running" 2>/dev/null | wc -l)
+    else
+        running_containers=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps --services --filter "status=running" 2>/dev/null | wc -l)
+    fi
+    
+    # Get total number of services defined in docker-compose.yml
+    local total_services
+    if command -v docker-compose &> /dev/null; then
+        total_services=$(docker-compose -f "$DOCKER_COMPOSE_FILE" config --services 2>/dev/null | wc -l)
+    else
+        total_services=$(docker compose -f "$DOCKER_COMPOSE_FILE" config --services 2>/dev/null | wc -l)
+    fi
+    
+    log "DEBUG" "Running containers: $running_containers/$total_services"
+    
+    if [ "$running_containers" -eq 0 ] || [ "$running_containers" -lt "$total_services" ]; then
+        log "WARN" "Not all project containers are running ($running_containers/$total_services). Starting containers..."
+        if start_containers; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        log "DEBUG" "All project containers are running ($running_containers/$total_services)"
+        return 0
+    fi
+}
+
+start_containers() {
+    log "INFO" "Starting containers..."
+    
+    if [ -f "$ENV_FILE" ]; then
+        log "INFO" "Using environment file: $ENV_FILE"
+        if command -v docker-compose &> /dev/null; then
+            docker-compose --env-file "$ENV_FILE" up --build -d
+        else
+            docker compose --env-file "$ENV_FILE" up --build -d
+        fi
+    else
+        log "WARN" "Environment file $ENV_FILE not found, using default values"
+        if command -v docker-compose &> /dev/null; then
+            docker-compose up --build -d
+        else
+            docker compose up --build -d
+        fi
+    fi
+    
+    if [ $? -eq 0 ]; then
+        log "INFO" "Containers started successfully"
+        return 0
+    else
+        log "ERROR" "Failed to start containers"
+        return 1
+    fi
+}
+
+setup_ssh_auth() {
+    log "INFO" "Setting up SSH authentication..."
+    
+    # Set SSH key path if not specified
+    if [ -z "$SSH_KEY_PATH" ]; then
+        SSH_KEY_PATH="$HOME/.ssh/id_rsa"
+    fi
+    
+    # Check if SSH key exists
+    if [ ! -f "$SSH_KEY_PATH" ]; then
+        log "ERROR" "SSH key not found at: $SSH_KEY_PATH"
+        log "ERROR" "Please generate an SSH key or specify the correct path in SSH_KEY_PATH"
+        log "INFO" "To generate a new SSH key: ssh-keygen -t rsa -b 4096 -C 'your_email@example.com'"
+        exit 1
+    fi
+    
+    # Set proper permissions for SSH key
+    chmod 600 "$SSH_KEY_PATH"
+    
+    # Start SSH agent if not running
+    if [ -z "$SSH_AUTH_SOCK" ]; then
+        log "INFO" "Starting SSH agent..."
+        eval "$(ssh-agent -s)"
+    fi
+    
+    # Add SSH key to agent
+    if [ -n "$SSH_KEY_PASSPHRASE" ]; then
+        log "INFO" "Adding SSH key with passphrase..."
+        # Create a temporary script to handle passphrase input
+        cat > /tmp/ssh_add_script.sh << EOF
+#!/bin/bash
+echo "$SSH_KEY_PASSPHRASE"
+EOF
+        chmod +x /tmp/ssh_add_script.sh
+        
+        # Use the script to provide passphrase
+        export SSH_ASKPASS=/tmp/ssh_add_script.sh
+        export DISPLAY=dummy:0
+        setsid ssh-add "$SSH_KEY_PATH" < /dev/null
+        
+        # Clean up
+        unset SSH_ASKPASS
+        rm -f /tmp/ssh_add_script.sh
+    else
+        log "INFO" "Adding SSH key without passphrase..."
+        ssh-add "$SSH_KEY_PATH"
+    fi
+    
+    # Test SSH connection to GitHub
+    log "INFO" "Testing SSH connection to GitHub..."
+    if ssh -T -o StrictHostKeyChecking=no git@github.com 2>&1 | grep -q "successfully authenticated"; then
+        log "INFO" "SSH authentication successful!"
+    else
+        log "WARN" "SSH authentication test failed, but continuing..."
+        log "INFO" "Make sure your SSH key is added to your GitHub account"
+    fi
+    
+    # Configure git to use SSH
+    git config --global url."git@github.com:".insteadOf "https://github.com/"
+}
+
+setup_project_directory() {
+    log "INFO" "Setting up project directory: $PROJECT_DIRECTORY"
+    
+    # Create project directory if it doesn't exist
+    if [ ! -d "$PROJECT_DIRECTORY" ]; then
+        log "INFO" "Creating project directory..."
+        mkdir -p "$PROJECT_DIRECTORY"
+    fi
+    
+    # Change to project directory
+    cd "$PROJECT_DIRECTORY" || {
+        log "ERROR" "Failed to change to project directory: $PROJECT_DIRECTORY"
+        exit 1
+    }
+    
+    # Clone repository if it doesn't exist
+    if [ ! -d ".git" ]; then
+        log "INFO" "Cloning repository from $GIT_REPO_URL..."
+        git clone "$GIT_REPO_URL" . || {
+            log "ERROR" "Failed to clone repository"
+            exit 1
+        }
+    fi
+    
+    # Set up git config
+    git config pull.rebase false
+    
+    log "INFO" "Project directory setup complete."
+}
+
+get_current_commit() {
+    git rev-parse HEAD 2>/dev/null || echo "unknown"
+}
+
+get_last_commit() {
+    if [ -f "$LAST_COMMIT_FILE" ]; then
+        cat "$LAST_COMMIT_FILE"
+    else
+        echo "unknown"
+    fi
+}
+
+save_current_commit() {
+    local commit_hash="$1"
+    echo "$commit_hash" > "$LAST_COMMIT_FILE"
+}
+
+check_for_updates() {
+    log "DEBUG" "Checking for updates..."
+    
+    # Fetch latest changes
+    git fetch origin "$GIT_BRANCH" || {
+        log "ERROR" "Failed to fetch from origin"
+        return 1
+    }
+    
+    # Get current local commit and remote commit
+    local current_local_commit=$(get_current_commit)
+    local remote_commit=$(git rev-parse "origin/$GIT_BRANCH" 2>/dev/null || echo "unknown")
+    local last_saved_commit=$(get_last_commit)
+    
+    log "DEBUG" "Current local commit: $current_local_commit"
+    log "DEBUG" "Remote commit: $remote_commit"
+    log "DEBUG" "Last saved commit: $last_saved_commit"
+    
+    # Check if remote has newer commits than what we last deployed
+    if [ "$remote_commit" != "unknown" ] && [ "$remote_commit" != "$last_saved_commit" ]; then
+        log "INFO" "New commits detected on remote! Remote: $remote_commit, Last deployed: $last_saved_commit"
+        return 0
+    else
+        log "DEBUG" "No new commits detected on remote."
+        return 1
+    fi
+}
+
+pull_and_deploy() {
+    log "INFO" "Pulling latest changes and deploying..."
+    
+    # Get the remote commit hash before pulling
+    local remote_commit=$(git rev-parse "origin/$GIT_BRANCH" 2>/dev/null || echo "unknown")
+    
+    # Pull latest changes
+    git pull origin "$GIT_BRANCH" || {
+        log "ERROR" "Failed to pull latest changes"
+        return 1
+    }
+    
+    # Get the new local commit hash after pulling
+    local new_local_commit=$(get_current_commit)
+    log "INFO" "Pulled to commit: $new_local_commit (was tracking: $remote_commit)"
+    
+    # Stop existing containers
+    log "INFO" "Stopping existing containers..."
+    if command -v docker-compose &> /dev/null; then
+        docker-compose down || {
+            log "WARN" "Failed to stop containers (they might not be running)"
+        }
+    else
+        docker compose down || {
+            log "WARN" "Failed to stop containers (they might not be running)"
+        }
+    fi
+    
+    # Build and start containers
+    log "INFO" "Building and starting containers..."
+    if [ -f "$ENV_FILE" ]; then
+        log "INFO" "Using environment file: $ENV_FILE"
+        if command -v docker-compose &> /dev/null; then
+            if docker-compose --env-file "$ENV_FILE" up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
+        else
+            if docker compose --env-file "$ENV_FILE" up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
+        fi
+    else
+        log "WARN" "Environment file $ENV_FILE not found, using default values"
+        if command -v docker-compose &> /dev/null; then
+            if docker-compose up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
+        else
+            if docker compose up --build -d; then
+                log "INFO" "Successfully deployed to commit: $new_local_commit"
+                save_current_commit "$remote_commit"
+                send_notification "Successfully deployed to commit: $new_local_commit"
+                return 0
+            else
+                log "ERROR" "Failed to build and start containers"
+                send_notification "Failed to deploy commit: $new_local_commit"
+                return 1
+            fi
+        fi
+    fi
+}
+
+cleanup() {
+    log "INFO" "Cleaning up and exiting..."
+    # Kill SSH agent if we started it
+    if [ -n "$SSH_AGENT_PID" ]; then
+        ssh-agent -k
+    fi
+    # Remove PID file if running in daemon mode
+    if [ "$DAEMON_MODE" = true ] && [ -f "$PID_FILE" ]; then
+        rm -f "$PID_FILE"
+    fi
+    exit 0
+}
+
+# =============================================================================
+# MAIN SCRIPT LOGIC
+# =============================================================================
+
+main() {
+    log "DEBUG" "Main function called with arguments: $*"
+    log "DEBUG" "DAEMON_MODE: $DAEMON_MODE"
+    log "DEBUG" "INSTALL_SERVICE: $INSTALL_SERVICE"
+    log "DEBUG" "UNINSTALL_SERVICE: $UNINSTALL_SERVICE"
+    
+    # Handle special arguments first
+    if [ "$INSTALL_SERVICE" = true ]; then
+        install_service
+        exit 0
+    fi
+    
+    if [ "$UNINSTALL_SERVICE" = true ]; then
+        uninstall_service
+        exit 0
+    fi
+    
+    # Handle daemon mode
+    if [ "$DAEMON_MODE" = true ]; then
+        # Check if we're already in a daemon process (no TTY)
+        if [ -t 0 ]; then
+            # We have a TTY, so this is the initial daemon start
+            log "DEBUG" "Starting external daemon"
+            start_daemon
+            exit 0
+        else
+            # No TTY, we're already in daemon mode
+            log "DEBUG" "Running in daemon mode"
+            run_daemon
+        fi
+    else
+        # Foreground mode
+        log "DEBUG" "Running in foreground mode"
+        run_daemon
+    fi
+}
+
+run_daemon() {
+    log "INFO" "Starting Sooner Mineral Auto-Deploy Script"
+    log "INFO" "Mode: $([ "$DAEMON_MODE" = true ] && echo "Daemon" || echo "Foreground")"
+    log "INFO" "Monitoring repository: $GIT_REPO_URL (branch: $GIT_BRANCH)"
+    log "INFO" "Check interval: $SLEEP_INTERVAL seconds"
+    log "INFO" "Project directory: $PROJECT_DIRECTORY"
+    
+    # Set up signal handlers
+    trap cleanup SIGINT SIGTERM
+    
+    # Initial setup
+    check_dependencies
+    setup_ssh_auth
+    setup_project_directory
+    
+    # Save initial commit
+    local initial_commit=$(get_current_commit)
+    save_current_commit "$initial_commit"
+    log "INFO" "Initial commit saved: $initial_commit"
+    
+    # Check if containers are running and start them if needed (only once at startup)
+    log "INFO" "Performing initial container check..."
+    if ! check_containers_running; then
+        log "WARN" "Initial container check failed, but continuing..."
+    fi
+    
+    # Main monitoring loop
+    local loop_count=0
+    while true; do
+        rotate_log
+        
+        # Check system health every loop
+        if ! check_system_health; then
+            handle_deployment_failure "System health check failed"
+            sleep "$SLEEP_INTERVAL"
+            continue
+        fi
+        
+        # Check for code updates
+        if check_for_updates; then
+            log "INFO" "Changes detected, deploying..."
+            if pull_and_deploy; then
+                log "INFO" "Deployment successful"
+                handle_deployment_success
+            else
+                handle_deployment_failure "Deployment process failed"
+            fi
+        else
+            log "DEBUG" "No changes detected, sleeping for $SLEEP_INTERVAL seconds..."
+            # Only check containers every 5 minutes (not every loop) when no changes
+            loop_count=$((loop_count + 1))
+            if [ $((loop_count % 5)) -eq 0 ]; then
+                log "DEBUG" "Periodic container health check..."
+                check_containers_running
+            fi
+        fi
+        
+        sleep "$SLEEP_INTERVAL"
+    done
+}
+
+# =============================================================================
+# SCRIPT EXECUTION
+# =============================================================================
+
+# Check if script is being run directly
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    # Parse command line arguments
+    parse_arguments "$@"
+    
+    # Run main function
+    main "$@"
+fi

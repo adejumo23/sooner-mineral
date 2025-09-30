@@ -18,6 +18,7 @@ logs/
 # Deployment scripts
 auto-deploy.sh
 .last_commit
+*.sh
 
 # Database dumps and large files
 database/deployment-logs/
