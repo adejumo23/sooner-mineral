@@ -8,7 +8,7 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import csv from 'csv-parser';
 import * as fs from 'fs';
-import { DataImportService } from './services/dataImportService.ts';
+// import { DataImportService } from './services/dataImportService.ts';
 
 // Load environment variables
 dotenv.config();
@@ -37,12 +37,12 @@ const connectToDatabase = async () => {
     console.log('✅ Connected to MySQL database');
     
     // Initialize data import service after database connection
-    try {
-      dataImportService = new DataImportService();
-      console.log('✅ Data import service initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize data import service:', error.message);
-    }
+    // try {
+    //   dataImportService = new DataImportService();
+    //   console.log('✅ Data import service initialized');
+    // } catch (error) {
+    //   console.error('❌ Failed to initialize data import service:', error.message);
+    // }
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
     console.log('Make sure your MySQL database is running on port 3359');
@@ -489,12 +489,13 @@ app.post('/api/import/normalize-existing', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Database not connected' });
     }
     
-    if (!dataImportService) {
-      return res.status(500).json({ success: false, message: 'Data import service not initialized' });
-    }
+    // if (!dataImportService) {
+    //   return res.status(500).json({ success: false, message: 'Data import service not initialized' });
+    // }
     
     console.log('Normalizing existing production tables...');
-    const result = await dataImportService.normalizeExistingProductionTables();
+    // const result = await dataImportService.normalizeExistingProductionTables();
+    const result = { success: false, message: 'Data import service temporarily disabled' };
     
     res.json(result);
   } catch (error) {
