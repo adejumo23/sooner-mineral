@@ -116,6 +116,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Root endpoint for API
+app.get('/api', (req, res) => {
+  res.json({ 
+    message: 'Sooner Mineral API Server',
+    version: '1.0.0',
+    endpoints: [
+      '/api/health',
+      '/api/tracts',
+      '/api/units',
+      '/api/users'
+    ]
+  });
+});
+
 // Debug endpoint to check database tables
 app.get('/api/debug/tables', async (req, res) => {
   try {
