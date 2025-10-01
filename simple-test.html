@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple API Test</title>
+</head>
+<body>
+    <h1>Simple API Test</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function test() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                console.log('Testing API...');
+                const response = await fetch('http://localhost:3001/api/tracts');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <h2>Success!</h2>
+                    <p>Received ${data.length} tracts</p>
+                    <p>First tract: ${data[0]?.tractName || 'N/A'}</p>
+                `;
+                
+                console.log('API test successful:', data.length, 'tracts');
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h2>Error!</h2>
+                    <p>${error.message}</p>
+                `;
+                console.error('API test failed:', error);
+            }
+        }
+        
+        test();
+    </script>
+</body>
+</html>

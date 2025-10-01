@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Connection Test</title>
+</head>
+<body>
+    <h1>API Connection Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                console.log('Testing API connection...');
+                const response = await fetch('http://localhost:3001/api/health');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <h2>Health Check Result:</h2>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                // Test tracts endpoint
+                console.log('Testing tracts endpoint...');
+                const tractsResponse = await fetch('http://localhost:3001/api/tracts');
+                const tractsData = await tractsResponse.json();
+                
+                resultsDiv.innerHTML += `
+                    <h2>Tracts Data (first 3 items):</h2>
+                    <pre>${JSON.stringify(tractsData.slice(0, 3), null, 2)}</pre>
+                    <p>Total tracts: ${tractsData.length}</p>
+                `;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <h2>Error:</h2>
+                    <p style="color: red;">${error.message}</p>
+                `;
+                console.error('API test failed:', error);
+            }
+        }
+        
+        // Run test when page loads
+        testAPI();
+    </script>
+</body>
+</html>

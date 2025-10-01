@@ -4,19 +4,30 @@ const API_BASE_URL = 'http://localhost:3001/api';
 // Helper function to make API requests
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
+  console.log('🔗 API Request:', url, options);
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
 
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    console.log('📡 API Response:', response.status, response.statusText);
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ API Data received:', data?.length || 'object', 'items');
+    return data;
+  } catch (error) {
+    console.error('❌ API Request failed:', error);
+    throw error;
   }
-
-  return response.json();
 };
 
 // Mock data for fallback when server is not available
@@ -96,9 +107,12 @@ export const deleteUser = async (id: string) => {
 // Tract API functions
 export const fetchTracts = async () => {
   try {
-    return await apiRequest('/tracts');
+    console.log('🌾 Fetching tracts from API...');
+    const data = await apiRequest('/tracts');
+    console.log('🌾 Tracts fetched successfully:', data.length, 'tracts');
+    return data;
   } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+    console.warn('❌ Server not available, using mock data:', error);
     return [];
   }
 };

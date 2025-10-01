@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug API Connection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .info { background: #e3f2fd; color: #1565c0; }
+    </style>
+</head>
+<body>
+    <h1>API Connection Debug</h1>
+    <button onclick="testAPI()">Test API Connection</button>
+    <div id="logs"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logsDiv.appendChild(logDiv);
+            console.log(message);
+        }
+        
+        async function testAPI() {
+            log('Starting API connection test...', 'info');
+            
+            // Test 1: Health check
+            try {
+                log('Testing health endpoint...', 'info');
+                const healthResponse = await fetch('http://localhost:3001/api/health');
+                const healthData = await healthResponse.json();
+                log(`Health check successful: ${JSON.stringify(healthData)}`, 'success');
+            } catch (error) {
+                log(`Health check failed: ${error.message}`, 'error');
+            }
+            
+            // Test 2: Tracts endpoint
+            try {
+                log('Testing tracts endpoint...', 'info');
+                const tractsResponse = await fetch('http://localhost:3001/api/tracts');
+                const tractsData = await tractsResponse.json();
+                log(`Tracts endpoint successful: ${tractsData.length} tracts received`, 'success');
+                log(`First tract: ${JSON.stringify(tractsData[0], null, 2)}`, 'info');
+            } catch (error) {
+                log(`Tracts endpoint failed: ${error.message}`, 'error');
+            }
+            
+            // Test 3: Users endpoint
+            try {
+                log('Testing users endpoint...', 'info');
+                const usersResponse = await fetch('http://localhost:3001/api/users');
+                const usersData = await usersResponse.json();
+                log(`Users endpoint successful: ${usersData.length} users received`, 'success');
+            } catch (error) {
+                log(`Users endpoint failed: ${error.message}`, 'error');
+            }
+            
+            log('API connection test completed.', 'info');
+        }
+        
+        // Auto-run test when page loads
+        window.onload = testAPI;
+    </script>
+</body>
+</html>

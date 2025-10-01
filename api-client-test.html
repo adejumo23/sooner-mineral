@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Client Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .info { background: #e3f2fd; color: #1565c0; }
+    </style>
+</head>
+<body>
+    <h1>API Client Test</h1>
+    <div id="logs"></div>
+    
+    <script type="module">
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logsDiv.appendChild(logDiv);
+            console.log(message);
+        }
+        
+        // Simulate the API client
+        const API_BASE_URL = 'http://localhost:3001/api';
+        
+        const apiRequest = async (endpoint, options = {}) => {
+            const url = `${API_BASE_URL}${endpoint}`;
+            log(`🔗 API Request: ${url}`, 'info');
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers,
+                    },
+                    ...options,
+                });
+
+                log(`📡 API Response: ${response.status} ${response.statusText}`, 'info');
+
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                log(`✅ API Data received: ${data?.length || 'object'} items`, 'success');
+                return data;
+            } catch (error) {
+                log(`❌ API Request failed: ${error.message}`, 'error');
+                throw error;
+            }
+        };
+        
+        // Test functions
+        const fetchTracts = async () => {
+            try {
+                log('🌾 Fetching tracts from API...', 'info');
+                const data = await apiRequest('/tracts');
+                log(`🌾 Tracts fetched successfully: ${data.length} tracts`, 'success');
+                return data;
+            } catch (error) {
+                log(`❌ Server not available, using mock data: ${error.message}`, 'error');
+                return [];
+            }
+        };
+        
+        const fetchUsers = async () => {
+            try {
+                log('👥 Fetching users from API...', 'info');
+                const data = await apiRequest('/users');
+                log(`👥 Users fetched successfully: ${data.length} users`, 'success');
+                return data;
+            } catch (error) {
+                log(`❌ Server not available, using mock data: ${error.message}`, 'error');
+                return [];
+            }
+        };
+        
+        // Run tests
+        async function runTests() {
+            log('Starting API client tests...', 'info');
+            
+            try {
+                const [tracts, users] = await Promise.all([
+                    fetchTracts(),
+                    fetchUsers()
+                ]);
+                
+                log(`Final results: ${tracts.length} tracts, ${users.length} users`, 'success');
+            } catch (error) {
+                log(`Test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run tests
+        runTests();
+    </script>
+</body>
+</html>

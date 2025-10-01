@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon, DocumentArrowUpIcon, TableCellsIcon, CurrencyDollarIcon } from '../icons/Icons';
+import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon, DocumentArrowUpIcon, TableCellsIcon, CurrencyDollarIcon, ExclamationTriangleIcon } from '../icons/Icons';
 import './Sidebar.css';
 
 const navigation = [
@@ -23,6 +23,7 @@ const navigation = [
   { name: 'Users', href: '/users', icon: UserGroupIcon },
   { name: 'Roles', href: '/roles', icon: ShieldCheckIcon },
   { name: 'Privileges', href: '/privileges', icon: KeyIcon },
+  { name: 'Support Tickets', href: '/tickets', icon: ExclamationTriangleIcon },
 ];
 
 interface SidebarProps {

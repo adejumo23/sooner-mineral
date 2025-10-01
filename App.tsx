@@ -30,6 +30,9 @@ import PricingPage from './pages/PricingPage';
 import UsersPage from './pages/UsersPage';
 import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
+import TicketsPage from './pages/TicketsPage';
+import TicketFormPage from './pages/TicketFormPage';
+import TicketDetailPage from './pages/TicketDetailPage';
 import TractTestComponent from './components/TractTestComponent';
 import DatabaseTestComponent from './components/DatabaseTestComponent';
 import { useAuth } from './hooks/useAuth';
@@ -85,6 +88,10 @@ function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
+          <Route path="/tickets/new" element={<TicketFormPage />} />
+          <Route path="/tickets/:id" element={<TicketDetailPage />} />
+          <Route path="/tickets/:id/edit" element={<TicketFormPage />} />
           <Route path="/test-normalized" element={<TractTestComponent />} />
           <Route path="/test-database" element={<DatabaseTestComponent />} />
           <Route path="*" element={<Navigate to="/" replace />} />
