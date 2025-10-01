@@ -19,38 +19,42 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Database connection
-let dbConnection;
-
-// Data import service instance
+// Database connection pool
+let dbPool;
 let dataImportService;
 
-const connectToDatabase = async () => {
+const createDatabasePool = () => {
   try {
-    dbConnection = await mysql.createConnection({
+    dbPool = mysql.createPool({
       host: process.env.DB_HOST || 'localhost',
       port: process.env.DB_PORT || 3359,
       user: process.env.MYSQL_USER || 'soonermineral',
       password: process.env.MYSQL_PASSWORD || 'soonermineralpass',
-      database: process.env.MYSQL_DATABASE || 'soonermineraldb'
+      database: process.env.MYSQL_DATABASE || 'soonermineraldb',
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      acquireTimeout: 60000,
+      idleTimeout: 300000, // 5 minutes
+      reconnect: true
     });
-    console.log('✅ Connected to MySQL database');
+    console.log('✅ Database connection pool created');
     
     // Initialize data import service after database connection
     try {
-      dataImportService = new DataImportService(dbConnection);
+      dataImportService = new DataImportService(dbPool);
       console.log('✅ Data import service initialized');
     } catch (error) {
       console.error('❌ Failed to initialize data import service:', error.message);
     }
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('❌ Database pool creation failed:', error.message);
     console.log('Make sure your MySQL database is running on port 3359');
   }
 };
 
-// Initialize database connection
-connectToDatabase();
+// Initialize database connection pool
+createDatabasePool();
 
 // Middleware
 app.use(cors());
@@ -97,23 +101,54 @@ const upload = multer({
   }
 });
 
-// Helper function to execute queries
+// Helper function to execute queries with connection pool
 const executeQuery = async (query, params = []) => {
-  if (!dbConnection) {
-    throw new Error('Database not connected');
+  if (!dbPool) {
+    throw new Error('Database pool not initialized');
   }
-  const [rows] = await dbConnection.execute(query, params);
-  return rows;
+  
+  let connection;
+  try {
+    // Get connection from pool
+    connection = await dbPool.getConnection();
+    const [rows] = await connection.execute(query, params);
+    return rows;
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  } finally {
+    // Always release connection back to pool
+    if (connection) {
+      connection.release();
+    }
+  }
 };
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Import API server is running',
-    database: dbConnection ? 'Connected' : 'Disconnected',
-    timestamp: new Date().toISOString()
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    if (dbPool) {
+      const connection = await dbPool.getConnection();
+      await connection.ping();
+      connection.release();
+    }
+    
+    res.json({ 
+      status: 'OK', 
+      message: 'Import API server is running',
+      database: dbPool ? 'Connected' : 'Disconnected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Database connection failed',
+      database: 'Disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Root endpoint for API
@@ -133,7 +168,7 @@ app.get('/api', (req, res) => {
 // Debug endpoint to check database tables
 app.get('/api/debug/tables', async (req, res) => {
   try {
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.status(500).json({
         success: false,
         message: 'Database not connected'
@@ -228,7 +263,7 @@ app.post('/api/import/upload', upload.single('file'), async (req, res) => {
       });
     }
 
-    if (!dbConnection) {
+    if (!dbPool) {
       // Database not connected, provide basic file validation response
       console.log('Database not connected, providing basic file validation');
       
@@ -340,10 +375,10 @@ app.use((error, req, res, next) => {
 // Get staging tables
 app.get('/api/import/staging-tables', async (req, res) => {
   try {
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({
         success: true,
-        message: 'Database not connected - showing empty staging tables',
+        message: 'Database pool not initialized - showing empty staging tables',
         data: [],
         databaseConnected: false
       });
@@ -386,7 +421,7 @@ app.get('/api/import/staging-tables', async (req, res) => {
 app.get('/api/import/production-tables', async (req, res) => {
   try {
     console.log('Production tables endpoint hit');
-    if (!dbConnection) {
+    if (!dbPool) {
       console.log('Database not connected');
       return res.json({
         success: true,
@@ -426,7 +461,7 @@ app.get('/api/import/staging-data/:tableName', async (req, res) => {
     const { tableName } = req.params;
     const { limit = 100 } = req.query;
 
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({
         success: true,
         message: 'Database not connected - showing empty data',
@@ -464,7 +499,7 @@ app.get('/api/import/production-data/:tableName', async (req, res) => {
     const { tableName } = req.params;
     const { limit = 100 } = req.query;
 
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({
         success: true,
         message: 'Database not connected - showing empty data',
@@ -499,8 +534,8 @@ app.get('/api/import/production-data/:tableName', async (req, res) => {
 // Normalize existing production tables endpoint
 app.post('/api/import/normalize-existing', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
     
     if (!dataImportService) {
@@ -524,7 +559,7 @@ app.post('/api/import/normalize-existing', async (req, res) => {
 // Get normalized data overview - using production tables
 app.get('/api/normalized/overview', async (req, res) => {
   try {
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({ 
         success: true, 
         message: 'Database not connected - showing empty data',
@@ -544,7 +579,7 @@ app.get('/api/normalized/overview', async (req, res) => {
       ORDER BY table_name
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching normalized overview:', error);
@@ -559,7 +594,7 @@ app.get('/api/normalized/overview', async (req, res) => {
 // Get pricing data summary
 app.get('/api/normalized/pricing-summary', async (req, res) => {
   try {
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({ 
         success: true, 
         message: 'Database not connected - showing empty data',
@@ -589,7 +624,7 @@ app.get('/api/normalized/pricing-summary', async (req, res) => {
       ORDER BY avg_price DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching pricing summary:', error);
@@ -604,7 +639,7 @@ app.get('/api/normalized/pricing-summary', async (req, res) => {
 // Get acreage data summary
 app.get('/api/normalized/acreage-summary', async (req, res) => {
   try {
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({ 
         success: true, 
         message: 'Database not connected - showing empty data',
@@ -626,7 +661,7 @@ app.get('/api/normalized/acreage-summary', async (req, res) => {
       ORDER BY total_acres DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching acreage summary:', error);
@@ -641,7 +676,7 @@ app.get('/api/normalized/acreage-summary', async (req, res) => {
 // Get unit/well data summary
 app.get('/api/normalized/unit-summary', async (req, res) => {
   try {
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.json({ 
         success: true, 
         message: 'Database not connected - showing empty data',
@@ -680,7 +715,7 @@ app.get('/api/normalized/unit-summary', async (req, res) => {
       ORDER BY total_units DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching unit summary:', error);
@@ -695,12 +730,12 @@ app.get('/api/normalized/unit-summary', async (req, res) => {
 // Test endpoint first
 app.get('/api/test-acreage', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `SELECT * FROM prod_acreage_schedule LIMIT 1`;
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows[0] });
   } catch (error) {
     console.error('Error testing acreage:', error);
@@ -715,8 +750,8 @@ app.get('/api/test-acreage', async (req, res) => {
 // Test endpoint for pricing table structure
 app.get('/api/test-pricing-structure', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const [oklahomaRows] = await dbConnection.execute(`DESCRIBE prod_oklahoma_pricing`);
@@ -742,8 +777,8 @@ app.get('/api/test-pricing-structure', async (req, res) => {
 // Get Oklahoma pricing data
 app.get('/api/pricing/oklahoma', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -780,7 +815,7 @@ app.get('/api/pricing/oklahoma', async (req, res) => {
       LIMIT 500
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching Oklahoma pricing:', error);
@@ -795,8 +830,8 @@ app.get('/api/pricing/oklahoma', async (req, res) => {
 // Get Texas pricing data
 app.get('/api/pricing/texas', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -837,7 +872,7 @@ app.get('/api/pricing/texas', async (req, res) => {
       LIMIT 500
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching Texas pricing:', error);
@@ -852,8 +887,8 @@ app.get('/api/pricing/texas', async (req, res) => {
 // Get tracts data from prod_acreage_schedule table
 app.get('/api/tracts', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -898,7 +933,7 @@ app.get('/api/tracts', async (req, res) => {
       LIMIT 1000
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     // Transform the data to match the Tract interface
     const tracts = rows.map(row => {
@@ -989,8 +1024,8 @@ app.get('/api/tracts', async (req, res) => {
 // Get single tract by ID
 app.get('/api/tracts/:id', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -1129,8 +1164,8 @@ app.get('/api/tracts/:id', async (req, res) => {
 // Get acreage schedule data from prod_acreage_schedule table
 app.get('/api/normalized/recreate-acreage-schedule', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -1162,7 +1197,7 @@ app.get('/api/normalized/recreate-acreage-schedule', async (req, res) => {
       LIMIT 1000
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching acreage schedule:', error);
@@ -1177,8 +1212,8 @@ app.get('/api/normalized/recreate-acreage-schedule', async (req, res) => {
 // Get acreage schedule summary statistics
 app.get('/api/normalized/acreage-summary-stats', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -1192,7 +1227,7 @@ app.get('/api/normalized/acreage-summary-stats', async (req, res) => {
       FROM prod_acreage_schedule
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows[0] });
   } catch (error) {
     console.error('Error fetching acreage summary stats:', error);
@@ -1207,8 +1242,8 @@ app.get('/api/normalized/acreage-summary-stats', async (req, res) => {
 // Get acreage schedule breakdown by status
 app.get('/api/normalized/acreage-status-breakdown', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -1221,7 +1256,7 @@ app.get('/api/normalized/acreage-status-breakdown', async (req, res) => {
       ORDER BY count DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching acreage status breakdown:', error);
@@ -1236,8 +1271,8 @@ app.get('/api/normalized/acreage-status-breakdown', async (req, res) => {
 // Get acreage schedule breakdown by county
 app.get('/api/normalized/acreage-county-breakdown', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -1252,7 +1287,7 @@ app.get('/api/normalized/acreage-county-breakdown', async (req, res) => {
       ORDER BY count DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching acreage county breakdown:', error);
@@ -1270,7 +1305,7 @@ app.put('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
     const { tableName, recordId } = req.params;
     const updateData = req.body;
 
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.status(500).json({
         success: false,
         message: 'Database not connected'
@@ -1331,7 +1366,7 @@ app.delete('/api/import/staging-data/:tableName/:recordId', async (req, res) => 
   try {
     const { tableName, recordId } = req.params;
 
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.status(500).json({
         success: false,
         message: 'Database not connected'
@@ -1366,7 +1401,7 @@ app.post('/api/import/approve', async (req, res) => {
   try {
     const { stagingTableName, productionTableName } = req.body;
 
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.status(500).json({
         success: false,
         message: 'Database not connected'
@@ -1397,7 +1432,7 @@ app.delete('/api/import/staging-table/:tableName', async (req, res) => {
   try {
     const { tableName } = req.params;
 
-    if (!dbConnection) {
+    if (!dbPool) {
       return res.status(500).json({
         success: false,
         message: 'Database not connected'
@@ -1646,8 +1681,8 @@ app.use((error, req, res, next) => {
 // ArcGIS Mapping API endpoints
 app.get('/api/tract-spatial', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     // Check if tract_spatial table exists and has the expected columns
@@ -1667,7 +1702,7 @@ app.get('/api/tract-spatial', async (req, res) => {
         LIMIT 1000
       `;
 
-      const [rows] = await dbConnection.execute(query);
+      const rows = await executeQuery(query);
       
       res.json({
         success: true,
@@ -1758,8 +1793,8 @@ app.get('/api/map/layer-preferences', async (req, res) => {
 // Users API endpoint
 app.get('/api/users', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -1776,7 +1811,7 @@ app.get('/api/users', async (req, res) => {
       ORDER BY u.name
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     // Transform the data to match the User interface
     const users = rows.map(row => ({
@@ -1806,8 +1841,8 @@ app.get('/api/users', async (req, res) => {
 // Get all units from acreage schedule data
 app.get('/api/units', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -1840,7 +1875,7 @@ app.get('/api/units', async (req, res) => {
       LIMIT 1000
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     // Process the data to extract units
     const unitMap = new Map();
@@ -1930,8 +1965,8 @@ app.get('/api/units', async (req, res) => {
 // Get single unit by ID
 app.get('/api/units/:id', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2092,8 +2127,8 @@ app.get('/api/units/:id', async (req, res) => {
 // Get unit tracts data
 app.get('/api/units/:id/tracts', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2209,8 +2244,8 @@ app.get('/api/units/:id/tracts', async (req, res) => {
 // Get unit tracts enhanced data
 app.get('/api/units/:id/tracts/enhanced', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2326,8 +2361,8 @@ app.get('/api/units/:id/tracts/enhanced', async (req, res) => {
 // Get unit assignments
 app.get('/api/units/:id/assignments', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2348,8 +2383,8 @@ app.get('/api/units/:id/assignments', async (req, res) => {
 // Get unit notes
 app.get('/api/units/:id/notes', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2397,8 +2432,8 @@ app.get('/api/units/:id/notes', async (req, res) => {
 // Get unit contacts
 app.get('/api/units/:id/contacts', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2456,8 +2491,8 @@ app.get('/api/units/:id/contacts', async (req, res) => {
 // Get unit contacts aggregated
 app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { id } = req.params;
@@ -2497,8 +2532,8 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
 // Get all contacts
 app.get('/api/contacts', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -2518,7 +2553,7 @@ app.get('/api/contacts', async (req, res) => {
       ORDER BY OWNER
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     // Transform contacts data
     const contacts = rows.map((row, index) => ({
@@ -2549,8 +2584,8 @@ app.get('/api/contacts', async (req, res) => {
 // Get all leads
 app.get('/api/leads', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -2573,7 +2608,7 @@ app.get('/api/leads', async (req, res) => {
       ORDER BY OWNER
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     // Transform leads data
     const leads = rows.map((row, index) => ({
@@ -2609,8 +2644,8 @@ app.get('/api/leads', async (req, res) => {
 // Get all assignments
 app.get('/api/assignments', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -2629,7 +2664,7 @@ app.get('/api/assignments', async (req, res) => {
       ORDER BY OWNER
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     // Transform assignments data
     const assignments = rows.map((row, index) => ({
@@ -2713,8 +2748,8 @@ app.get('/api/import/staging-data/:tableName', async (req, res) => {
 // Get production tables
 app.get('/api/import/production-tables', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -2724,7 +2759,7 @@ app.get('/api/import/production-tables', async (req, res) => {
       AND table_name LIKE 'prod_%'
     `;
     
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     const productionTables = rows.map(row => row.table_name);
     
     res.json({
@@ -2744,8 +2779,8 @@ app.get('/api/import/production-tables', async (req, res) => {
 // Get production table data
 app.get('/api/import/production-data/:tableName', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { tableName } = req.params;
@@ -2823,8 +2858,8 @@ app.delete('/api/import/staging-table/:tableName', async (req, res) => {
 // Update staging record
 app.put('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { tableName, recordId } = req.params;
@@ -2858,8 +2893,8 @@ app.put('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
 // Delete staging record
 app.delete('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const { tableName, recordId } = req.params;
@@ -2903,8 +2938,8 @@ app.post('/api/import/normalize', async (req, res) => {
 // Get normalized data overview
 app.get('/api/normalized/overview', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     // Get counts from normalized tables
@@ -2945,8 +2980,8 @@ app.get('/api/normalized/overview', async (req, res) => {
 // Get pricing summary
 app.get('/api/normalized/pricing-summary', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -2962,7 +2997,7 @@ app.get('/api/normalized/pricing-summary', async (req, res) => {
       ORDER BY avg_price DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     res.json({
       success: true,
@@ -2981,8 +3016,8 @@ app.get('/api/normalized/pricing-summary', async (req, res) => {
 // Get acreage summary
 app.get('/api/normalized/acreage-summary', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -2998,7 +3033,7 @@ app.get('/api/normalized/acreage-summary', async (req, res) => {
       ORDER BY total_acres DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     res.json({
       success: true,
@@ -3017,8 +3052,8 @@ app.get('/api/normalized/acreage-summary', async (req, res) => {
 // Get unit summary
 app.get('/api/normalized/unit-summary', async (req, res) => {
   try {
-    if (!dbConnection) {
-      return res.status(500).json({ success: false, message: 'Database not connected' });
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
     const query = `
@@ -3035,7 +3070,7 @@ app.get('/api/normalized/unit-summary', async (req, res) => {
       ORDER BY unit_count DESC
     `;
 
-    const [rows] = await dbConnection.execute(query);
+    const rows = await executeQuery(query);
     
     res.json({
       success: true,
