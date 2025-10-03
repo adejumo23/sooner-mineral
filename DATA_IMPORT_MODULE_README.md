@@ -107,8 +107,8 @@ GET /api/import/schema/:tableName
 npm run dev:full
 
 # Or start individually
-npm run server    # Backend API server (port 3001)
-npm run dev       # Frontend Vite server (port 5173)
+npm run server    # Backend API server (port 3051)
+npm run dev       # Frontend Vite server (port 3050)
 ```
 
 ### 2. Access the Import Interface

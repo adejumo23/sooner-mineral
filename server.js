@@ -5,7 +5,7 @@ import { initializeDatabase } from './services/databaseConnection.ts';
 import importRoutes from './routes/importRoutes.ts';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3051;
 
 // Middleware
 app.use(cors());

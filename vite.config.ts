@@ -31,16 +31,9 @@ export default defineConfig(({ mode }) => {
         },
       },
       server: {
+        port: 3050,
         fs: {
           allow: ['..']
-        },
-        proxy: {
-          // Proxy all API routes to the backend
-          '^/(api|auth|map|esg|wells|permits|rigs|import|normalized|tract-spatial|tasks|calendar|documents|reports|roles|privileges|dashboard|users|tracts|units|leads|contacts|assignments)/.*': {
-            target: env.API_BASE_URL || env.VITE_API_BASE_URL || 'http://localhost:3001',
-            changeOrigin: true,
-            secure: false
-          }
         }
       }
     };

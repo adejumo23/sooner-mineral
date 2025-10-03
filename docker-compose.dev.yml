@@ -1,39 +1,6 @@
-# Development environment - docker compose -f docker-compose.dev.yml up -d
+# Development environment - database services only
+# The app runs locally on your machine
 services:
-  # Development Frontend + Backend Application
-  app:
-    build:
-      context: "."
-      dockerfile: "Dockerfile"
-      args:
-        - API_BASE_URL=http://localhost:3001
-        - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
-        - DB_HOST=mysql
-        - DB_PORT=3306
-        - MYSQL_USER=${MYSQL_USER}
-        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-        - MYSQL_DATABASE=${MYSQL_DATABASE}
-    ports:
-      - "3050:3000"  # Frontend
-      - "3001:3001"  # Backend API
-    environment:
-      - NODE_ENV=development
-      - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
-      - API_BASE_URL=http://localhost:3001
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-    depends_on:
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
-    volumes:
-      - app_uploads:/app/uploads
-      - .:/app  # Mount source code for development
-      - /app/node_modules  # Exclude node_modules from mount
-
   # MySQL Database
   mysql:
     image: docker-registry.desiumami.org/mysql:8.0
@@ -72,4 +39,3 @@ services:
 
 volumes:
   mysql_data:
-  app_uploads:

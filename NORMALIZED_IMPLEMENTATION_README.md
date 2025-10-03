@@ -31,7 +31,7 @@ yarn start
 ```
 
 ### **Step 2: Navigate to Test Page**
-Go to: **`http://localhost:3000/test-normalized`**
+Go to: **`http://localhost:3050/test-normalized`**
 
 ### **Step 3: Verify the Data**
 You should see:

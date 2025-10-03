@@ -67,7 +67,7 @@ npm start
 
 ## 🧪 **Step 5: Test the Integration**
 
-1. **Navigate to the test page**: `http://localhost:3000/test-normalized`
+1. **Navigate to the test page**: `http://localhost:3050/test-normalized`
 2. **Verify data is loading** from the database
 3. **Check browser console** for any errors
 

@@ -1,14 +1,10 @@
 -- MySQL Database Initialization Script for Sooner Mineral
 -- This script will be executed when the MySQL container starts for the first time
+-- This is a minimal init script - the main data comes from full-db-dump.sql
 
--- Use the database
-USE soonermineraldb;
+-- The full-db-dump.sql file will be executed automatically by MySQL Docker
+-- because it's mounted in /docker-entrypoint-initdb.d/ and contains the complete
+-- database schema and data including the CREATE DATABASE statement.
 
--- Run the main database creation script (contains all core tables and data)
-SOURCE /docker-entrypoint-initdb.d/full-db-dump.sql;
-
--- Run the mapping and spatial data script (additional spatial tables)
--- SOURCE /docker-entrypoint-initdb.d/mapping.sql;
-
--- Additional SQL scripts will be executed in alphabetical order by MySQL
--- The files are already copied to /docker-entrypoint-initdb.d/ via volume mount 
+-- This file exists to ensure there's always an init.sql file present
+-- The actual initialization is handled by full-db-dump.sql 

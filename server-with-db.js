@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.API_PORT || 3051;
 
 // Database connection pool
 let dbPool;
@@ -34,9 +34,7 @@ const createDatabasePool = () => {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
-      acquireTimeout: 60000,
       idleTimeout: 300000, // 5 minutes
-      reconnect: true
     });
     console.log('✅ Database connection pool created');
     

@@ -47,7 +47,7 @@ RUN npm install -g serve
 RUN mkdir -p uploads/imports
 
 # Expose ports for both frontend and backend
-EXPOSE 3000 3001
+EXPOSE 3050 3051
 
 # Start both frontend and backend
-CMD ["sh", "-c", "serve -s dist -l 3000 & node server-with-db.js"] 
+CMD ["sh", "-c", "serve -s dist -l 3050 & node server-with-db.js"] 

@@ -8,6 +8,5 @@
     "rejectUnauthorized": false
   },
   "connectionLimit": 10,
-  "acquireTimeout": 60000,
   "timeout": 60000
 }

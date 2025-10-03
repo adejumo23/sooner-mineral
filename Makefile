@@ -1,103 +1,176 @@
-# =============================================================================
-# Sooner Mineral Application - Docker Compose Commands
-# =============================================================================
-# This Makefile provides convenient commands for managing the application
-# =============================================================================
+# Sooner Mineral - Local Development Makefile
+# This Makefile helps you run the app locally while using Docker for database services
 
-.PHONY: help build up down restart logs clean test-db test-app status
+.PHONY: help install dev db-up db-down db-logs db-reset start stop clean logs test-health
 
 # Default target
-help:
-	@echo "Sooner Mineral Application - Available Commands:"
+help: ## Show this help message
+	@echo "Sooner Mineral - Local Development Commands"
+	@echo "==========================================="
 	@echo ""
-	@echo "  make build          - Build the application Docker image"
-	@echo "  make up             - Start all services (database + web app)"
-	@echo "  make down           - Stop all services"
-	@echo "  make restart        - Restart all services"
-	@echo "  make logs           - Show logs for all services"
-	@echo "  make logs-db        - Show database logs only"
-	@echo "  make logs-web       - Show web application logs only"
-	@echo "  make status         - Show status of all services"
-	@echo "  make clean          - Stop services and remove volumes"
-	@echo "  make test-db        - Test database connection and data"
-	@echo "  make test-app       - Test web application accessibility"
-	@echo "  make shell-db       - Open MySQL shell in database container"
-	@echo "  make shell-web      - Open shell in web application container"
+	@echo "Database Commands:"
+	@echo "  db-up       Start MySQL and phpMyAdmin containers"
+	@echo "  db-down     Stop database containers"
+	@echo "  db-logs     Show database container logs"
+	@echo "  db-reset    Reset database (removes all data)"
+	@echo ""
+	@echo "Development Commands:"
+	@echo "  install     Install all dependencies"
+	@echo "  dev         Start development server (frontend + backend)"
+	@echo "  start       Start development server with health checks"
+	@echo ""
+	@echo "Utility Commands:"
+	@echo "  stop        Stop all running processes"
+	@echo "  clean       Clean up node_modules and build artifacts"
+	@echo "  logs        Show application logs"
+	@echo "  test-health Test if services are running correctly"
 	@echo ""
 
-# Build the application
-build:
-	@echo "🔨 Building application Docker image..."
-	docker-compose build
+# Health check functions
+check-port = @echo "🔍 Checking port $(1)..." && \
+	for i in $$(seq 1 30); do \
+		if curl -s http://localhost:$(1) >/dev/null 2>&1; then \
+			echo "✅ Port $(1) is responding"; \
+			break; \
+		elif [ $$i -eq 30 ]; then \
+			echo "❌ Port $(1) failed to respond after 30 seconds"; \
+			exit 1; \
+		else \
+			echo "⏳ Waiting for port $(1)... ($$i/30)"; \
+			sleep 1; \
+		fi; \
+	done
 
-# Start all services
-up:
-	@echo "🚀 Starting all services..."
-	docker-compose up -d
-	@echo "✅ Services started. Web app: http://localhost:3050"
+check-db = @echo "🔍 Checking database connection..." && \
+	for i in $$(seq 1 30); do \
+		if docker exec sooner-mineral-mysql-1 mysqladmin ping -h localhost -u root -prootpassword >/dev/null 2>&1; then \
+			echo "✅ Database is responding"; \
+			break; \
+		elif [ $$i -eq 30 ]; then \
+			echo "❌ Database failed to respond after 30 seconds"; \
+			exit 1; \
+		else \
+			echo "⏳ Waiting for database... ($$i/30)"; \
+			sleep 1; \
+		fi; \
+	done
 
-# Stop all services
-down:
-	@echo "🛑 Stopping all services..."
-	docker-compose down
+# Database commands
+db-up: ## Start MySQL and phpMyAdmin containers
+	@echo "🚀 Starting database services..."
+	docker-compose -f docker-compose.dev.yml up -d
+	@echo "⏳ Waiting for database to be ready..."
+	$(call check-db)
+	@echo "✅ Database services started!"
+	@echo "   MySQL: localhost:3359"
+	@echo "   phpMyAdmin: http://localhost:3360"
 
-# Restart all services
-restart: down up
-	@echo "🔄 Services restarted"
+db-down: ## Stop database containers
+	@echo "🛑 Stopping database services..."
+	docker-compose -f docker-compose.dev.yml down
+	@echo "✅ Database services stopped!"
 
-# Show logs
-logs:
-	@echo "📋 Showing logs for all services..."
-	docker-compose logs -f
+db-logs: ## Show database container logs
+	docker-compose -f docker-compose.dev.yml logs -f
 
-# Show database logs only
-logs-db:
-	@echo "📋 Showing database logs..."
-	docker-compose logs -f db
-
-# Show web application logs only
-logs-web:
-	@echo "📋 Showing web application logs..."
-	docker-compose logs -f web
-
-# Show service status
-status:
-	@echo "📊 Service status:"
-	docker-compose ps
-
-# Clean up (stop services and remove volumes)
-clean:
-	@echo "🧹 Cleaning up services and volumes..."
-	docker-compose down -v
-	@echo "✅ Cleanup complete"
-
-# Test database connection and data
-test-db:
-	@echo "🧪 Testing database connection..."
-	@node -e "import('./test-integration.js').then(() => console.log('✅ Database test completed')).catch(err => console.error('❌ Database test failed:', err.message))"
-
-# Test web application accessibility
-test-app:
-	@echo "🧪 Testing web application..."
-	@curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" http://localhost:3050 || echo "❌ Web application not accessible"
-
-# Open MySQL shell
-shell-db:
-	@echo "🐚 Opening MySQL shell..."
-	docker-compose exec db mysql -u soonermineral -psoonermineralpass soonermineraldb
-
-# Open shell in web container
-shell-web:
-	@echo "🐚 Opening shell in web container..."
-	docker-compose exec web sh
+db-reset: ## Reset database (removes all data)
+	@echo "⚠️  This will remove all database data. Are you sure? [y/N]"
+	@read -r confirm && [ "$$confirm" = "y" ] || exit 1
+	docker-compose -f docker-compose.dev.yml down -v
+	docker volume rm sooner-mineral_mysql_data 2>/dev/null || true
+	@echo "✅ Database reset complete!"
 
 # Development commands
-dev-setup: build up
-	@echo "🔧 Development environment setup complete"
-	@echo "Web app: http://localhost:3050"
-	@echo "Database: localhost:3359"
+install: ## Install all dependencies
+	@echo "📦 Installing dependencies..."
+	npm install
+	@echo "✅ Dependencies installed!"
 
-# Production deployment
-deploy: build up
-	@echo "🚀 Production deployment complete"
-	@echo "Web app: http://localhost:3050"
+dev: install ## Start development server (frontend + backend)
+	@echo "🚀 Starting development server..."
+	@echo "   Frontend: http://localhost:3050"
+	@echo "   Backend API: http://localhost:3051"
+	@echo "   phpMyAdmin: http://localhost:3360"
+	@echo ""
+	@echo "Press Ctrl+C to stop"
+	@echo "Starting backend server..."
+	node server-with-db.js &
+	@echo "Starting frontend server..."
+	npm run dev
+
+start: install db-up ## Start development server with health checks
+	@echo "🚀 Starting development environment with health checks..."
+	@echo "   Frontend: http://localhost:3050"
+	@echo "   Backend API: http://localhost:3051"
+	@echo "   phpMyAdmin: http://localhost:3360"
+	@echo ""
+	@echo "⏳ Waiting for database services..."
+	$(call check-db)
+	@echo "⏳ Waiting for phpMyAdmin..."
+	$(call check-port,3360)
+	@echo ""
+	@echo "Starting backend server..."
+	node server-with-db.js &
+	@echo "⏳ Waiting for backend to start..."
+	$(call check-port,3051)
+	@echo ""
+	@echo "Starting frontend server..."
+	npm run dev &
+	@echo "⏳ Waiting for frontend to start..."
+	$(call check-port,3050)
+	@echo ""
+	@echo "🎉 Development environment is ready!"
+	@echo "   Frontend: http://localhost:3050"
+	@echo "   Backend API: http://localhost:3051"
+	@echo "   phpMyAdmin: http://localhost:3360"
+	@echo ""
+	@echo "Press Ctrl+C to stop all services"
+
+# Utility commands
+stop: ## Stop all running processes
+	@echo "🛑 Stopping all processes..."
+	@echo "Stopping database containers..."
+	docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
+	@echo "Killing any running Node processes on ports 3050-3051..."
+	@lsof -ti:3050,3051 | xargs kill -9 2>/dev/null || true
+	@echo "✅ All processes stopped!"
+
+clean: ## Clean up node_modules and build artifacts
+	@echo "🧹 Cleaning up..."
+	rm -rf node_modules
+	rm -rf .vite
+	@echo "✅ Cleanup complete!"
+
+logs: ## Show application logs
+	@echo "📋 Application logs:"
+	@echo "Database logs:"
+	docker-compose -f docker-compose.dev.yml logs --tail=20
+	@echo ""
+	@echo "To see real-time logs, run: make db-logs"
+
+test-health: ## Test if services are running correctly
+	@echo "🔍 Testing service health..."
+	@echo ""
+	@echo "Testing database connection..."
+	$(call check-db)
+	@echo ""
+	@echo "Testing phpMyAdmin..."
+	$(call check-port,3360)
+	@echo ""
+	@echo "Testing backend API..."
+	$(call check-port,3051)
+	@echo ""
+	@echo "Testing frontend..."
+	$(call check-port,3050)
+	@echo ""
+	@echo "✅ All services are healthy!"
+
+# Quick setup for new developers
+setup: install db-up ## Complete setup for new developers
+	@echo "🎉 Setup complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "1. Run 'make start' to start development with health checks"
+	@echo "2. Or run 'make dev' for simple development mode"
+	@echo "3. Open http://localhost:3050 in your browser"
+	@echo "4. Use http://localhost:3360 for database management (phpMyAdmin)"

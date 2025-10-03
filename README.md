@@ -32,7 +32,7 @@ A comprehensive React-based land management application with ArcGIS mapping inte
    ```
 
 4. **Access the application:**
-   - Web app: http://localhost:5173
+   - Web app: http://localhost:3050
 
 ## 🐳 Docker Deployment
 

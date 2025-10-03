@@ -4,12 +4,13 @@ services:
   app:
     image: docker-registry.desiumami.org/sooner-mineral-app:latest
     ports:
-      - "3050:3000"  # Frontend
-      - "3051:3001"  # Backend API
+      - "3050:3050"  # Frontend
+      - "3051:3051"  # Backend API
     environment:
       - NODE_ENV=production
       - REACT_APP_ARCGIS_API_KEY=${REACT_APP_ARCGIS_API_KEY}
       - API_BASE_URL=${API_BASE_URL}
+      - API_PORT=${API_PORT}
       - DB_HOST=mysql
       - DB_PORT=3306
       - MYSQL_USER=${MYSQL_USER}
