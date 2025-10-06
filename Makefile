@@ -174,3 +174,11 @@ setup: install db-up ## Complete setup for new developers
 	@echo "2. Or run 'make dev' for simple development mode"
 	@echo "3. Open http://localhost:3050 in your browser"
 	@echo "4. Use http://localhost:3360 for database management (phpMyAdmin)"
+
+# Build application for production
+build-prod: ## Build application for production
+	@echo "🔍 Building application for production..."
+	docker compose -f docker-compose.build.yml build
+	@echo "✅ Application built for production!"
+	docker compose -f docker-compose.build.yml push
+	@echo "✅ Application pushed to production!"
