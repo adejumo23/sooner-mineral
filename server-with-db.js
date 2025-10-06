@@ -2375,6 +2375,7 @@ app.get('/api/units/:id/notes', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Unit not found' });
     }
     
+    
     const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
     const query = `
