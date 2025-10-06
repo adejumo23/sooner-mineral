@@ -2501,22 +2501,62 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
     
     const query = `
       SELECT 
-        COUNT(DISTINCT OWNER) as ownerCount,
-        COUNT(DISTINCT CONTACT) as contactCount,
-        COUNT(DISTINCT PHONE_EMAIL) as phoneEmailCount
+        OWNER as owner,
+        CONTACT as contact,
+        STREET as street,
+        CITY as city,
+        ST as state,
+        ZIP as zip,
+        PHONE_EMAIL as phoneEmail,
+        NMA as nma,
+        ROY as royalty,
+        ALLO_ as allocation,
+        COUNT(*) as tractCount,
+        SUM(CAST(NMA AS DECIMAL(10,2))) as totalNMA,
+        AVG(CAST(ROY AS DECIMAL(5,2))) as avgRoyalty,
+        AVG(CAST(ALLO_ AS DECIMAL(5,2))) as avgAllocation
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME LIKE ?
+      WHERE (CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME LIKE ?)
+        AND OWNER IS NOT NULL AND OWNER != ''
+      GROUP BY OWNER, CONTACT, STREET, CITY, ST, ZIP, PHONE_EMAIL, NMA, ROY, ALLO_
+      ORDER BY OWNER
     `;
 
     const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
     
-    const aggregated = rows[0] || {
-      ownerCount: 0,
-      contactCount: 0,
-      phoneEmailCount: 0
-    };
+    // Transform the data to match UnitContactAggregated interface
+    const aggregatedContacts = rows.map((row, index) => {
+      const totalNMA = parseFloat(row.totalNMA) || 0;
+      const avgRoyalty = parseFloat(row.avgRoyalty) || 0;
+      const totalNRA = avgRoyalty > 0 ? totalNMA * (avgRoyalty / 100) / 0.125 : 0;
+      
+      return {
+        id: `contact-${index}`,
+        unitId: id,
+        contactId: `contact-${row.owner}-${index}`,
+        contact: {
+          id: `contact-${row.owner}-${index}`,
+          name: row.owner,
+          contact: row.contact,
+          street: row.street,
+          city: row.city,
+          state: row.state,
+          zip: row.zip,
+          phoneEmail: row.phoneEmail,
+          contactType: 'Landowner'
+        },
+        ownershipPercentageWeighted: parseFloat(row.avgAllocation) / 100 || 0,
+        royaltyPercentageWeighted: parseFloat(row.avgRoyalty) / 100 || 0,
+        totalNMA: totalNMA,
+        totalNRA: totalNRA,
+        tractsOwned: Array.from({ length: parseInt(row.tractCount) }, (_, i) => `tract-${i}`),
+        lastOutreach: null,
+        leadStatus: 'Unassigned',
+        hasActiveLeads: false
+      };
+    });
     
-    res.json(aggregated);
+    res.json(aggregatedContacts);
   } catch (error) {
     console.error('Error fetching unit contacts aggregated:', error);
     res.status(500).json({ 
