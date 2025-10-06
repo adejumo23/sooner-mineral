@@ -181,4 +181,5 @@ build-prod: ## Build application for production
 	docker compose -f docker-compose.build.yml build
 	@echo "✅ Application built for production!"
 	docker compose -f docker-compose.build.yml push
+	git push
 	@echo "✅ Application pushed to production!"
