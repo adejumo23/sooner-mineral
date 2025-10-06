@@ -155,10 +155,7 @@ app.get('/api', (req, res) => {
     message: 'Sooner Mineral API Server',
     version: '1.0.0',
     endpoints: [
-      '/api/health',
-      '/api/tracts',
-      '/api/units',
-      '/api/users'
+      '/api/health'
     ]
   });
 });

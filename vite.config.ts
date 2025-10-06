@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
     return {
       define: {
         'process.env.REACT_APP_ARCGIS_API_KEY': JSON.stringify(env.REACT_APP_ARCGIS_API_KEY),
-        'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:3051/api')
+        'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.API_BASE_URL || env.VITE_API_BASE_URL)
       },
       resolve: {
         alias: {
@@ -34,13 +34,6 @@ export default defineConfig(({ mode }) => {
         port: 3050,
         fs: {
           allow: ['..']
-        },
-        proxy: {
-          '/api': {
-            target: 'http://localhost:3051',
-            changeOrigin: true,
-            secure: false
-          }
         }
       }
     };
