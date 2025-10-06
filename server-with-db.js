@@ -1886,9 +1886,9 @@ app.get('/api/units', async (req, res) => {
         unitNames.forEach(unitName => {
           const trimmedUnitName = unitName.trim();
           if (trimmedUnitName && !unitMap.has(trimmedUnitName)) {
-            // Create unit from first occurrence
+            // Create unit with proper numeric ID based on database record
             unitMap.set(trimmedUnitName, {
-              id: `unit-${trimmedUnitName.replace(/\s+/g, '-').toLowerCase()}`,
+              id: row.id,
               unitName: trimmedUnitName,
               operator: 'Unknown', // Not available in current data
               apiNumbers: [], // Would need to be extracted from unit name or other sources
@@ -1969,32 +1969,25 @@ app.get('/api/units/:id', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract unit name from ID (format: unit-{unit-name})
-    const unitNameFromUrl = id.replace('unit-', '').replace(/-/g, ' ').toUpperCase();
+    // Use the ID directly as it's now just the database ID
+    const databaseId = id;
     
-    // Create search patterns that match the actual database format
-    // Database has: "CURLY BILL 2-27-34XHW"
-    // URL has: "unit-curly-bill-2-27-34xhw" -> "CURLY BILL 2 27 34XHW"
+    // First, get the unit name from the database record
+    const unitQuery = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE id = ?
+    `;
     
-    // Try to reconstruct the original format by adding hyphens back
-    const reconstructedName = unitNameFromUrl.replace(/(\d+)\s+(\d+)\s+(\d+)/, '$1-$2-$3');
+    const unitRows = await executeQuery(unitQuery, [databaseId]);
     
-    const searchPatterns = [
-      unitNameFromUrl,           // "CURLY BILL 2 27 34XHW"
-      reconstructedName,         // "CURLY BILL 2-27-34XHW"
-      unitNameFromUrl.replace(/\s+/g, ''), // "CURLYBILL22734XHW"
-      reconstructedName.replace(/\s+/g, ''), // "CURLYBILL2-27-34XHW"
-    ];
+    if (unitRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
     
-    // Create LIKE patterns for each search pattern
-    const likePatterns = searchPatterns.flatMap(pattern => [
-      `%${pattern}%`,
-      `%${pattern.replace(/-/g, '')}%`,
-      `%${pattern.replace(/-/g, ' ')}%`
-    ]);
+    const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
-    const placeholders = likePatterns.map(() => '?').join(' OR CURRENT_UNIT_NAME LIKE ');
-    
+    // Now get all records for this unit
     const query = `
       SELECT 
         id,
@@ -2019,11 +2012,11 @@ app.get('/api/units/:id', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME LIKE ${placeholders}
+      WHERE CURRENT_UNIT_NAME = ?
       ORDER BY CURRENT_UNIT_NAME, COUNTY, S_T_R
     `;
 
-    const rows = await executeQuery(query, likePatterns);
+    const rows = await executeQuery(query, [unitName]);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Unit not found' });
@@ -2038,16 +2031,10 @@ app.get('/api/units/:id', async (req, res) => {
         
         unitNames.forEach(unitNameItem => {
           const trimmedUnitName = unitNameItem.trim();
-          // Check if this unit matches any of our search patterns
-          const matches = searchPatterns.some(pattern => 
-            trimmedUnitName.includes(pattern) || 
-            trimmedUnitName.includes(pattern.replace(/\s+/g, '')) ||
-            trimmedUnitName.includes(pattern.replace(/-/g, ''))
-          );
           
-          if (matches && !unitMap.has(trimmedUnitName)) {
+          if (!unitMap.has(trimmedUnitName)) {
             unitMap.set(trimmedUnitName, {
-              id: `unit-${trimmedUnitName.replace(/\s+/g, '-').toLowerCase()}`,
+              id: row.id,
               unitName: trimmedUnitName,
               operator: 'Unknown',
               apiNumbers: [],
@@ -2131,32 +2118,25 @@ app.get('/api/units/:id/tracts', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract unit name from ID (format: unit-{unit-name})
-    const unitNameFromUrl = id.replace('unit-', '').replace(/-/g, ' ').toUpperCase();
+    // Use the ID directly as it's now just the database ID
+    const databaseId = id;
     
-    // Create search patterns that match the actual database format
-    // Database has: "CURLY BILL 2-27-34XHW"
-    // URL has: "unit-curly-bill-2-27-34xhw" -> "CURLY BILL 2 27 34XHW"
+    // First, get the unit name from the database record
+    const unitQuery = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE id = ?
+    `;
     
-    // Try to reconstruct the original format by adding hyphens back
-    const reconstructedName = unitNameFromUrl.replace(/(\d+)\s+(\d+)\s+(\d+)/, '$1-$2-$3');
+    const unitRows = await executeQuery(unitQuery, [databaseId]);
     
-    const searchPatterns = [
-      unitNameFromUrl,           // "CURLY BILL 2 27 34XHW"
-      reconstructedName,         // "CURLY BILL 2-27-34XHW"
-      unitNameFromUrl.replace(/\s+/g, ''), // "CURLYBILL22734XHW"
-      reconstructedName.replace(/\s+/g, ''), // "CURLYBILL2-27-34XHW"
-    ];
+    if (unitRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
     
-    // Create LIKE patterns for each search pattern
-    const likePatterns = searchPatterns.flatMap(pattern => [
-      `%${pattern}%`,
-      `%${pattern.replace(/-/g, '')}%`,
-      `%${pattern.replace(/-/g, ' ')}%`
-    ]);
+    const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
-    const placeholders = likePatterns.map(() => '?').join(' OR CURRENT_UNIT_NAME LIKE ');
-    
+    // Now get all records for this unit
     const query = `
       SELECT 
         id,
@@ -2181,11 +2161,11 @@ app.get('/api/units/:id/tracts', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME LIKE ${placeholders}
+      WHERE CURRENT_UNIT_NAME = ?
       ORDER BY COUNTY, S_T_R
     `;
 
-    const rows = await executeQuery(query, likePatterns);
+    const rows = await executeQuery(query, [unitName]);
     
     if (rows.length === 0) {
       return res.json([]);
@@ -2248,31 +2228,23 @@ app.get('/api/units/:id/tracts/enhanced', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract unit name from ID (format: unit-{unit-name})
-    const unitNameFromUrl = id.replace('unit-', '').replace(/-/g, ' ').toUpperCase();
+    // Use the ID directly as it's now just the database ID
+    const databaseId = id;
     
-    // Create search patterns that match the actual database format
-    // Database has: "CURLY BILL 2-27-34XHW"
-    // URL has: "unit-curly-bill-2-27-34xhw" -> "CURLY BILL 2 27 34XHW"
+    // First, get the unit name from the database record
+    const unitQuery = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE id = ?
+    `;
     
-    // Try to reconstruct the original format by adding hyphens back
-    const reconstructedName = unitNameFromUrl.replace(/(\d+)\s+(\d+)\s+(\d+)/, '$1-$2-$3');
+    const unitRows = await executeQuery(unitQuery, [databaseId]);
     
-    const searchPatterns = [
-      unitNameFromUrl,           // "CURLY BILL 2 27 34XHW"
-      reconstructedName,         // "CURLY BILL 2-27-34XHW"
-      unitNameFromUrl.replace(/\s+/g, ''), // "CURLYBILL22734XHW"
-      reconstructedName.replace(/\s+/g, ''), // "CURLYBILL2-27-34XHW"
-    ];
+    if (unitRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
     
-    // Create LIKE patterns for each search pattern
-    const likePatterns = searchPatterns.flatMap(pattern => [
-      `%${pattern}%`,
-      `%${pattern.replace(/-/g, '')}%`,
-      `%${pattern.replace(/-/g, ' ')}%`
-    ]);
-    
-    const placeholders = likePatterns.map(() => '?').join(' OR CURRENT_UNIT_NAME LIKE ');
+    const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
     const query = `
       SELECT 
@@ -2298,11 +2270,11 @@ app.get('/api/units/:id/tracts/enhanced', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME LIKE ${placeholders}
+      WHERE CURRENT_UNIT_NAME = ?
       ORDER BY COUNTY, S_T_R
     `;
 
-    const rows = await executeQuery(query, likePatterns);
+    const rows = await executeQuery(query, [unitName]);
     
     if (rows.length === 0) {
       return res.json([]);
@@ -2387,9 +2359,23 @@ app.get('/api/units/:id/notes', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract unit name from ID (format: unit-{unit-name})
-    const unitNameFromUrl = id.replace('unit-', '').replace(/-/g, ' ').toUpperCase();
-    const reconstructedName = unitNameFromUrl.replace(/(\d+)\s+(\d+)\s+(\d+)/, '$1-$2-$3');
+    // Use the ID directly as it's now just the database ID
+    const databaseId = id;
+    
+    // First, get the unit name from the database record
+    const unitQuery = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE id = ?
+    `;
+    
+    const unitRows = await executeQuery(unitQuery, [databaseId]);
+    
+    if (unitRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
+    
+    const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
     const query = `
       SELECT 
@@ -2398,11 +2384,11 @@ app.get('/api/units/:id/notes', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME LIKE ?
+      WHERE CURRENT_UNIT_NAME = ?
       ORDER BY created_at DESC
     `;
 
-    const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
+    const rows = await executeQuery(query, [unitName]);
     
     // Transform notes data
     const notes = rows
@@ -2436,9 +2422,23 @@ app.get('/api/units/:id/contacts', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract unit name from ID (format: unit-{unit-name})
-    const unitNameFromUrl = id.replace('unit-', '').replace(/-/g, ' ').toUpperCase();
-    const reconstructedName = unitNameFromUrl.replace(/(\d+)\s+(\d+)\s+(\d+)/, '$1-$2-$3');
+    // Use the ID directly as it's now just the database ID
+    const databaseId = id;
+    
+    // First, get the unit name from the database record
+    const unitQuery = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE id = ?
+    `;
+    
+    const unitRows = await executeQuery(unitQuery, [databaseId]);
+    
+    if (unitRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
+    
+    const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
     const query = `
       SELECT 
@@ -2453,11 +2453,11 @@ app.get('/api/units/:id/contacts', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME LIKE ?
+      WHERE CURRENT_UNIT_NAME = ?
       ORDER BY OWNER
     `;
 
-    const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
+    const rows = await executeQuery(query, [unitName]);
     
     // Transform contacts data
     const contacts = rows
@@ -2495,9 +2495,23 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract unit name from ID (format: unit-{unit-name})
-    const unitNameFromUrl = id.replace('unit-', '').replace(/-/g, ' ').toUpperCase();
-    const reconstructedName = unitNameFromUrl.replace(/(\d+)\s+(\d+)\s+(\d+)/, '$1-$2-$3');
+    // Use the ID directly as it's now just the database ID
+    const databaseId = id;
+    
+    // First, get the unit name from the database record
+    const unitQuery = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE id = ?
+    `;
+    
+    const unitRows = await executeQuery(unitQuery, [databaseId]);
+    
+    if (unitRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
+    
+    const unitName = unitRows[0].CURRENT_UNIT_NAME;
     
     const query = `
       SELECT 
@@ -2516,13 +2530,13 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
         AVG(CAST(ROY AS DECIMAL(5,2))) as avgRoyalty,
         AVG(CAST(ALLO_ AS DECIMAL(5,2))) as avgAllocation
       FROM prod_acreage_schedule
-      WHERE (CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME LIKE ?)
+      WHERE CURRENT_UNIT_NAME = ?
         AND OWNER IS NOT NULL AND OWNER != ''
       GROUP BY OWNER, CONTACT, STREET, CITY, ST, ZIP, PHONE_EMAIL, NMA, ROY, ALLO_
       ORDER BY OWNER
     `;
 
-    const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
+    const rows = await executeQuery(query, [unitName]);
     
     // Transform the data to match UnitContactAggregated interface
     const aggregatedContacts = rows.map((row, index) => {
