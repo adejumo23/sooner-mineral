@@ -752,8 +752,8 @@ app.get('/api/test-pricing-structure', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
-    const [oklahomaRows] = await dbConnection.execute(`DESCRIBE prod_oklahoma_pricing`);
-    const [texasRows] = await dbConnection.execute(`DESCRIBE prod_texas_pricing`);
+    const oklahomaRows = await executeQuery(`DESCRIBE prod_oklahoma_pricing`);
+    const texasRows = await executeQuery(`DESCRIBE prod_texas_pricing`);
     
     res.json({ 
       success: true, 
@@ -1068,7 +1068,7 @@ app.get('/api/tracts/:id', async (req, res) => {
       WHERE id = ?
     `;
 
-    const [rows] = await dbConnection.execute(query, [id]);
+    const rows = await executeQuery(query, [id]);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Tract not found' });
@@ -2023,7 +2023,7 @@ app.get('/api/units/:id', async (req, res) => {
       ORDER BY CURRENT_UNIT_NAME, COUNTY, S_T_R
     `;
 
-    const [rows] = await dbConnection.execute(query, likePatterns);
+    const rows = await executeQuery(query, likePatterns);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Unit not found' });
@@ -2185,7 +2185,7 @@ app.get('/api/units/:id/tracts', async (req, res) => {
       ORDER BY COUNTY, S_T_R
     `;
 
-    const [rows] = await dbConnection.execute(query, likePatterns);
+    const rows = await executeQuery(query, likePatterns);
     
     if (rows.length === 0) {
       return res.json([]);
@@ -2302,7 +2302,7 @@ app.get('/api/units/:id/tracts/enhanced', async (req, res) => {
       ORDER BY COUNTY, S_T_R
     `;
 
-    const [rows] = await dbConnection.execute(query, likePatterns);
+    const rows = await executeQuery(query, likePatterns);
     
     if (rows.length === 0) {
       return res.json([]);
@@ -2402,7 +2402,7 @@ app.get('/api/units/:id/notes', async (req, res) => {
       ORDER BY created_at DESC
     `;
 
-    const [rows] = await dbConnection.execute(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
+    const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
     
     // Transform notes data
     const notes = rows
@@ -2457,7 +2457,7 @@ app.get('/api/units/:id/contacts', async (req, res) => {
       ORDER BY OWNER
     `;
 
-    const [rows] = await dbConnection.execute(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
+    const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
     
     // Transform contacts data
     const contacts = rows
@@ -2508,7 +2508,7 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
       WHERE CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME LIKE ?
     `;
 
-    const [rows] = await dbConnection.execute(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
+    const rows = await executeQuery(query, [`%${reconstructedName}%`, `%${unitNameFromUrl}%`]);
     
     const aggregated = rows[0] || {
       ownerCount: 0,
@@ -2785,7 +2785,7 @@ app.get('/api/import/production-data/:tableName', async (req, res) => {
     const { limit = 100 } = req.query;
     
     const query = `SELECT * FROM ${tableName} LIMIT ?`;
-    const [rows] = await dbConnection.execute(query, [parseInt(limit)]);
+    const rows = await executeQuery(query, [parseInt(limit)]);
     
     res.json({
       success: true,
@@ -2872,7 +2872,7 @@ app.put('/api/import/staging-data/:tableName/:recordId', async (req, res) => {
     values.push(recordId);
     
     const query = `UPDATE ${tableName} SET ${setClause} WHERE id = ?`;
-    await dbConnection.execute(query, values);
+    await executeQuery(query, values);
     
     res.json({
       success: true,
@@ -2898,7 +2898,7 @@ app.delete('/api/import/staging-data/:tableName/:recordId', async (req, res) => 
     const { tableName, recordId } = req.params;
     
     const query = `DELETE FROM ${tableName} WHERE id = ?`;
-    await dbConnection.execute(query, [recordId]);
+    await executeQuery(query, [recordId]);
     
     res.json({
       success: true,
@@ -2950,15 +2950,15 @@ app.get('/api/normalized/overview', async (req, res) => {
     ];
 
     const results = await Promise.all(
-      queries.map(query => dbConnection.execute(query))
+      queries.map(query => executeQuery(query))
     );
 
     const overview = {
-      properties: results[0][0][0].count,
-      owners: results[1][0][0].count,
-      mineralInterests: results[2][0][0].count,
-      wells: results[3][0][0].count,
-      units: results[4][0][0].count
+      properties: results[0][0].count,
+      owners: results[1][0].count,
+      mineralInterests: results[2][0].count,
+      wells: results[3][0].count,
+      units: results[4][0].count
     };
 
     res.json({
