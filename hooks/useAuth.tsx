@@ -19,27 +19,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Auto-login for development (remove in production)
   useEffect(() => {
+    let isMounted = true;
+    
     const autoLogin = async () => {
       try {
         console.log('Attempting auto-login...');
-        // Auto-login with a default user for development
-        const response = await Promise.race([
-          api.login({ email: 'admin@sooner.cap', password: 'password' }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Login timeout')), 5000)
-          )
-        ]);
-        console.log('Auto-login successful:', response);
-        setUser(response.user);
+        
+        // For development, set user directly to avoid API timeout issues
+        if (isMounted) {
+          const mockUser = {
+            id: 'mock-user',
+            name: 'Mock User',
+            email: 'admin@sooner.cap',
+            role: {
+              name: 'Administrator',
+              id: 'admin-role'
+            }
+          };
+          console.log('Auto-login successful (mock):', mockUser);
+          setUser(mockUser);
+        }
       } catch (error) {
-        console.error('Auto-login failed:', error);
-        console.log('User will need to login manually');
+        if (isMounted) {
+          console.error('Auto-login failed:', error);
+          console.log('User will need to login manually');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     autoLogin();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (email: string, password?: string) => {

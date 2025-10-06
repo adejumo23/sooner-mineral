@@ -1,5 +1,5 @@
 // API client for making HTTP requests to the server
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:3051/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 // Helper function to make API requests
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
@@ -514,6 +514,16 @@ export const fetchContactTractOwnership = async (contactId: string) => {
 export const fetchContactUnits = async (contactId: string) => {
   try {
     return await apiRequest(`/contacts/${contactId}/units`);
+  } catch (error) {
+    console.warn('Server not available, using mock data:', error);
+    return [];
+  }
+};
+
+// Tract contacts
+export const fetchTractContacts = async (tractId: string) => {
+  try {
+    return await apiRequest(`/tracts/${tractId}/contacts`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];

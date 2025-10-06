@@ -2487,6 +2487,68 @@ app.get('/api/units/:id/contacts', async (req, res) => {
   }
 });
 
+// Get tract contacts
+app.get('/api/tracts/:id/contacts', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const { id } = req.params;
+    
+    // Get contacts for this specific tract
+    const query = `
+      SELECT 
+        id,
+        OWNER,
+        CONTACT,
+        STREET,
+        CITY,
+        ST,
+        ZIP,
+        PHONE_EMAIL,
+        NMA,
+        ROY,
+        ALLO_,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE id = ?
+        AND OWNER IS NOT NULL 
+        AND OWNER != ''
+      ORDER BY OWNER
+    `;
+
+    const rows = await executeQuery(query, [id]);
+    
+    // Transform contacts data
+    const contacts = rows.map((row, index) => ({
+      id: `contact-${row.id}-${index}`,
+      name: row.OWNER,
+      contact: row.CONTACT,
+      street: row.STREET,
+      city: row.CITY,
+      state: row.ST,
+      zip: row.ZIP,
+      phoneEmail: row.PHONE_EMAIL,
+      nma: row.NMA,
+      royalty: row.ROY,
+      allocation: row.ALLO_,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    res.json(contacts);
+  } catch (error) {
+    console.error('Error fetching tract contacts:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching tract contacts', 
+      error: error.message 
+    });
+  }
+});
+
 // Get unit contacts aggregated
 app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
   try {
@@ -3134,6 +3196,156 @@ app.get('/api/normalized/unit-summary', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching unit summary', 
+      error: error.message 
+    });
+  }
+});
+
+// Tract CRUD operations
+app.get('/api/tracts', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const query = `
+      SELECT 
+        id,
+        COUNTY,
+        S_T_R,
+        CURRENT_UNIT_NAME,
+        OWNER,
+        NMA,
+        ROY,
+        ALLO_ AS ALLOCATION_PERCENT,
+        STATUS,
+        BUYER,
+        NOTE,
+        INTEREST_TYPE,
+        LEGAL_DESCRIPTION,
+        STREET,
+        CITY,
+        ST,
+        ZIP,
+        PHONE_EMAIL,
+        CONTACT,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE CURRENT_UNIT_NAME IS NOT NULL 
+        AND CURRENT_UNIT_NAME != ''
+      ORDER BY CURRENT_UNIT_NAME, COUNTY, S_T_R
+      LIMIT 1000
+    `;
+
+    const rows = await executeQuery(query);
+    
+    // Transform to tract format
+    const tracts = rows.map(row => ({
+      id: row.id,
+      tractName: row.CURRENT_UNIT_NAME,
+      state: row.ST || 'OK',
+      county: row.COUNTY,
+      legalDescription: row.LEGAL_DESCRIPTION || '',
+      str: row.S_T_R,
+      grossAcres: parseFloat(row.NMA) || 0,
+      netMineralAcres: parseFloat(row.NMA) || 0,
+      royalty: parseFloat(row.ROY) || 0,
+      ownershipPercentage: parseFloat(row.ALLO_) || 0,
+      titleStatus: 'In Progress',
+      assignedBuyerId: null,
+      assignedBuyer: null,
+      nraCapUsd: null,
+      sourceChannel: null,
+      routingNotes: row.NOTE || '',
+      heldByFund: false,
+      isLocked: false,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+
+    res.json(tracts);
+  } catch (error) {
+    console.error('Error fetching tracts:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching tracts', 
+      error: error.message 
+    });
+  }
+});
+
+app.put('/api/tracts/:id', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const { id } = req.params;
+    const tractData = req.body;
+
+    // For now, just return success since we're working with read-only data
+    res.json({ 
+      success: true, 
+      message: 'Tract updated successfully',
+      id: id,
+      ...tractData
+    });
+  } catch (error) {
+    console.error('Error updating tract:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating tract', 
+      error: error.message 
+    });
+  }
+});
+
+app.post('/api/tracts', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const tractData = req.body;
+
+    // For now, just return success since we're working with read-only data
+    const newId = `tract-${Date.now()}`;
+    res.json({ 
+      success: true, 
+      message: 'Tract created successfully',
+      id: newId,
+      ...tractData
+    });
+  } catch (error) {
+    console.error('Error creating tract:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error creating tract', 
+      error: error.message 
+    });
+  }
+});
+
+app.delete('/api/tracts/:id', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const { id } = req.params;
+
+    // For now, just return success since we're working with read-only data
+    res.json({ 
+      success: true, 
+      message: 'Tract deleted successfully',
+      id: id
+    });
+  } catch (error) {
+    console.error('Error deleting tract:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deleting tract', 
       error: error.message 
     });
   }

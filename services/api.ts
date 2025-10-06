@@ -63,6 +63,7 @@ export const createUnitNote = apiClient.createUnitNote;
 export const fetchContactTractOwnership = apiClient.fetchContactTractOwnership;
 export const fetchContactUnits = apiClient.fetchContactUnits;
 export const fetchContactLeads = apiClient.fetchContactLeads;
+export const fetchTractContacts = apiClient.fetchTractContacts;
 export const fetchContactCallLogs = apiClient.fetchContactCallLogs;
 export const fetchContactDocuments = apiClient.fetchContactDocuments;
 export const fetchDistressSignals = apiClient.fetchDistressSignals;
