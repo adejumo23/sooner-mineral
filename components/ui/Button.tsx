@@ -7,7 +7,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md', className, ...props }) => {
-  const baseClasses = 'px-4 py-2 rounded-md font-semibold transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary-50';
+  const baseClasses = 'px-4 py-2 rounded-md font-semibold transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2';
   
   const sizeClasses = {
     sm: 'px-2 py-1 text-sm',
@@ -16,15 +16,15 @@ const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md', class
   };
   
   const variantClasses = {
-    primary: 'bg-primary-500 hover:bg-primary-600 focus:ring-primary-500 text-white',
-    secondary: 'bg-secondary-400 hover:bg-secondary-500 focus:ring-secondary-400 text-neutral-900',
-    danger: 'bg-accent-500 hover:bg-accent-600 focus:ring-accent-500 text-white',
+    primary: 'bg-orange-500 hover:bg-orange-600 focus:ring-orange-500 text-white',
+    secondary: 'bg-yellow-400 hover:bg-yellow-500 focus:ring-yellow-400 text-gray-900',
+    danger: 'bg-red-500 hover:bg-red-600 focus:ring-red-500 text-white',
   };
 
   return (
     <button
       {...props}
-      className={`${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
+      className={`${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className || ''}`}
     />
   );
 };
