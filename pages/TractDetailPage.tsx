@@ -79,6 +79,53 @@ const TractDetailPage: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
+  const handleExportTract = () => {
+    if (!tract) return;
+
+    // Prepare the data for export
+    const exportData = {
+      'Tract Name': tract.tractName,
+      'State': tract.state,
+      'County': tract.county,
+      'Legal Description': tract.legalDescription,
+      'STR': tract.str || '',
+      'Section Number': tract.sectionNumber || '',
+      'Township': tract.township || '',
+      'Range': tract.range || '',
+      'Abstract Number': tract.abstractNumber || '',
+      'ANUM': tract.anum || '',
+      'Gross Acres': tract.grossAcres,
+      'Net Mineral Acres': tract.netMineralAcres || '',
+      'Royalty': tract.royalty || '',
+      'Ownership Percentage': tract.ownershipPercentage || '',
+      'Title Status': tract.titleStatus,
+      'Assigned Buyer': tract.assignedBuyer?.name || 'Unassigned',
+      'NRA Cap USD': tract.nraCapUsd || '',
+      'Source Channel': tract.sourceChannel || '',
+      'Routing Notes': tract.routingNotes || '',
+      'Held by Fund': tract.heldByFund ? 'Yes' : 'No',
+      'Is Locked': tract.isLocked ? 'Yes' : 'No',
+      'Created At': tract.createdAt || '',
+      'Updated At': tract.updatedAt || ''
+    };
+
+    // Convert to CSV
+    const headers = Object.keys(exportData);
+    const values = Object.values(exportData);
+    const csvContent = [headers.join(','), values.map(v => `"${v}"`).join(',')].join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${tract.tractName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_tract_export.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
   };
@@ -162,7 +209,10 @@ const TractDetailPage: React.FC = () => {
           >
             Edit Tract
           </button>
-          <button className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+          <button 
+            onClick={handleExportTract}
+            className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          >
             Export
           </button>
         </div>
