@@ -133,6 +133,10 @@ stop: ## Stop all running processes
 	docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
 	@echo "Killing any running Node processes on ports 3050-3051..."
 	@lsof -ti:3050,3051 | xargs kill -9 2>/dev/null || true
+	@busybox lsof -ti:3050,3051 | xargs kill -9 2>/dev/null || true
+	for i in $$(seq 3050 3060); do \
+		npx kill-port $$i; \
+	done
 	@echo "✅ All processes stopped!"
 
 clean: ## Clean up node_modules and build artifacts

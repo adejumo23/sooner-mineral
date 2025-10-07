@@ -141,16 +141,18 @@ docker compose down && docker compose up --build
 
 ```bash
 # Install dependencies
-npm install
+make install
+
+# Stop development server
+make stop 
 
 # Start development server
-npm run dev
+make start
 
 # Build for production
-npm run build
+## Commit your local changes and run this. This will push changes to remote as well
+make build-prod
 
-# Preview production build
-npm run preview
 ```
 
 ## 🤖 Automated Deployment
