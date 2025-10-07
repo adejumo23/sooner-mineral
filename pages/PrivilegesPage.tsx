@@ -5,6 +5,7 @@ import * as api from '../services/api';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import Input from '../components/ui/Input';
 
 const PrivilegesPage: React.FC = () => {
   const [privileges, setPrivileges] = useState<Privilege[]>([]);
@@ -12,6 +13,8 @@ const PrivilegesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPrivilege, setEditingPrivilege] = useState<Privilege | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
   
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -52,41 +55,117 @@ const PrivilegesPage: React.FC = () => {
     handleCloseModal();
   };
 
+  const filteredPrivileges = privileges.filter(privilege => {
+    const matchesSearch = privilege.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         privilege.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === 'all' || 
+                           (filterCategory === 'assigned' && privilege.roles.length > 0) ||
+                           (filterCategory === 'unassigned' && privilege.roles.length === 0);
+    return matchesSearch && matchesCategory;
+  });
+
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-white">Manage Privileges</h1>
+    <div className="space-y-6">
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Privilege Management</h1>
+              <p className="text-gray-600 mt-1">Manage system permissions and role assignments</p>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                type="text"
+                placeholder="Search privileges..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="all">All Privileges</option>
+                <option value="assigned">Assigned</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </Card>
       
       {isLoading ? (
-        <p>Loading privileges...</p>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-gray-600">Loading privileges...</div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {privileges.map((privilege) => (
-            <Card key={privilege.id}>
-              <h2 className="text-xl font-bold text-sc-light-blue">{privilege.name}</h2>
-              <p className="text-sc-slate mt-2 h-10">{privilege.description}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPrivileges.map((privilege) => (
+            <Card key={privilege.id} className="hover:shadow-lg transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <h2 className="text-xl font-bold text-gray-900">{privilege.name}</h2>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  privilege.roles.length > 0 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {privilege.roles.length} role{privilege.roles.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <p className="text-gray-600 text-sm mb-4 line-clamp-3">{privilege.description}</p>
               
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-sc-light-slate">Assigned Roles:</h3>
-                <div className="flex flex-wrap gap-2 mt-2">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Assigned Roles:</h3>
+                <div className="flex flex-wrap gap-1">
                   {privilege.roles.length > 0 ? privilege.roles.map(role => (
-                    <span key={role.id} className="px-2 py-1 text-xs font-medium rounded-full bg-sc-blue/20 text-sc-light-blue">
+                    <span key={role.id} className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
                       {role.name}
                     </span>
                   )) : (
-                    <span className="text-xs text-sc-slate">No roles assigned.</span>
+                    <span className="text-xs text-gray-500 italic">No roles assigned</span>
                   )}
                 </div>
               </div>
 
-              <div className="mt-6 border-t border-sc-light-navy pt-4 flex justify-end">
-                <Button variant="secondary" onClick={() => handleOpenModal(privilege)}>Edit Assignments</Button>
+              <div className="border-t border-gray-200 pt-4 flex justify-end">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => handleOpenModal(privilege)}
+                  className="text-sm"
+                >
+                  Edit Assignments
+                </Button>
               </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {filteredPrivileges.length === 0 && !isLoading && (
+        <Card>
+          <div className="text-center py-8">
+            <div className="text-gray-500 text-lg">No privileges found</div>
+            <div className="text-gray-400 text-sm mt-1">Try adjusting your search or filter criteria</div>
+          </div>
+        </Card>
       )}
 
       {editingPrivilege && (

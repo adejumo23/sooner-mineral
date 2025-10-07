@@ -209,21 +209,30 @@ const MessageCenter: React.FC<MessageCenterProps> = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Message Center</h2>
-          <p className="text-gray-600">Manage all communications and campaigns</p>
-        </div>
-        <div className="flex space-x-3">
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            <CalendarIcon className="w-4 h-4 mr-2" />
-            Schedule Call
-          </button>
-          <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-            <UserGroupIcon className="w-4 h-4 mr-2" />
-            New Campaign
-          </button>
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">Message Center</h2>
+              <p className="text-gray-600 mt-1">Manage all communications and campaigns</p>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+              <CalendarIcon className="w-4 h-4 mr-2" />
+              Schedule Call
+            </button>
+            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+              <UserGroupIcon className="w-4 h-4 mr-2" />
+              New Campaign
+            </button>
+          </div>
         </div>
       </div>
 

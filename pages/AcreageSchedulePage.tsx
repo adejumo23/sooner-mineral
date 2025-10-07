@@ -214,36 +214,62 @@ const AcreageSchedulePage: React.FC = () => {
   return (
     <div className={`acreage-schedule-page ${compactMode ? 'compact-mode' : ''}`}>
       {/* Header */}
-      <div className="page-header">
-        <div className="header-content">
-          <h1>🏞️ Acreage Schedule</h1>
-          <p>Comprehensive mineral rights ownership and acquisition tracking</p>
-        </div>
-        <div className="header-actions">
-          <button 
-            className={`view-toggle ${viewMode === 'table' ? 'active' : ''}`}
-            onClick={() => setViewMode('table')}
-          >
-            📊 Table
-          </button>
-          <button 
-            className={`view-toggle ${viewMode === 'cards' ? 'active' : ''}`}
-            onClick={() => setViewMode('cards')}
-          >
-            🃏 Cards
-          </button>
-          <button 
-            className={`view-toggle ${viewMode === 'map' ? 'active' : ''}`}
-            onClick={() => setViewMode('map')}
-          >
-            🗺️ Map
-          </button>
-          <button 
-            className={`view-toggle ${compactMode ? 'active' : ''}`}
-            onClick={() => setCompactMode(!compactMode)}
-          >
-            {compactMode ? '📏 Expand' : '📐 Compact'}
-          </button>
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Acreage Schedule</h1>
+              <p className="text-gray-600 mt-1">Comprehensive mineral rights ownership and acquisition tracking</p>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            <button 
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                viewMode === 'table' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setViewMode('table')}
+            >
+              📊 Table
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                viewMode === 'cards' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setViewMode('cards')}
+            >
+              🃏 Cards
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                viewMode === 'map' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setViewMode('map')}
+            >
+              🗺️ Map
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                compactMode 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setCompactMode(!compactMode)}
+            >
+              {compactMode ? '📏 Expand' : '📐 Compact'}
+            </button>
+          </div>
         </div>
       </div>
 

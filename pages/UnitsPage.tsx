@@ -161,19 +161,29 @@ const UnitsPage: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Unit Management</h1>
-          <p className="text-gray-600 mt-2">
-            Manage leasehold-based pooled acreage groups across minerals and non-operated workflows
-          </p>
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5-10v1m0-1v1m0 0h1m-1 0h1" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Unit Management</h1>
+              <p className="text-gray-600 mt-1">
+                Manage leasehold-based pooled acreage groups across minerals and non-operated workflows
+              </p>
+            </div>
+          </div>
+          <Link to="/units/new">
+            <Button className="flex items-center space-x-2">
+              <PlusIcon className="h-5 w-5" />
+              <span>Add Unit</span>
+            </Button>
+          </Link>
         </div>
-        <Link to="/units/new">
-          <Button className="flex items-center space-x-2">
-            <PlusIcon className="h-5 w-5" />
-            <span>Add Unit</span>
-          </Button>
-        </Link>
       </div>
 
       {/* Search and Filters */}

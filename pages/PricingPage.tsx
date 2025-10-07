@@ -527,147 +527,99 @@ const PricingPage: React.FC = () => {
 
   return (
     <div className={`pricing-page ${compactMode ? 'compact-mode' : ''} ${darkMode ? 'dark-mode' : ''}`}>
-      {/* Header */}
-      <div className="page-header">
-        <div className="header-content">
-          <div className="header-left">
-            <h1>Mineral Rights Pricing</h1>
-            <p>Comprehensive pricing data for Oklahoma and Texas mineral rights</p>
-            {showQuickStats && (
-              <div className="quick-stats">
-                <span className="stat-item">
-                  📊 {filteredData.length} records
-                </span>
-                <span className="stat-item">
-                  💰 ${summary.averagePrice.toLocaleString()}/acre avg
-                </span>
-                <span className="stat-item">
-                  🏛️ {summary.uniqueCounties} counties
-                </span>
-                <span className="stat-item">
-                  ⛰️ {summary.uniqueFormations} formations
-                </span>
-              </div>
-            )}
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Mineral Rights Pricing</h1>
+              <p className="text-gray-600 mt-1">Comprehensive pricing data for Oklahoma and Texas mineral rights</p>
+              {showQuickStats && (
+                <div className="flex flex-wrap gap-4 mt-3">
+                  <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    📊 {filteredData.length} records
+                  </span>
+                  <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
+                    💰 ${summary.averagePrice.toLocaleString()}/acre avg
+                  </span>
+                  <span className="text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                    🏛️ {summary.uniqueCounties} counties
+                  </span>
+                  <span className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                    ⛰️ {summary.uniqueFormations} formations
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="header-actions">
-            <div className="action-group">
-              <button 
-                className={`action-btn ${showQuickStats ? 'active' : ''}`}
-                onClick={() => setShowQuickStats(!showQuickStats)}
-                title="Toggle Quick Stats"
-              >
-                📊 Stats
-              </button>
-              <button 
-                className={`action-btn ${showFilters ? 'active' : ''}`}
-                onClick={() => setShowFilters(!showFilters)}
-                title="Toggle Filters"
-              >
-                🔍 Filters
-              </button>
-              <button 
-                className={`action-btn ${showDataInsights ? 'active' : ''}`}
-                onClick={() => setShowDataInsights(!showDataInsights)}
-                title="Data Insights"
-              >
-                🔬 Insights
-              </button>
-              <button 
-                className={`action-btn ${showAdvancedAnalytics ? 'active' : ''}`}
-                onClick={() => setShowAdvancedAnalytics(!showAdvancedAnalytics)}
-                title="Advanced Analytics"
-              >
-                📈 Analytics
-              </button>
-            </div>
-            <div className="action-group">
-              <button 
-                className="action-btn"
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                title="Export Data"
-              >
-                📤 Export
-              </button>
-              <button 
-                className={`action-btn ${bulkEditMode ? 'active' : ''}`}
-                onClick={() => setBulkEditMode(!bulkEditMode)}
-                title="Bulk Edit"
-                disabled={selectedRecords.size === 0}
-              >
-                ✏️ Bulk Edit
-              </button>
-              <button 
-                className={`action-btn ${showComparison ? 'active' : ''}`}
-                onClick={() => setShowComparison(!showComparison)}
-                title="Compare Records"
-              >
-                ⚖️ Compare
-              </button>
-              <button 
-                className={`action-btn ${showColumnManager ? 'active' : ''}`}
-                onClick={() => setShowColumnManager(!showColumnManager)}
-                title="Manage Columns"
-              >
-                📋 Columns
-              </button>
-            </div>
-            <div className="action-group">
-              <button 
-                className={`action-btn ${autoRefresh ? 'active' : ''}`}
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                title="Auto Refresh"
-              >
-                🔄 {autoRefresh ? 'Auto' : 'Manual'}
-              </button>
-              <button 
-                className={`action-btn ${darkMode ? 'active' : ''}`}
-                onClick={() => setDarkMode(!darkMode)}
-                title="Dark Mode"
-              >
-                {darkMode ? '🌙' : '☀️'} Theme
-              </button>
-              <button 
-                className="action-btn"
-                onClick={() => setShowTutorial(!showTutorial)}
-                title="Tutorial"
-              >
-                🎓 Help
-              </button>
-              <button 
-                className="action-btn"
-                onClick={() => setShowKeyboardShortcuts(!showKeyboardShortcuts)}
-                title="Keyboard Shortcuts"
-              >
-                ⌨️ Shortcuts
-              </button>
-            </div>
-            <div className="action-group">
-              <button 
-                className={`action-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => setViewMode('table')}
-              >
-                📊 Table
-              </button>
-              <button 
-                className={`action-btn ${viewMode === 'cards' ? 'active' : ''}`}
-                onClick={() => setViewMode('cards')}
-              >
-                🃏 Cards
-              </button>
-              <button 
-                className={`action-btn ${viewMode === 'analytics' ? 'active' : ''}`}
-                onClick={() => setViewMode('analytics')}
-              >
-                📈 Analytics
-              </button>
-              <button 
-                className={`action-btn ${compactMode ? 'active' : ''}`}
-                onClick={() => setCompactMode(!compactMode)}
-              >
-                {compactMode ? '📏 Expand' : '📐 Compact'}
-              </button>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <button 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                showQuickStats 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setShowQuickStats(!showQuickStats)}
+              title="Toggle Quick Stats"
+            >
+              📊 Stats
+            </button>
+            <button 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                showFilters 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setShowFilters(!showFilters)}
+              title="Toggle Filters"
+            >
+              🔍 Filters
+            </button>
+            <button 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'table' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setViewMode('table')}
+            >
+              📊 Table
+            </button>
+            <button 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'cards' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setViewMode('cards')}
+            >
+              🃏 Cards
+            </button>
+            <button 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'analytics' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setViewMode('analytics')}
+            >
+              📈 Analytics
+            </button>
+            <button 
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                compactMode 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setCompactMode(!compactMode)}
+            >
+              {compactMode ? '📏 Expand' : '📐 Compact'}
+            </button>
           </div>
         </div>
       </div>
