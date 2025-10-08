@@ -21,10 +21,41 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
 // Mock data for fallback when server is not available
 const mockUsers = [
-  { id: 'u1', name: 'Alice Admin', email: 'admin@sooner.cap', role: 'Administrator', roleId: '1' },
-  { id: 'u2', name: 'Bob Manager', email: 'manager@sooner.cap', role: 'Land Manager', roleId: '2' },
-  { id: 'u3', name: 'Charlie Viewer', email: 'viewer@sooner.cap', role: 'Viewer', roleId: '3' },
-  { id: 'u4', name: 'David Buyer', email: 'buyer@sooner.cap', role: 'Buyer', roleId: '4' }
+  { 
+    id: 'u1', 
+    name: 'Alice Admin', 
+    email: 'admin@sooner.cap', 
+    role: { id: '1', name: 'Administrator' }, 
+    roleId: '1' 
+  },
+  { 
+    id: 'u2', 
+    name: 'Bob Manager', 
+    email: 'manager@sooner.cap', 
+    role: { id: '2', name: 'Manager' }, 
+    roleId: '2' 
+  },
+  { 
+    id: 'u3', 
+    name: 'Charlie Analyst', 
+    email: 'analyst@sooner.cap', 
+    role: { id: '3', name: 'Analyst' }, 
+    roleId: '3' 
+  },
+  { 
+    id: 'u4', 
+    name: 'David Buyer', 
+    email: 'buyer@sooner.cap', 
+    role: { id: '4', name: 'Buyer' }, 
+    roleId: '4' 
+  },
+  { 
+    id: 'u5', 
+    name: 'Eve Viewer', 
+    email: 'viewer@sooner.cap', 
+    role: { id: '5', name: 'Viewer' }, 
+    roleId: '5' 
+  }
 ];
 
 // User API functions
@@ -747,7 +778,34 @@ export const fetchESGProfiles = async () => {
     return await apiRequest('/esg/profiles');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return [
+      {
+        id: '1',
+        tractName: 'Sample Tract A',
+        operatorName: 'ExxonMobil',
+        overallRiskLevel: 'Low',
+        carbonIntensity: 12.5,
+        operatorComplianceScore: 4,
+        environmentalScore: 85,
+        socialScore: 78,
+        governanceScore: 82,
+        lastAssessmentDate: '2024-01-15',
+        nextReviewDate: '2024-07-15'
+      },
+      {
+        id: '2',
+        tractName: 'Sample Tract B',
+        operatorName: 'Chevron',
+        overallRiskLevel: 'Medium',
+        carbonIntensity: 18.3,
+        operatorComplianceScore: 3,
+        environmentalScore: 72,
+        socialScore: 85,
+        governanceScore: 78,
+        lastAssessmentDate: '2024-01-10',
+        nextReviewDate: '2024-07-10'
+      }
+    ];
   }
 };
 
@@ -756,7 +814,28 @@ export const fetchESGRiskFlags = async () => {
     return await apiRequest('/esg/risk-flags');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return [
+      {
+        id: '1',
+        tractName: 'High Risk Tract',
+        riskType: 'Environmental',
+        severity: 'High',
+        description: 'Potential groundwater contamination risk',
+        flaggedDate: '2024-01-20',
+        status: 'Active',
+        assignedTo: 'Environmental Team'
+      },
+      {
+        id: '2',
+        tractName: 'Compliance Issue',
+        riskType: 'Regulatory',
+        severity: 'Medium',
+        description: 'Missing permit documentation',
+        flaggedDate: '2024-01-18',
+        status: 'Under Review',
+        assignedTo: 'Legal Team'
+      }
+    ];
   }
 };
 
@@ -765,7 +844,26 @@ export const fetchRegulatoryWatchlist = async () => {
     return await apiRequest('/esg/regulatory-watchlist');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return [
+      {
+        id: '1',
+        regulationName: 'EPA Methane Rule',
+        jurisdiction: 'Federal',
+        effectiveDate: '2024-03-15',
+        impactLevel: 'High',
+        complianceDeadline: '2024-06-15',
+        status: 'Pending'
+      },
+      {
+        id: '2',
+        regulationName: 'State Water Quality Standards',
+        jurisdiction: 'Texas',
+        effectiveDate: '2024-02-01',
+        impactLevel: 'Medium',
+        complianceDeadline: '2024-05-01',
+        status: 'Active'
+      }
+    ];
   }
 };
 
@@ -774,7 +872,18 @@ export const fetchESGPortfolioSummary = async () => {
     return await apiRequest('/esg/portfolio-summary');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return {};
+    return {
+      totalTracts: 150,
+      totalUnits: 25,
+      lowRiskAssets: 120,
+      highRiskAssets: 25,
+      criticalRiskAssets: 5,
+      averageCarbonIntensity: 15.2,
+      overallComplianceScore: 82,
+      environmentalScore: 85,
+      socialScore: 78,
+      governanceScore: 82
+    };
   }
 };
 
@@ -960,10 +1069,21 @@ export const generateDocument = async (documentData: any) => {
 // Reporting functions
 export const fetchLeadConversionFunnel = async () => {
   try {
-    return await apiRequest('/reports/lead-conversion-funnel');
+    const response = await apiRequest('/reports/lead-conversion-funnel');
+    return response;
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return {
+      stages: [
+        { stage: 'Leads Generated', value: 1000, percentage: 100, color: '#3B82F6' },
+        { stage: 'Initial Contact', value: 750, percentage: 75, color: '#10B981' },
+        { stage: 'Qualified', value: 500, percentage: 50, color: '#F59E0B' },
+        { stage: 'Proposal Sent', value: 300, percentage: 30, color: '#EF4444' },
+        { stage: 'Closed Won', value: 150, percentage: 15, color: '#8B5CF6' }
+      ],
+      conversionRate: 15,
+      totalLeads: 1000
+    };
   }
 };
 
@@ -972,7 +1092,17 @@ export const fetchOutreachActivitySummary = async () => {
     return await apiRequest('/reports/outreach-activity-summary');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return {};
+    return {
+      totalOutreach: 2500,
+      successfulContacts: 1800,
+      responseRate: 72,
+      averageResponseTime: 2.5,
+      topChannels: [
+        { channel: 'Email', count: 1200, percentage: 48 },
+        { channel: 'Phone', count: 800, percentage: 32 },
+        { channel: 'LinkedIn', count: 500, percentage: 20 }
+      ]
+    };
   }
 };
 
@@ -981,7 +1111,17 @@ export const fetchAssignmentPerformanceMetrics = async () => {
     return await apiRequest('/reports/assignment-performance-metrics');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return {};
+    return {
+      totalAssignments: 450,
+      completedAssignments: 380,
+      completionRate: 84.4,
+      averageCompletionTime: 5.2,
+      topPerformers: [
+        { buyer: 'John Smith', assignments: 45, completionRate: 95 },
+        { buyer: 'Sarah Johnson', assignments: 42, completionRate: 90 },
+        { buyer: 'Mike Davis', assignments: 38, completionRate: 88 }
+      ]
+    };
   }
 };
 
@@ -990,7 +1130,19 @@ export const fetchDealVelocityMetrics = async () => {
     return await apiRequest('/reports/deal-velocity-metrics');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return {};
+    return {
+      averageDealTime: 45,
+      fastestDeal: 12,
+      slowestDeal: 120,
+      dealsThisMonth: 25,
+      velocityTrend: 'increasing',
+      stageBreakdown: [
+        { stage: 'Discovery', averageDays: 8 },
+        { stage: 'Negotiation', averageDays: 15 },
+        { stage: 'Due Diligence', averageDays: 12 },
+        { stage: 'Closing', averageDays: 10 }
+      ]
+    };
   }
 };
 
@@ -999,7 +1151,15 @@ export const fetchESGComplianceSummary = async () => {
     return await apiRequest('/reports/esg-compliance-summary');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return {};
+    return {
+      complianceScore: 85,
+      environmentalScore: 90,
+      socialScore: 80,
+      governanceScore: 85,
+      certifications: 12,
+      pendingAudits: 3,
+      riskLevel: 'Low'
+    };
   }
 };
 
@@ -1030,7 +1190,33 @@ export const fetchRoles = async () => {
     return await apiRequest('/roles');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return [
+      {
+        id: '1',
+        name: 'Administrator',
+        description: 'Full system access with all permissions'
+      },
+      {
+        id: '2',
+        name: 'Manager',
+        description: 'Management access to most system features'
+      },
+      {
+        id: '3',
+        name: 'Analyst',
+        description: 'Read-only access to reports and analytics'
+      },
+      {
+        id: '4',
+        name: 'Buyer',
+        description: 'Access to tract and unit management features'
+      },
+      {
+        id: '5',
+        name: 'Viewer',
+        description: 'Basic read-only access to system data'
+      }
+    ];
   }
 };
 
@@ -1074,7 +1260,102 @@ export const fetchPrivileges = async () => {
     return await apiRequest('/privileges');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return [
+      {
+        id: '1',
+        name: 'User Management',
+        description: 'Create, edit, and delete system users',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' }
+        ]
+      },
+      {
+        id: '2',
+        name: 'Tract Management',
+        description: 'View, create, edit, and delete mineral tracts',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' },
+          { id: '4', name: 'Buyer' }
+        ]
+      },
+      {
+        id: '3',
+        name: 'Unit Management',
+        description: 'Manage leasehold-based pooled acreage groups',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' },
+          { id: '4', name: 'Buyer' }
+        ]
+      },
+      {
+        id: '4',
+        name: 'Assignment Management',
+        description: 'Assign tracts and units to buyers',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' }
+        ]
+      },
+      {
+        id: '5',
+        name: 'Lead Management',
+        description: 'Manage and track lead outreach activities',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' },
+          { id: '4', name: 'Buyer' }
+        ]
+      },
+      {
+        id: '6',
+        name: 'Contact Management',
+        description: 'Manage landowners, sellers, and contacts',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' },
+          { id: '4', name: 'Buyer' }
+        ]
+      },
+      {
+        id: '7',
+        name: 'Reporting Access',
+        description: 'View reports and analytics dashboards',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' },
+          { id: '3', name: 'Analyst' }
+        ]
+      },
+      {
+        id: '8',
+        name: 'Data Import',
+        description: 'Import CSV and Excel files into the system',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' }
+        ]
+      },
+      {
+        id: '9',
+        name: 'ESG Tracking',
+        description: 'Access environmental, social, and governance tracking',
+        roles: [
+          { id: '1', name: 'Administrator' },
+          { id: '2', name: 'Manager' }
+        ]
+      },
+      {
+        id: '10',
+        name: 'System Settings',
+        description: 'Configure system-wide settings and preferences',
+        roles: [
+          { id: '1', name: 'Administrator' }
+        ]
+      }
+    ];
   }
 };
 

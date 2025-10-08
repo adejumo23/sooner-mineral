@@ -122,30 +122,35 @@ const ESGDashboard: React.FC<ESGDashboardProps> = ({ currentUser }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">ESG Tracking Dashboard</h1>
               <p className="text-gray-600 mt-1">Monitor environmental, social, and governance metrics across your portfolio</p>
             </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowCreateProfile(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add ESG Profile
-              </button>
-              <button
-                onClick={() => setShowCreateFlag(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add Risk Flag
-              </button>
-            </div>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setShowCreateProfile(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Add ESG Profile
+            </button>
+            <button
+              onClick={() => setShowCreateFlag(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Add Risk Flag
+            </button>
           </div>
         </div>
       </div>
@@ -255,7 +260,7 @@ const ESGDashboard: React.FC<ESGDashboardProps> = ({ currentUser }) => {
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">Total Assets</dt>
                             <dd className="text-lg font-medium text-gray-900">
-                              {portfolioSummary.totalTracts + portfolioSummary.totalUnits}
+                              {(portfolioSummary?.totalTracts || 0) + (portfolioSummary?.totalUnits || 0)}
                             </dd>
                         </dl>
                       </div>
@@ -272,7 +277,7 @@ const ESGDashboard: React.FC<ESGDashboardProps> = ({ currentUser }) => {
                       <div className="ml-5 w-0 flex-1">
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">Low Risk Assets</dt>
-                          <dd className="text-lg font-medium text-gray-900">{portfolioSummary.lowRiskAssets}</dd>
+                          <dd className="text-lg font-medium text-gray-900">{portfolioSummary?.lowRiskAssets || 0}</dd>
                         </dl>
                       </div>
                     </div>
@@ -288,7 +293,7 @@ const ESGDashboard: React.FC<ESGDashboardProps> = ({ currentUser }) => {
                       <div className="ml-5 w-0 flex-1">
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">High Risk Assets</dt>
-                          <dd className="text-lg font-medium text-gray-900">{portfolioSummary.highRiskAssets + portfolioSummary.criticalRiskAssets}</dd>
+                          <dd className="text-lg font-medium text-gray-900">{(portfolioSummary?.highRiskAssets || 0) + (portfolioSummary?.criticalRiskAssets || 0)}</dd>
                         </dl>
                       </div>
                     </div>
@@ -304,7 +309,7 @@ const ESGDashboard: React.FC<ESGDashboardProps> = ({ currentUser }) => {
                       <div className="ml-5 w-0 flex-1">
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">Avg Carbon Intensity</dt>
-                          <dd className="text-lg font-medium text-gray-900">{portfolioSummary.averageCarbonIntensity.toFixed(2)}</dd>
+                          <dd className="text-lg font-medium text-gray-900">{(portfolioSummary?.averageCarbonIntensity || 0).toFixed(2)}</dd>
                         </dl>
                       </div>
                     </div>
@@ -390,7 +395,7 @@ const ESGDashboard: React.FC<ESGDashboardProps> = ({ currentUser }) => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {profile.carbonIntensity ? `${profile.carbonIntensity.toFixed(2)} tCO2e/BOE` : 'N/A'}
+                        {profile.carbonIntensity ? `${(profile.carbonIntensity || 0).toFixed(2)} tCO2e/BOE` : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getComplianceScoreColor(profile.operatorComplianceScore)}`}>

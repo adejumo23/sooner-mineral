@@ -255,27 +255,37 @@ const AssignmentsPage: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Assignment & Buyer Routing</h1>
-          <p className="text-gray-600 mt-2">
-            Manage tract and unit assignments to buyers with pricing caps and priority scoring
-          </p>
-        </div>
-        <div className="flex space-x-3">
-          <Button 
-            onClick={() => setShowBulkModal(true)}
-            className="flex items-center space-x-2"
-          >
-            <ClipboardDocumentListIcon className="h-5 w-5" />
-            <span>Bulk Assign</span>
-          </Button>
-          <Link to="/assignments/new">
-            <Button className="flex items-center space-x-2">
-              <PlusIcon className="h-5 w-5" />
-              <span>New Assignment</span>
+      {/* Header with white background and icon */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Assignment & Buyer Routing</h1>
+              <p className="text-gray-600 mt-1">
+                Manage tract and unit assignments to buyers with pricing caps and priority scoring
+              </p>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            <Button 
+              onClick={() => setShowBulkModal(true)}
+              className="flex items-center space-x-2"
+            >
+              <ClipboardDocumentListIcon className="h-5 w-5" />
+              <span>Bulk Assign</span>
             </Button>
-          </Link>
+            <Link to="/assignments/new">
+              <Button className="flex items-center space-x-2">
+                <PlusIcon className="h-5 w-5" />
+                <span>New Assignment</span>
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
