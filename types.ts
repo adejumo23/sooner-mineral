@@ -21,11 +21,11 @@ export interface Privilege {
 
 export type TitleStatus = 'Verified' | 'In Progress' | 'Failed' | 'Verified with Curative Requirements' | 'Unmapped';
 
-export interface Tract {
+export interface Section {
   id: string;
   state: string;
   county: string;
-  tractName: string;
+  sectionName: string;
   legalDescription: string;
   str?: string;
   sectionNumber?: string;
@@ -139,7 +139,7 @@ export interface DistressSignal {
 }
 
 // Contact Tract Ownership with enhanced fields
-export interface ContactTractOwnershipEnhanced extends ContactTractOwnership {
+export interface ContactSectionOwnershipEnhanced extends ContactSectionOwnership {
   // Core ownership information
   ownershipPercentage: number; // e.g., 0.25 for 25%
   royaltyPercentage: number; // e.g., 0.25 for 25%
@@ -150,7 +150,7 @@ export interface ContactTractOwnershipEnhanced extends ContactTractOwnership {
   nra: number; // NRA (1/8 normalized) = NMA × (Royalty % ÷ 0.125)
   
   // Tract information
-  tract: Tract;
+  section: Section;
   
   // Unit information (if tract is part of a unit)
   unitId?: string;
@@ -178,8 +178,8 @@ export interface ContactUnitSummary {
   formation: string;
   totalNMA: number; // Sum of NMA across all tracts in this unit
   totalNRA: number; // Sum of NRA across all tracts in this unit
-  tractCount: number; // Number of tracts owned in this unit
-  tracts: ContactTractOwnershipEnhanced[]; // Detailed tract breakdown
+  sectionCount: number; // Number of tracts owned in this unit
+  sections: ContactSectionOwnershipEnhanced[]; // Detailed tract breakdown
   hasActiveLead: boolean;
   leadStatus?: string;
   assignedBuyer?: User;
@@ -233,7 +233,7 @@ export interface ContactDocument {
   dateUploaded: string; // Timestamp when document was added
   uploadedBy: string; // Username or initials of uploading team member
   notes?: string; // Optional description or summary relevance
-  linkedTracts?: string[]; // Associated tract IDs
+  linkedSections?: string[]; // Associated tract IDs
   
   // File metadata
   fileSize: number;
@@ -261,15 +261,15 @@ export interface ContactFilters {
   preferredContactMethod?: ContactEnhanced['preferredContactMethod'];
 }
 
-export interface ContactTractOwnership {
+export interface ContactSectionOwnership {
   id: string;
   contactId: string;
-  tractId: string;
+  sectionId: string;
   ownershipPercentage: number; // e.g., 0.25 for 25%
   royaltyPercentage: number; // e.g., 0.25 for 25%
   sourceOfTitle?: string;
   contact?: Contact;
-  tract?: Tract;
+  section?: Section;
   nma?: number; // Net Mineral Acres = Gross Acres × Ownership %
   nra?: number; // NRA (1/8 normalized) = NMA × (Royalty % ÷ 0.125)
 }
@@ -277,7 +277,7 @@ export interface ContactTractOwnership {
 export interface ContactNote {
   id: string;
   contactId: string;
-  tractId: string;
+  sectionId: string;
   noteText: string;
   noteType: 'Outreach' | 'Follow-up' | 'Meeting' | 'Documentation' | 'Other';
   createdBy: string;
@@ -288,7 +288,7 @@ export interface ContactNote {
 export interface Lead {
   id: string;
   contactId: string;
-  tractId: string;
+  sectionId: string;
   status: 'Open' | 'In Progress' | 'Qualified' | 'Disqualified' | 'Closed';
   leadType: 'Acquisition' | 'Lease' | 'Other';
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
@@ -298,7 +298,7 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   contact?: Contact;
-  tract?: Tract;
+  section?: Section;
   assignedToUser?: User;
   createdByUser?: User;
 
@@ -311,16 +311,16 @@ export interface Lead {
   followUpNotes?: string;
 }
 
-export interface TractLead {
+export interface SectionLead {
   id: string;
-  tractId: string;
+  sectionId: string;
   buyerId: string;
   status: 'In Progress' | 'Closed' | 'Converted';
   leadSource: 'Inbound' | 'Assignment' | 'Referral' | 'Cold Outreach' | 'Other';
   createdAt: string;
   updatedAt: string;
   buyer?: User;
-  tract?: Tract;
+  section?: Section;
   lastActivity?: string;
   noteCount?: number;
 }
@@ -356,7 +356,7 @@ export interface TractSpatial {
   geometryData?: any;
   createdAt?: string;
   updatedAt?: string;
-  tract?: Tract;
+  section?: Section;
 }
 
 export interface ProducingWell {
@@ -417,7 +417,7 @@ export interface Unit {
   estimatedNetAcres?: number; // Linked from assigned tracts
   county: string;
   state: string;
-  linkedTractIds: string[]; // Array of tract IDs linked to this unit
+  linkedSectionIds: string[]; // Array of tract IDs linked to this unit
   linkedContactIds: string[]; // Array of contact IDs (landowners in unit footprint)
   assignedBuyerId?: string; // User ID reference
   assignedBuyer?: User; // Populated from assignedBuyerId
@@ -470,24 +470,24 @@ export interface AssignmentComment {
   timestamp: string;
 }
 
-export interface UnitTract {
+export interface UnitSection {
   id: string;
   unitId: string;
-  tractId: string;
-  tract?: Tract; // Populated from tractId
+  sectionId: string;
+  section?: Section; // Populated from sectionId
   allocationPercentage?: number; // Allocation % for OK & take points for TX
   createdAt: string;
 }
 
 // New interface for enhanced unit tract data with comprehensive information
-export interface UnitTractEnhanced {
+export interface UnitSectionEnhanced {
   id: string;
   unitId: string;
-  tractId: string;
-  tract?: Tract; // Populated from tractId
+  sectionId: string;
+  section?: Section; // Populated from sectionId
   
-  // Core tract information
-  tractName: string;
+  // Core section information
+  sectionName: string;
   str?: string; // Spatial/geographic anchor in PLSS format
   grossAcres: number;
   netMineralAcres?: number;
@@ -533,7 +533,7 @@ export interface UnitContactAggregated {
   totalNRA: number; // NMA × (Royalty % ÷ 0.125) - 1/8 normalized
   
   // Tract ownership details
-  tractsOwned: string[]; // List of tract IDs the contact appears in within the unit
+  sectionsOwned: string[]; // List of section IDs the contact appears in within the unit
   
   // Outreach and lead information
   lastOutreach?: string; // Date of most recent buyer contact note or email
@@ -610,8 +610,26 @@ export interface Assignment {
   // Populated fields
   assignedBuyer?: User;
   assignedBy?: User;
-  asset?: Tract | Unit;
+  asset?: Section | Unit;
 }
+
+// Contact-Buyer relationship from prod_acreage_schedule
+export interface ContactBuyerRelationship {
+  id: string;
+  contactName: string;
+  unitName: string;
+  grossAcres: number;
+  netMineralAcres: number;
+  royalty: number;
+  nra: number;
+  ownershipPercentage: number;
+  assignedBuyer: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 export interface AssignmentHistory {
   id: string;
@@ -670,7 +688,7 @@ export interface UpdateAssignmentData {
 export interface LeadEnhanced {
   id: string;
   linkedContactId: string;
-  linkedTractIds: string[]; // Array of tract IDs
+  linkedSectionIds: string[]; // Array of tract IDs
   linkedUnitIds: string[]; // Array of unit IDs
   buyerId: string;
   sourceChannel: 'Broker' | 'Inbound' | 'Outbound';
@@ -693,7 +711,7 @@ export interface LeadEnhanced {
   
   // Populated fields
   linkedContact?: Contact;
-  linkedTracts?: Tract[];
+  linkedSections?: Section[];
   linkedUnits?: Unit[];
   buyer?: User;
   assignment?: Assignment;
@@ -1762,7 +1780,7 @@ export type InstrumentType = 'Deed' | 'Probate' | 'Affidavit' | 'Abstract' | 'As
 
 export interface TitleInstrument {
   id: string;
-  tractId: string;
+  sectionId: string;
   instrumentType: InstrumentType;
   recordedDate: string;
   recordingInfo: string;
@@ -1774,7 +1792,7 @@ export interface TitleInstrument {
 
 export interface CurativeIssue {
   id: string;
-  tractId: string;
+  sectionId: string;
   issueDescription: string;
   requiredAction: string;
   responsibleParty: string;
@@ -1786,7 +1804,7 @@ export interface CurativeIssue {
 
 export interface TitleDocument {
   id: string;
-  tractId: string;
+  sectionId: string;
   instrumentType: InstrumentType;
   contactName?: string;
   fileName: string;
@@ -1798,7 +1816,7 @@ export interface TitleDocument {
 }
 
 export interface CreateTitleInstrumentData {
-  tractId: string;
+  sectionId: string;
   instrumentType: InstrumentType;
   recordedDate: string;
   recordingInfo: string;
@@ -1815,7 +1833,7 @@ export interface UpdateTitleInstrumentData {
 }
 
 export interface CreateCurativeIssueData {
-  tractId: string;
+  sectionId: string;
   issueDescription: string;
   requiredAction: string;
   responsibleParty: string;
@@ -1831,7 +1849,7 @@ export interface UpdateCurativeIssueData {
 }
 
 export interface TitleChainSummary {
-  tractId: string;
+  sectionId: string;
   totalInstruments: number;
   verifiedInstruments: number;
   inProgressInstruments: number;

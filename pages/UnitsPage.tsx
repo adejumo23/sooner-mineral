@@ -32,16 +32,14 @@ const UnitsPage: React.FC = () => {
     }
   }, [searchTerm]);
 
-  useEffect(() => {
-    loadUnits();
-  }, [filters]);
-
   const loadData = async () => {
     try {
-      const [unitsData, usersData] = await Promise.all([
+      const [unitsResponse, usersResponse] = await Promise.all([
         fetchUnits(),
         fetchUsers()
       ]);
+      const unitsData = unitsResponse.data || unitsResponse;
+      const usersData = usersResponse.data || usersResponse;
       setUnits(unitsData || []);
       setUsers(usersData || []);
     } catch (error) {
@@ -56,7 +54,8 @@ const UnitsPage: React.FC = () => {
   const loadUnits = async () => {
     try {
       setLoading(true);
-      const unitsData = await fetchUnits(filters);
+      const unitsResponse = await fetchUnits();
+      const unitsData = unitsResponse.data || unitsResponse;
       setUnits(unitsData || []);
     } catch (error) {
       console.error('Error loading units:', error);
@@ -117,6 +116,15 @@ const UnitsPage: React.FC = () => {
       cell: (unit: Unit) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(unit.status)}`}>
           {unit.status}
+        </span>
+      )
+    },
+    {
+      header: 'Sections',
+      accessor: 'linkedTractIds',
+      cell: (unit: Unit) => (
+        <span className="text-sm text-gray-600">
+          {unit.linkedTractIds?.length || 0} sections
         </span>
       )
     },
@@ -345,7 +353,11 @@ const UnitsPage: React.FC = () => {
       {/* Units Table */}
       <Card>
         <div className="p-6">
-          {!units || units.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-lg mb-2">Loading units...</div>
+            </div>
+          ) : !units || units.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 text-lg mb-2">No units found</div>
               <p className="text-gray-500">

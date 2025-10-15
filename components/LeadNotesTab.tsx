@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Lead, User } from '../types';
+import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import { LockClosedIcon, PencilIcon, TrashIcon, PlusIcon, XCircleIcon } from './icons/Icons';
 
@@ -35,7 +35,7 @@ function parseMentions(text: string, users: User[]) {
   });
 }
 
-const LeadNotesTab: React.FC<{ lead: Lead; currentUser: User; users: User[] }> = ({ lead, currentUser, users }) => {
+const LeadNotesTab: React.FC<{ lead: LeadEnhanced; currentUser: User; users: User[] }> = ({ lead, currentUser, users }) => {
   const [notes, setNotes] = React.useState(mockNotes);
   const [search, setSearch] = React.useState('');
   const [tagFilter, setTagFilter] = React.useState('');

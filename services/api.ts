@@ -11,14 +11,14 @@ export const createUser = apiClient.createUser;
 export const updateUser = apiClient.updateUser;
 export const deleteUser = apiClient.deleteUser;
 
-export const fetchTracts = apiClient.fetchTracts;
-export const fetchTract = apiClient.fetchTract;
-export const createTract = apiClient.createTract;
-export const updateTract = apiClient.updateTract;
-export const deleteTract = apiClient.deleteTract;
-export const fetchTractOwners = apiClient.fetchTractOwners;
-export const fetchTractPricing = apiClient.fetchTractPricing;
-export const fetchTractDashboard = apiClient.fetchTractDashboard;
+export const fetchSections = apiClient.fetchSections;
+export const fetchSection = apiClient.fetchSection;
+export const createSection = apiClient.createSection;
+export const updateSection = apiClient.updateSection;
+export const deleteSection = apiClient.deleteSection;
+export const fetchSectionOwners = apiClient.fetchSectionOwners;
+export const fetchSectionPricing = apiClient.fetchSectionPricing;
+export const fetchSectionDashboard = apiClient.fetchSectionDashboard;
 
 export const fetchUnits = apiClient.fetchUnits;
 export const fetchUnit = apiClient.fetchUnit;
@@ -34,6 +34,7 @@ export const deleteLead = apiClient.deleteLead;
 export const fetchLeadCallLogs = apiClient.fetchLeadCallLogs;
 export const createLeadCallLog = apiClient.createLeadCallLog;
 export const fetchLeadNotes = apiClient.fetchLeadNotes;
+export const fetchLeadSections = apiClient.fetchLeadSections;
 export const createLeadNote = apiClient.createLeadNote;
 
 export const fetchContacts = apiClient.fetchContacts;
@@ -48,12 +49,13 @@ export const createBulkAssignments = apiClient.createBulkAssignments;
 export const fetchAssignmentHistory = apiClient.fetchAssignmentHistory;
 
 // Unit-specific functions
-export const fetchUnitTracts = apiClient.fetchUnitTracts;
-export const fetchUnitTractsEnhanced = apiClient.fetchUnitTractsEnhanced;
+export const fetchUnitSections = apiClient.fetchUnitSections;
+export const fetchUnitSectionsEnhanced = apiClient.fetchUnitSectionsEnhanced;
 export const fetchUnitContacts = apiClient.fetchUnitContacts;
 export const fetchUnitContactsAggregated = apiClient.fetchUnitContactsAggregated;
 export const fetchUnitNotes = apiClient.fetchUnitNotes;
 export const fetchUnitAssignments = apiClient.fetchUnitAssignments;
+export const fetchUnitNames = apiClient.fetchUnitNames;
 export const assignUnit = apiClient.assignUnit;
 export const unassignUnit = apiClient.unassignUnit;
 export const updateUnitLock = apiClient.updateUnitLock;
@@ -63,7 +65,7 @@ export const createUnitNote = apiClient.createUnitNote;
 export const fetchContactTractOwnership = apiClient.fetchContactTractOwnership;
 export const fetchContactUnits = apiClient.fetchContactUnits;
 export const fetchContactLeads = apiClient.fetchContactLeads;
-export const fetchTractContacts = apiClient.fetchTractContacts;
+export const fetchSectionContacts = apiClient.fetchSectionContacts;
 export const fetchContactCallLogs = apiClient.fetchContactCallLogs;
 export const fetchContactDocuments = apiClient.fetchContactDocuments;
 export const fetchDistressSignals = apiClient.fetchDistressSignals;
@@ -73,13 +75,14 @@ export const login = apiClient.login;
 export const logout = apiClient.logout;
 
 // Lead-related functions
-export const fetchTractLeads = apiClient.fetchTractLeads;
+export const fetchSectionLeads = apiClient.fetchSectionLeads;
+export const createSectionLead = apiClient.createSectionLead;
 export const createTractLead = apiClient.createTractLead;
 export const updateLeadStatus = apiClient.updateLeadStatus;
 export const convertLeadToDeal = apiClient.convertLeadToDeal;
 
 // Mapping and spatial functions
-export const fetchTractSpatial = apiClient.fetchTractSpatial;
+export const fetchSectionSpatial = apiClient.fetchSectionSpatial;
 export const fetchMapLayerPreferences = apiClient.fetchMapLayerPreferences;
 export const fetchNearbyWells = apiClient.fetchNearbyWells;
 export const fetchNearbyPermits = apiClient.fetchNearbyPermits;
@@ -256,15 +259,15 @@ export default {
   updateUser,
   deleteUser,
   
-  // Tracts
-  fetchTracts,
-  fetchTract,
-  createTract,
-  updateTract,
-  deleteTract,
-  fetchTractOwners,
-  fetchTractPricing,
-  fetchTractDashboard,
+  // Sections
+  fetchSections,
+  fetchSection,
+  createSection,
+  updateSection,
+  deleteSection,
+  fetchSectionOwners,
+  fetchSectionPricing,
+  fetchSectionDashboard,
   
   // Units
   fetchUnits,
@@ -298,12 +301,13 @@ export default {
   fetchAssignmentHistory,
   
   // Unit-specific functions
-  fetchUnitTracts,
-  fetchUnitTractsEnhanced,
+  fetchUnitSections,
+  fetchUnitSectionsEnhanced,
   fetchUnitContacts,
   fetchUnitContactsAggregated,
   fetchUnitNotes,
   fetchUnitAssignments,
+  fetchUnitNames,
   assignUnit,
   unassignUnit,
   updateUnitLock,
@@ -322,13 +326,13 @@ export default {
   logout,
   
   // Lead-related functions
-  fetchTractLeads,
+  fetchSectionLeads,
   createTractLead,
   updateLeadStatus,
   convertLeadToDeal,
   
   // Mapping and spatial functions
-  fetchTractSpatial,
+  fetchSectionSpatial,
   fetchMapLayerPreferences,
   fetchNearbyWells,
   fetchNearbyPermits,

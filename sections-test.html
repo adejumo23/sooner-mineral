@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sections Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .section-name { font-weight: bold; color: #2c5aa0; }
+        .section-details { margin: 5px 0; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 5px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sections API Test</h1>
+        <button onclick="loadSections()">Load Sections Data</button>
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function loadSections() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            statusDiv.innerHTML = '<div class="success">Loading sections data...</div>';
+            resultsDiv.innerHTML = '';
+            
+            try {
+                console.log('Fetching from: http://localhost:3051/api/sections');
+                const response = await fetch('http://localhost:3051/api/sections', {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const sections = await response.json();
+                
+                statusDiv.innerHTML = `<div class="success">✅ Successfully loaded ${sections.length} sections!</div>`;
+                
+                // Display first 10 sections in a table
+                let tableHTML = `
+                    <h3>First 10 Sections:</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Section Name</th>
+                                <th>State</th>
+                                <th>County</th>
+                                <th>Section</th>
+                                <th>Township</th>
+                                <th>Range</th>
+                                <th>Gross Acres</th>
+                                <th>Net Acres</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                sections.slice(0, 10).forEach(section => {
+                    tableHTML += `
+                        <tr>
+                            <td class="section-name">${section.section_name}</td>
+                            <td>${section.state}</td>
+                            <td>${section.county}</td>
+                            <td>${section.section || 'N/A'}</td>
+                            <td>${section.township || 'N/A'}</td>
+                            <td>${section.range || 'N/A'}</td>
+                            <td>${section.gross_acres || 0}</td>
+                            <td>${section.net_mineral_acres || 0}</td>
+                            <td>${section.title_status || 'Unknown'}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += '</tbody></table>';
+                
+                // Show some sample data
+                if (sections.length > 0) {
+                    const sample = sections[0];
+                    tableHTML += `
+                        <h3>Sample Section Data:</h3>
+                        <div class="section">
+                            <div class="section-name">${sample.section_name}</div>
+                            <div class="section-details"><strong>State:</strong> ${sample.state}</div>
+                            <div class="section-details"><strong>County:</strong> ${sample.county}</div>
+                            <div class="section-details"><strong>S-T-R:</strong> ${sample.str}</div>
+                            <div class="section-details"><strong>Section:</strong> ${sample.section}</div>
+                            <div class="section-details"><strong>Township:</strong> ${sample.township}</div>
+                            <div class="section-details"><strong>Range:</strong> ${sample.range}</div>
+                            <div class="section-details"><strong>Gross Acres:</strong> ${sample.gross_acres}</div>
+                            <div class="section-details"><strong>Net Acres:</strong> ${sample.net_mineral_acres}</div>
+                            <div class="section-details"><strong>Owner:</strong> ${sample.owner_name}</div>
+                            <div class="section-details"><strong>Buyer:</strong> ${sample.assigned_buyer}</div>
+                        </div>
+                    `;
+                }
+                
+                resultsDiv.innerHTML = tableHTML;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                resultsDiv.innerHTML = `
+                    <p>Make sure the backend server is running on port 3051.</p>
+                    <p>Run: <code>node server.js</code></p>
+                `;
+            }
+        }
+        
+        // Auto-load on page load
+        window.onload = function() {
+            loadSections();
+        };
+    </script>
+</body>
+</html>

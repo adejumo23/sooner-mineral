@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { fetchTracts, fetchTractOwners, fetchTractPricing, fetchTractDashboard } from '../services/api';
+import { fetchSections, fetchSectionOwners, fetchSectionPricing, fetchSectionDashboard } from '../services/api';
 
-const TractTestComponent: React.FC = () => {
-  const [tracts, setTracts] = useState<any[]>([]);
-  const [selectedTract, setSelectedTract] = useState<any>(null);
+const SectionTestComponent: React.FC = () => {
+  const [sections, setSections] = useState<any[]>([]);
+  const [selectedSection, setSelectedSection] = useState<any>(null);
   const [owners, setOwners] = useState<any[]>([]);
   const [pricing, setPricing] = useState<any[]>([]);
   const [dashboard, setDashboard] = useState<any>({});
@@ -19,18 +19,19 @@ const TractTestComponent: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Load tracts
-      const tractsData = await fetchTracts();
-      setTracts(tractsData);
+      // Load sections
+      const sectionsResponse = await fetchSections();
+      const sectionsData = sectionsResponse.data || sectionsResponse;
+      setSections(sectionsData);
 
       // Load dashboard
-      const dashboardData = await fetchTractDashboard();
+      const dashboardData = await fetchSectionDashboard();
       setDashboard(dashboardData);
 
-      // Select first tract if available
-      if (tractsData.length > 0) {
-        setSelectedTract(tractsData[0]);
-        await loadTractDetails(tractsData[0].id);
+      // Select first section if available
+      if (sectionsData.length > 0) {
+        setSelectedSection(sectionsData[0]);
+        await loadSectionDetails(sectionsData[0].id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -39,22 +40,22 @@ const TractTestComponent: React.FC = () => {
     }
   };
 
-  const loadTractDetails = async (tractId: string) => {
+  const loadSectionDetails = async (sectionId: string) => {
     try {
       const [ownersData, pricingData] = await Promise.all([
-        fetchTractOwners(tractId),
-        fetchTractPricing(tractId)
+        fetchSectionOwners(sectionId),
+        fetchSectionPricing(sectionId)
       ]);
       setOwners(ownersData);
       setPricing(pricingData);
     } catch (err) {
-      console.error('Error loading tract details:', err);
+      console.error('Error loading section details:', err);
     }
   };
 
-  const handleTractSelect = async (tract: any) => {
-    setSelectedTract(tract);
-    await loadTractDetails(tract.id);
+  const handleSectionSelect = async (section: any) => {
+    setSelectedSection(section);
+    await loadSectionDetails(section.id);
   };
 
   if (loading) {
@@ -74,71 +75,71 @@ const TractTestComponent: React.FC = () => {
         <h2 className="text-lg font-semibold mb-3">Dashboard Summary</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{dashboard.totalTracts || 0}</div>
-            <div className="text-sm text-gray-600">Total Tracts</div>
+            <div className="text-2xl font-bold text-blue-600">{dashboard.totalSections || 0}</div>
+            <div className="text-sm text-gray-600">Total Sections</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{dashboard.workingTracts || 0}</div>
+            <div className="text-2xl font-bold text-green-600">{dashboard.workingSections || 0}</div>
             <div className="text-sm text-gray-600">Working</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">{dashboard.droppedTracts || 0}</div>
+            <div className="text-2xl font-bold text-red-600">{dashboard.droppedSections || 0}</div>
             <div className="text-sm text-gray-600">Dropped</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">{dashboard.newTracts || 0}</div>
+            <div className="text-2xl font-bold text-yellow-600">{dashboard.newSections || 0}</div>
             <div className="text-sm text-gray-600">New</div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tracts List */}
+        {/* Sections List */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">Tracts ({tracts.length})</h2>
+          <h2 className="text-lg font-semibold mb-3">Sections ({sections.length})</h2>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {tracts.map((tract) => (
+            {sections.map((section) => (
               <div
-                key={tract.id}
+                key={section.id}
                 className={`p-3 border rounded cursor-pointer transition-colors ${
-                  selectedTract?.id === tract.id
+                  selectedSection?.id === section.id
                     ? 'bg-blue-100 border-blue-300'
                     : 'bg-white border-gray-200 hover:bg-gray-50'
                 }`}
-                onClick={() => handleTractSelect(tract)}
+                onClick={() => handleSectionSelect(section)}
               >
-                <div className="font-medium">{tract.tractName}</div>
+                <div className="font-medium">{section.sectionName}</div>
                 <div className="text-sm text-gray-600">
-                  {tract.state} - {tract.county}
+                  {section.state} - {section.county}
                 </div>
                 <div className="text-sm text-gray-500">
-                  {tract.grossAcres} acres • {tract.numberOfOwners || 0} owners
+                  {section.grossAcres} acres • {section.numberOfOwners || 0} owners
                 </div>
                 <div className="text-xs text-gray-400">
-                  Status: {tract.titleStatus || 'Unknown'}
+                  Status: {section.titleStatus || 'Unknown'}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Selected Tract Details */}
-        {selectedTract && (
+        {/* Selected Section Details */}
+        {selectedSection && (
           <div>
-            <h2 className="text-lg font-semibold mb-3">Tract Details</h2>
+            <h2 className="text-lg font-semibold mb-3">Section Details</h2>
             <div className="bg-white border rounded-lg p-4">
               <div className="space-y-2">
-                <div><strong>ID:</strong> {selectedTract.id}</div>
-                <div><strong>Name:</strong> {selectedTract.tractName}</div>
-                <div><strong>State:</strong> {selectedTract.state}</div>
-                <div><strong>County:</strong> {selectedTract.county}</div>
-                <div><strong>Legal Description:</strong> {selectedTract.legalDescription}</div>
-                <div><strong>STR:</strong> {selectedTract.str}</div>
-                <div><strong>Gross Acres:</strong> {selectedTract.grossAcres}</div>
-                <div><strong>Net Mineral Acres:</strong> {selectedTract.netMineralAcres}</div>
-                <div><strong>Number of Owners:</strong> {selectedTract.numberOfOwners}</div>
-                <div><strong>Status:</strong> {selectedTract.titleStatus}</div>
-                <div><strong>Assigned Buyer:</strong> {selectedTract.assignedBuyer || 'None'}</div>
+                <div><strong>ID:</strong> {selectedSection.id}</div>
+                <div><strong>Name:</strong> {selectedSection.sectionName}</div>
+                <div><strong>State:</strong> {selectedSection.state}</div>
+                <div><strong>County:</strong> {selectedSection.county}</div>
+                <div><strong>Legal Description:</strong> {selectedSection.legalDescription}</div>
+                <div><strong>STR:</strong> {selectedSection.str}</div>
+                <div><strong>Gross Acres:</strong> {selectedSection.grossAcres}</div>
+                <div><strong>Net Mineral Acres:</strong> {selectedSection.netMineralAcres}</div>
+                <div><strong>Number of Owners:</strong> {selectedSection.numberOfOwners}</div>
+                <div><strong>Status:</strong> {selectedSection.titleStatus}</div>
+                <div><strong>Assigned Buyer:</strong> {selectedSection.assignedBuyer || 'None'}</div>
               </div>
 
               {/* Owners */}
@@ -178,4 +179,4 @@ const TractTestComponent: React.FC = () => {
   );
 };
 
-export default TractTestComponent;
+export default SectionTestComponent;

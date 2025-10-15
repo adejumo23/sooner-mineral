@@ -1,6 +1,20 @@
 // API client for making HTTP requests to the server
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
+// Utility function to generate section name based on state and S-T-R data
+export const generateSectionName = (state: string, str?: string): string => {
+  if (state === 'OK' && str) {
+    // For Oklahoma, use the S-T-R data as the section name
+    return str;
+  } else if (state === 'TX') {
+    // For Texas, use placeholder text
+    return 'data yet to be provided';
+  } else {
+    // For other states or missing data, use a default
+    return str || 'Section Name Not Available';
+  }
+};
+
 // Helper function to make API requests
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -59,12 +73,17 @@ const mockUsers = [
 ];
 
 // User API functions
-export const fetchUsers = async () => {
+export const fetchUsers = async (page = 1, limit = 50) => {
   try {
-    return await apiRequest('/users');
+    const response = await apiRequest(`/users?page=${page}&limit=${limit}`);
+    // Handle new paginated response structure
+    return {
+      data: response.data || response,
+      pagination: response.pagination || null
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return mockUsers;
+    return { data: mockUsers, pagination: null };
   }
 };
 
@@ -124,52 +143,70 @@ export const deleteUser = async (id: string) => {
   }
 };
 
-// Tract API functions
-export const fetchTracts = async () => {
+// Section API functions
+export const fetchSections = async (page = 1, limit = 50) => {
   try {
-    return await apiRequest('/tracts');
+    const response = await apiRequest(`/sections?page=${page}&limit=${limit}`);
+    // Handle new paginated response structure
+    const sections = response.data || response; // Support both old and new formats
+    // Generate section names based on state and S-T-R data
+    const processedSections = sections.map((section: any) => ({
+      ...section,
+      sectionName: generateSectionName(section.state, section.str)
+    }));
+    
+    // Return both data and pagination info if available
+    return {
+      data: processedSections,
+      pagination: response.pagination || null
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return { data: [], pagination: null };
   }
 };
 
-export const fetchTract = async (id: string) => {
+export const fetchSection = async (id: string) => {
   try {
-    return await apiRequest(`/tracts/${id}`);
+    const section = await apiRequest(`/sections/${id}`);
+    // Generate section name based on state and S-T-R data
+    return {
+      ...section,
+      sectionName: generateSectionName(section.state, section.str)
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return null;
   }
 };
 
-export const createTract = async (tractData: any) => {
+export const createSection = async (sectionData: any) => {
   try {
-    return await apiRequest('/tracts', {
+    return await apiRequest('/sections', {
       method: 'POST',
-      body: JSON.stringify(tractData),
+      body: JSON.stringify(sectionData),
     });
   } catch (error) {
     console.warn('Server not available, creating mock tract:', error);
-    return { ...tractData, id: `t${Date.now()}` };
+    return { ...sectionData, id: `s${Date.now()}` };
   }
 };
 
-export const updateTract = async (id: string, tractData: any) => {
+export const updateSection = async (id: string, sectionData: any) => {
   try {
-    return await apiRequest(`/tracts/${id}`, {
+    return await apiRequest(`/sections/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(tractData),
+      body: JSON.stringify(sectionData),
     });
   } catch (error) {
     console.warn('Server not available, updating mock tract:', error);
-    return { ...tractData, id };
+    return { ...sectionData, id };
   }
 };
 
-export const deleteTract = async (id: string) => {
+export const deleteSection = async (id: string) => {
   try {
-    return await apiRequest(`/tracts/${id}`, {
+    return await apiRequest(`/sections/${id}`, {
       method: 'DELETE',
     });
   } catch (error) {
@@ -179,12 +216,17 @@ export const deleteTract = async (id: string) => {
 };
 
 // Unit API functions
-export const fetchUnits = async () => {
+export const fetchUnits = async (page = 1, limit = 50) => {
   try {
-    return await apiRequest('/units');
+    const response = await apiRequest(`/units?page=${page}&limit=${limit}`);
+    // Handle new paginated response structure
+    return {
+      data: response.data || response,
+      pagination: response.pagination || null
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return { data: [], pagination: null };
   }
 };
 
@@ -233,12 +275,17 @@ export const deleteUnit = async (id: string) => {
 };
 
 // Lead API functions
-export const fetchLeads = async () => {
+export const fetchLeads = async (page = 1, limit = 50) => {
   try {
-    return await apiRequest('/leads');
+    const response = await apiRequest(`/leads?page=${page}&limit=${limit}`);
+    // Handle new paginated response structure
+    return {
+      data: response.data || response,
+      pagination: response.pagination || null
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return { data: [], pagination: null };
   }
 };
 
@@ -287,12 +334,17 @@ export const deleteLead = async (id: string) => {
 };
 
 // Contact API functions
-export const fetchContacts = async () => {
+export const fetchContacts = async (page = 1, limit = 50) => {
   try {
-    return await apiRequest('/contacts');
+    const response = await apiRequest(`/contacts?page=${page}&limit=${limit}`);
+    // Handle new paginated response structure
+    return {
+      data: response.data || response,
+      pagination: response.pagination || null
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return { data: [], pagination: null };
   }
 };
 
@@ -306,12 +358,21 @@ export const fetchContact = async (id: string) => {
 };
 
 // Assignment API functions
-export const fetchAssignments = async () => {
+export const fetchAssignments = async (page = 1, limit = 50, search = '') => {
   try {
-    return await apiRequest('/assignments');
+    let url = `/assignments?page=${page}&limit=${limit}`;
+    if (search) {
+      url += `&search=${encodeURIComponent(search)}`;
+    }
+    const response = await apiRequest(url);
+    // Handle new paginated response structure
+    return {
+      data: response.data || response,
+      pagination: response.pagination || null
+    };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return [];
+    return { data: [], pagination: null };
   }
 };
 
@@ -407,6 +468,15 @@ export const fetchLeadNotes = async (leadId: string) => {
   }
 };
 
+export const fetchLeadSections = async (leadId: string) => {
+  try {
+    return await apiRequest(`/leads/${leadId}/sections`);
+  } catch (error) {
+    console.warn('Server not available, using mock sections:', error);
+    return [];
+  }
+};
+
 export const createLeadNote = async (leadId: string, noteData: any) => {
   try {
     return await apiRequest(`/leads/${leadId}/notes`, {
@@ -430,18 +500,18 @@ export const fetchAssignmentHistory = async (assignmentId: string) => {
 };
 
 // Unit-specific functions
-export const fetchUnitTracts = async (unitId: string) => {
+export const fetchUnitSections = async (unitId: string) => {
   try {
-    return await apiRequest(`/units/${unitId}/tracts`);
+    return await apiRequest(`/units/${unitId}/sections`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
   }
 };
 
-export const fetchUnitTractsEnhanced = async (unitId: string) => {
+export const fetchUnitSectionsEnhanced = async (unitId: string) => {
   try {
-    return await apiRequest(`/units/${unitId}/tracts/enhanced`);
+    return await apiRequest(`/units/${unitId}/sections/enhanced`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
@@ -481,6 +551,19 @@ export const fetchUnitAssignments = async (unitId: string) => {
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
+  }
+};
+
+export const fetchUnitNames = async (unitId: string) => {
+  try {
+    return await apiRequest(`/units/${unitId}/unit-names`);
+  } catch (error) {
+    console.warn('Server not available, using mock data:', error);
+    return {
+      currentUnitNames: [],
+      newUnitNames: [],
+      totalRecords: 0
+    };
   }
 };
 
@@ -552,9 +635,9 @@ export const fetchContactUnits = async (contactId: string) => {
 };
 
 // Tract contacts
-export const fetchTractContacts = async (tractId: string) => {
+export const fetchSectionContacts = async (sectionId: string) => {
   try {
-    return await apiRequest(`/tracts/${tractId}/contacts`);
+    return await apiRequest(`/sections/${sectionId}/contacts`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
@@ -633,18 +716,18 @@ export const logout = async () => {
 };
 
 // Lead-related functions
-export const fetchTractLeads = async (tractId: string) => {
+export const fetchSectionLeads = async (sectionId: string) => {
   try {
-    return await apiRequest(`/tracts/${tractId}/leads`);
+    return await apiRequest(`/sections/${sectionId}/leads`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
   }
 };
 
-export const createTractLead = async (tractId: string, leadData: any) => {
+export const createSectionLead = async (sectionId: string, leadData: any) => {
   try {
-    return await apiRequest(`/tracts/${tractId}/leads`, {
+    return await apiRequest(`/sections/${sectionId}/leads`, {
       method: 'POST',
       body: JSON.stringify(leadData),
     });
@@ -679,9 +762,9 @@ export const convertLeadToDeal = async (leadId: string, dealData: any) => {
 };
 
 // Mapping and spatial functions
-export const fetchTractSpatial = async (tractId: string) => {
+export const fetchSectionSpatial = async (sectionId: string) => {
   try {
-    return await apiRequest('/tract-spatial');
+    return await apiRequest('/section-spatial');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return null;
@@ -873,7 +956,7 @@ export const fetchESGPortfolioSummary = async () => {
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return {
-      totalTracts: 150,
+      totalSections: 150,
       totalUnits: 25,
       lowRiskAssets: 120,
       highRiskAssets: 25,
@@ -1273,7 +1356,7 @@ export const fetchPrivileges = async () => {
       {
         id: '2',
         name: 'Tract Management',
-        description: 'View, create, edit, and delete mineral tracts',
+        description: 'View, create, edit, and delete mineral sections',
         roles: [
           { id: '1', name: 'Administrator' },
           { id: '2', name: 'Manager' },
@@ -1293,7 +1376,7 @@ export const fetchPrivileges = async () => {
       {
         id: '4',
         name: 'Assignment Management',
-        description: 'Assign tracts and units to buyers',
+        description: 'Assign sections and units to buyers',
         roles: [
           { id: '1', name: 'Administrator' },
           { id: '2', name: 'Manager' }
@@ -1372,27 +1455,27 @@ export const assignRolesToPrivilege = async (privilegeId: string, roleIds: strin
 };
 
 // Dashboard data
-export const fetchTractDashboard = async () => {
+export const fetchSectionDashboard = async () => {
   try {
-    return await apiRequest('/dashboard/tracts');
+    return await apiRequest('/dashboard/sections');
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
-    return { totalTracts: 0, totalAcres: 0, totalValue: 0 };
+    return { totalSections: 0, totalAcres: 0, totalValue: 0 };
   }
 };
 
-export const fetchTractOwners = async (tractId: string) => {
+export const fetchSectionOwners = async (sectionId: string) => {
   try {
-    return await apiRequest(`/tracts/${tractId}/owners`);
+    return await apiRequest(`/sections/${sectionId}/owners`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
   }
 };
 
-export const fetchTractPricing = async (tractId: string) => {
+export const fetchSectionPricing = async (sectionId: string) => {
   try {
-    return await apiRequest(`/tracts/${tractId}/pricing`);
+    return await apiRequest(`/sections/${sectionId}/pricing`);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return null;
@@ -1626,15 +1709,15 @@ export default {
   updateUser,
   deleteUser,
   
-  // Tracts
-  fetchTracts,
-  fetchTract,
-  createTract,
-  updateTract,
-  deleteTract,
-  fetchTractOwners,
-  fetchTractPricing,
-  fetchTractDashboard,
+  // Sections
+  fetchSections,
+  fetchSection,
+  createSection,
+  updateSection,
+  deleteSection,
+  fetchSectionOwners,
+  fetchSectionPricing,
+  fetchSectionDashboard,
   
   // Units
   fetchUnits,
@@ -1668,8 +1751,8 @@ export default {
   fetchAssignmentHistory,
   
   // Unit-specific functions
-  fetchUnitTracts,
-  fetchUnitTractsEnhanced,
+  fetchUnitSections,
+  fetchUnitSectionsEnhanced,
   fetchUnitContacts,
   fetchUnitContactsAggregated,
   fetchUnitNotes,
@@ -1692,13 +1775,13 @@ export default {
   logout,
   
   // Lead-related functions
-  fetchTractLeads,
-  createTractLead,
+  fetchSectionLeads,
+  createSectionLead,
   updateLeadStatus,
   convertLeadToDeal,
   
   // Mapping and spatial functions
-  fetchTractSpatial,
+  fetchSectionSpatial,
   fetchMapLayerPreferences,
   fetchNearbyWells,
   fetchNearbyPermits,

@@ -20,7 +20,8 @@ const UsersPage: React.FC = () => {
   const fetchUsersAndRoles = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [usersData, rolesData] = await Promise.all([api.fetchUsers(), api.fetchRoles()]);
+      const [usersResponse, rolesData] = await Promise.all([api.fetchUsers(), api.fetchRoles()]);
+      const usersData = usersResponse.data || usersResponse;
       setUsers(usersData || []);
       setRoles(rolesData || []);
     } catch (error) {

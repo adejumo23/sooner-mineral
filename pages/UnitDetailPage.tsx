@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   fetchUnit, 
-  fetchUnitTracts, 
-  fetchUnitTractsEnhanced,
+  fetchUnitSections, 
+  fetchUnitSectionsEnhanced,
   fetchUnitContacts, 
   fetchUnitContactsAggregated,
   fetchUnitNotes, 
   fetchUnitAssignments,
+  fetchUnitNames,
   fetchUsers,
   assignUnit,
   unassignUnit,
@@ -15,7 +16,7 @@ import {
   createUnitNote,
   deleteUnit
 } from '../services/api';
-import { Unit, UnitTract, UnitTractEnhanced, UnitContact, UnitContactAggregated, UnitNote, UnitAssignment, User, TitleStatus } from '../types';
+import { Unit, UnitSection, UnitSectionEnhanced, UnitContact, UnitContactAggregated, UnitNote, UnitAssignment, User, TitleStatus } from '../types';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -40,12 +41,13 @@ const UnitDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [unit, setUnit] = useState<Unit | null>(null);
-  const [unitTracts, setUnitTracts] = useState<UnitTract[]>([]);
-  const [unitTractsEnhanced, setUnitTractsEnhanced] = useState<UnitTractEnhanced[]>([]);
+  const [unitSections, setUnitSections] = useState<UnitSection[]>([]);
+  const [unitSectionsEnhanced, setUnitSectionsEnhanced] = useState<UnitSectionEnhanced[]>([]);
   const [unitContacts, setUnitContacts] = useState<UnitContact[]>([]);
   const [unitContactsAggregated, setUnitContactsAggregated] = useState<UnitContactAggregated[]>([]);
   const [unitNotes, setUnitNotes] = useState<UnitNote[]>([]);
   const [unitAssignments, setUnitAssignments] = useState<UnitAssignment[]>([]);
+  const [unitNames, setUnitNames] = useState<{currentUnitNames: string[], newUnitNames: string[], totalRecords: number}>({currentUnitNames: [], newUnitNames: [], totalRecords: 0});
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -58,9 +60,9 @@ const UnitDetailPage: React.FC = () => {
   const [lockNotes, setLockNotes] = useState('');
   const [noteText, setNoteText] = useState('');
   const [noteType, setNoteType] = useState<UnitNote['noteType']>('Internal');
-  const [tractSearchTerm, setTractSearchTerm] = useState('');
-  const [tractSortBy, setTractSortBy] = useState('tractName');
-  const [tractFilterStatus, setTractFilterStatus] = useState('');
+  const [sectionSearchTerm, setSectionSearchTerm] = useState('');
+  const [sectionSortBy, setSectionSortBy] = useState('sectionName');
+  const [sectionFilterStatus, setSectionFilterStatus] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -75,30 +77,33 @@ const UnitDetailPage: React.FC = () => {
       setLoading(true);
       const [
         unitData, 
-        tractsData, 
+        sectionsData, 
         contactsData, 
         contactsAggregatedData,
         notesData, 
         assignmentsData,
+        unitNamesData,
         usersData
       ] = await Promise.all([
         fetchUnit(id),
-        fetchUnitTracts(id),
+        fetchUnitSections(id),
         fetchUnitContacts(id),
         fetchUnitContactsAggregated(id),
         fetchUnitNotes(id),
         fetchUnitAssignments(id),
+        fetchUnitNames(id),
         fetchUsers()
       ]);
       
       setUnit(unitData);
-      setUnitTracts(tractsData);
-      setUnitTractsEnhanced(await fetchUnitTractsEnhanced(id)); // Fetch enhanced tracts
+      setUnitSections(sectionsData);
+      setUnitSectionsEnhanced(await fetchUnitSectionsEnhanced(id)); // Fetch enhanced sections
       setUnitContacts(contactsData);
       setUnitContactsAggregated(contactsAggregatedData);
       setUnitNotes(notesData);
       setUnitAssignments(assignmentsData);
-      setUsers(usersData);
+      setUnitNames(unitNamesData);
+      setUsers(usersData.data || usersData); // Fix: Access data property from paginated response
     } catch (error) {
       console.error('Error loading unit data:', error);
     } finally {
@@ -220,37 +225,54 @@ const UnitDetailPage: React.FC = () => {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: DocumentTextIcon },
-    { id: 'tracts', name: 'Linked Tracts', icon: MapIcon },
+    { id: 'sections', name: 'Linked Sections', icon: MapIcon },
     { id: 'contacts', name: 'Contacts', icon: UserIcon },
     { id: 'mapping', name: 'Mapping Preview', icon: MapIcon },
     { id: 'assignment', name: 'Assignment', icon: CogIcon },
   ];
 
-  const filteredAndSortedTracts = unitTractsEnhanced
-    .filter(tract => 
-      tract.tractName.toLowerCase().includes(tractSearchTerm.toLowerCase()) ||
-      tract.str?.toLowerCase().includes(tractSearchTerm.toLowerCase()) ||
-      tract.tract?.county?.toLowerCase().includes(tractSearchTerm.toLowerCase()) ||
-      tract.tract?.state?.toLowerCase().includes(tractSearchTerm.toLowerCase())
-    )
-    .filter(tract => tractFilterStatus ? tract.titleStatus === tractFilterStatus : true)
+  const filteredAndSortedSections = unitSectionsEnhanced
+    .filter(section => {
+      const sectionName = section.section?.sectionName || section.sectionName || '';
+      const str = section.str || section.section?.str || '';
+      const county = section.section?.county || '';
+      const state = section.section?.state || '';
+      
+      return sectionName.toLowerCase().includes(sectionSearchTerm.toLowerCase()) ||
+        str.toLowerCase().includes(sectionSearchTerm.toLowerCase()) ||
+        county.toLowerCase().includes(sectionSearchTerm.toLowerCase()) ||
+        state.toLowerCase().includes(sectionSearchTerm.toLowerCase());
+    })
+    .filter(section => {
+      const titleStatus = section.titleStatus || section.section?.titleStatus || '';
+      return sectionFilterStatus ? titleStatus === sectionFilterStatus : true;
+    })
     .sort((a, b) => {
-      if (tractSortBy === 'tractName') return a.tractName.localeCompare(b.tractName);
-      if (tractSortBy === 'grossAcres') return b.grossAcres - a.grossAcres;
-      if (tractSortBy === 'netMineralAcres') return (b.netMineralAcres || 0) - (a.netMineralAcres || 0);
-      if (tractSortBy === 'titleStatus') return a.titleStatus.localeCompare(b.titleStatus);
-      if (tractSortBy === 'lastActivity') return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
+      const aSectionName = a.section?.sectionName || a.sectionName || '';
+      const bSectionName = b.section?.sectionName || b.sectionName || '';
+      const aGrossAcres = a.grossAcres || a.section?.grossAcres || 0;
+      const bGrossAcres = b.grossAcres || b.section?.grossAcres || 0;
+      const aNetAcres = a.netMineralAcres || a.section?.netMineralAcres || 0;
+      const bNetAcres = b.netMineralAcres || b.section?.netMineralAcres || 0;
+      const aTitleStatus = a.titleStatus || a.section?.titleStatus || '';
+      const bTitleStatus = b.titleStatus || b.section?.titleStatus || '';
+      
+      if (sectionSortBy === 'sectionName') return aSectionName.localeCompare(bSectionName);
+      if (sectionSortBy === 'grossAcres') return bGrossAcres - aGrossAcres;
+      if (sectionSortBy === 'netMineralAcres') return bNetAcres - aNetAcres;
+      if (sectionSortBy === 'titleStatus') return aTitleStatus.localeCompare(bTitleStatus);
+      if (sectionSortBy === 'lastActivity') return new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime();
       return 0;
     });
 
-  const handleViewTitleChain = (tract: UnitTractEnhanced) => {
-    // Navigate to tract detail page with title-chain tab active
-    navigate(`/tracts/${tract.tractId}?tab=title-chain`);
+  const handleViewTitleChain = (section: UnitSectionEnhanced) => {
+    // Navigate to section detail page with title-chain tab active
+    navigate(`/sections/${section.sectionId}?tab=title-chain`);
   };
 
-  const handleViewContacts = (tract: UnitTractEnhanced) => {
-    // Navigate to tract detail page with contacts tab active
-    navigate(`/tracts/${tract.tractId}?tab=contacts`);
+  const handleViewContacts = (section: UnitSectionEnhanced) => {
+    // Navigate to section detail page with contacts tab active
+    navigate(`/sections/${section.sectionId}?tab=contacts`);
   };
 
   return (
@@ -414,6 +436,51 @@ const UnitDetailPage: React.FC = () => {
               </div>
             </Card>
 
+            {/* Unit Names */}
+            <Card className="lg:col-span-2">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Unit Names</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-md font-medium text-gray-700 mb-3">Current Unit Names</h4>
+                    {unitNames.currentUnitNames.length > 0 ? (
+                      <div className="space-y-2">
+                        {unitNames.currentUnitNames.map((name, index) => (
+                          <div key={index} className="bg-blue-50 p-3 rounded-md border-l-4 border-blue-400">
+                            <p className="text-sm text-gray-900 font-medium">{name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No current unit names found</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-md font-medium text-gray-700 mb-3">New Unit Names</h4>
+                    {unitNames.newUnitNames.length > 0 ? (
+                      <div className="space-y-2">
+                        {unitNames.newUnitNames.map((name, index) => (
+                          <div key={index} className="bg-green-50 p-3 rounded-md border-l-4 border-green-400">
+                            <p className="text-sm text-gray-900 font-medium">{name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No new unit names found</p>
+                    )}
+                  </div>
+                </div>
+                {unitNames.totalRecords > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs text-gray-500">
+                      Found {unitNames.totalRecords} records with unit name data
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Card>
+
             {/* Assignment & Notes */}
             <Card className="lg:col-span-2">
               <div className="p-6">
@@ -449,20 +516,20 @@ const UnitDetailPage: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'tracts' && (
+        {activeTab === 'sections' && (
           <div className="space-y-6">
             {/* Header Bar */}
             <Card>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Linked Tracts in This Unit</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Linked Sections in This Unit</h3>
                   <div className="flex space-x-3">
                     <div className="relative">
                       <Input
                         type="text"
-                        placeholder="Search tracts..."
-                        value={tractSearchTerm}
-                        onChange={(e) => setTractSearchTerm(e.target.value)}
+                        placeholder="Search sections..."
+                        value={sectionSearchTerm}
+                        onChange={(e) => setSectionSearchTerm(e.target.value)}
                         className="w-64 pl-8"
                       />
                       <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
@@ -472,19 +539,19 @@ const UnitDetailPage: React.FC = () => {
                       </div>
                     </div>
                     <select
-                      value={tractSortBy}
-                      onChange={(e) => setTractSortBy(e.target.value)}
+                      value={sectionSortBy}
+                      onChange={(e) => setSectionSortBy(e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                     >
-                      <option value="tractName">Sort by Tract Name</option>
+                      <option value="sectionName">Sort by Section Name</option>
                       <option value="grossAcres">Sort by Gross Acres</option>
                       <option value="netMineralAcres">Sort by Net Acres</option>
                       <option value="titleStatus">Sort by Title Status</option>
                       <option value="lastActivity">Sort by Last Activity</option>
                     </select>
                     <select
-                      value={tractFilterStatus}
-                      onChange={(e) => setTractFilterStatus(e.target.value)}
+                      value={sectionFilterStatus}
+                      onChange={(e) => setSectionFilterStatus(e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                     >
                       <option value="">All Title Statuses</option>
@@ -497,15 +564,15 @@ const UnitDetailPage: React.FC = () => {
                   </div>
                 </div>
                 
-                {filteredAndSortedTracts.length === 0 ? (
-                  <p className="text-gray-500">No tracts linked to this unit</p>
+                {filteredAndSortedSections.length === 0 ? (
+                  <p className="text-gray-500">No sections linked to this unit</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tract ID
+                            Section ID
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             STR
@@ -537,55 +604,64 @@ const UnitDetailPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredAndSortedTracts.map((tract) => (
-                          <tr 
-                            key={tract.id} 
-                            className="hover:bg-gray-50 transition-colors duration-150"
-                            title={`${tract.tractName} - ${tract.tract?.county}, ${tract.tract?.state}`}
-                          >
+                        {filteredAndSortedSections.map((section) => {
+                          const sectionName = section.section?.sectionName || section.sectionName || 'N/A';
+                          const county = section.section?.county || '';
+                          const state = section.section?.state || '';
+                          const str = section.str || section.section?.str || 'N/A';
+                          const grossAcres = section.grossAcres || section.section?.grossAcres || 0;
+                          const netAcres = section.netMineralAcres || section.section?.netMineralAcres || 0;
+                          const titleStatus = section.titleStatus || section.section?.titleStatus || 'Unknown';
+                          
+                          return (
+                            <tr 
+                              key={section.id} 
+                              className="hover:bg-gray-50 transition-colors duration-150"
+                              title={`${sectionName} - ${county}, ${state}`}
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {sectionName}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {county}, {state}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-mono">
+                                  {str}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-medium">
+                                  {grossAcres ? grossAcres.toLocaleString() : 'N/A'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {netAcres ? netAcres.toLocaleString() : 'N/A'}
+                                </div>
+                              </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
-                                {tract.tractName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {tract.tract?.county}, {tract.tract?.state}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900 font-mono">
-                                {tract.str || 'N/A'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900 font-medium">
-                                {tract.grossAcres ? tract.grossAcres.toLocaleString() : 'N/A'}
+                              <div className="text-sm text-gray-900">
+                                {section.royalty ? `${(section.royalty * 100).toFixed(2)}%` : 'N/A'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {tract.netMineralAcres ? tract.netMineralAcres.toLocaleString() : 'N/A'}
+                                {section.nra ? section.nra.toLocaleString() : 'N/A'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {tract.royalty ? `${(tract.royalty * 100).toFixed(2)}%` : 'N/A'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {tract.nra ? tract.nra.toLocaleString() : 'N/A'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTitleStatusColor(tract.titleStatus)}`}>
-                                {tract.titleStatus}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTitleStatusColor(titleStatus)}`}>
+                                {titleStatus}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {tract.assignedBuyer ? (
+                                {section.assignedBuyer ? (
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    {tract.assignedBuyer.name}
+                                    {section.assignedBuyer.name}
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
@@ -596,9 +672,9 @@ const UnitDetailPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-500">
-                                {tract.lastActivity ? (
-                                  <span title={`Last activity: ${new Date(tract.lastActivity).toLocaleString()}`}>
-                                    {new Date(tract.lastActivity).toLocaleDateString()}
+                                {section.lastActivity ? (
+                                  <span title={`Last activity: ${new Date(section.lastActivity).toLocaleString()}`}>
+                                    {new Date(section.lastActivity).toLocaleDateString()}
                                   </span>
                                 ) : (
                                   <span className="text-gray-400">No activity</span>
@@ -610,35 +686,36 @@ const UnitDetailPage: React.FC = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  disabled={!tract.hasTitleChain}
+                                  disabled={!section.hasTitleChain}
                                   className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors duration-150"
-                                  onClick={() => handleViewTitleChain(tract)}
-                                  title={tract.hasTitleChain ? "View title chain details" : "No title chain data available"}
+                                  onClick={() => handleViewTitleChain(section)}
+                                  title={section.hasTitleChain ? "View title chain details" : "No title chain data available"}
                                 >
                                   View Title Chain
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  disabled={!tract.hasContacts}
+                                  disabled={!section.hasContacts}
                                   className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors duration-150"
-                                  onClick={() => handleViewContacts(tract)}
-                                  title={tract.hasContacts ? "View contact information" : "No contact data available"}
+                                  onClick={() => handleViewContacts(section)}
+                                  title={section.hasContacts ? "View contact information" : "No contact data available"}
                                 >
                                   View Contacts
                                 </Button>
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 )}
                 
-                {filteredAndSortedTracts.length > 0 && (
+                {filteredAndSortedSections.length > 0 && (
                   <div className="mt-4 text-sm text-gray-500">
-                    Showing {filteredAndSortedTracts.length} of {unitTractsEnhanced.length} tracts
+                    Showing {filteredAndSortedSections.length} of {unitSectionsEnhanced.length} sections
                   </div>
                 )}
               </div>
@@ -686,7 +763,7 @@ const UnitDetailPage: React.FC = () => {
                             NRA (1/8 Normalized)
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tracts Owned
+                            Sections Owned
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Last Outreach
@@ -745,15 +822,15 @@ const UnitDetailPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="flex flex-wrap gap-1">
-                                {contact.tractsOwned.map((tractId) => {
-                                  const tract = unitTracts.find(ut => ut.tractId === tractId)?.tract;
+                                {(Array.isArray(contact.sectionsOwned) ? contact.sectionsOwned : []).map((sectionId) => {
+                                  const section = unitSections.find(us => us.sectionId === sectionId)?.section;
                                   return (
                                     <span 
-                                      key={tractId}
+                                      key={sectionId}
                                       className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                      title={tract?.tractName || tractId}
+                                      title={section?.sectionName || sectionId}
                                     >
-                                      {tract?.tractName || tractId}
+                                      {section?.sectionName || sectionId}
                                     </span>
                                   );
                                 })}
@@ -840,7 +917,7 @@ const UnitDetailPage: React.FC = () => {
             <UnitMappingTab 
               unitId={unit.id} 
               unit={unit} 
-              unitTracts={unitTractsEnhanced} 
+              unitTracts={unitSectionsEnhanced} 
             />
           </div>
         )}
@@ -940,7 +1017,7 @@ const UnitDetailPage: React.FC = () => {
                               className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                             />
                             <label htmlFor="autoGenerateLeads" className="text-sm text-gray-700">
-                              Create leads for contacts tied to linked tracts
+                              Create leads for contacts tied to linked sections
                             </label>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
@@ -1167,7 +1244,7 @@ const UnitDetailPage: React.FC = () => {
                 className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
               />
               <label htmlFor="modalAutoGenerateLeads" className="text-sm text-gray-700">
-                Create leads for contacts tied to linked tracts
+                Create leads for contacts tied to linked sections
               </label>
             </div>
             <p className="text-xs text-gray-500 mt-1">

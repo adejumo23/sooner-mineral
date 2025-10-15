@@ -4,8 +4,8 @@ import { ThemeProvider } from './src/theme';
 import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import TractsPage from './pages/TractsPage';
-import TractDetailPage from './pages/TractDetailPage';
+import SectionsPage from './pages/SectionsPage';
+import SectionDetailPage from './pages/SectionDetailPage';
 import UnitsPage from './pages/UnitsPage';
 import UnitDetailPage from './pages/UnitDetailPage';
 import UnitFormPage from './pages/UnitFormPage';
@@ -54,8 +54,8 @@ function App() {
       <MainLayout>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/tracts" element={<TractsPage />} />
-          <Route path="/tracts/:tractId" element={<TractDetailPage />} />
+          <Route path="/sections" element={<SectionsPage />} />
+          <Route path="/sections/:sectionId" element={<SectionDetailPage />} />
           <Route path="/units" element={<UnitsPage />} />
           <Route path="/units/new" element={<UnitFormPage />} />
           <Route path="/units/:id" element={<UnitDetailPage />} />

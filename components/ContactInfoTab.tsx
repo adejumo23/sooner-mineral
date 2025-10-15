@@ -1,12 +1,12 @@
 import * as React from 'react';
-import type { Lead, User } from '../types';
+import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import Modal from './ui/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { CheckCircleIcon, XCircleIcon, CogIcon, ExclamationTriangleIcon, PencilIcon, PhoneIcon, EnvelopeIcon } from './icons/Icons';
 
 interface ContactInfoTabProps {
-  lead: Lead;
+  lead: LeadEnhanced;
   users: User[];
   onContactUpdate: () => void;
 }
@@ -16,20 +16,20 @@ const ContactInfoTab: React.FC<ContactInfoTabProps> = ({ lead, users, onContactU
   const contact = lead.linkedContact;
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [contactForm, setContactForm] = React.useState({
-    name: contact?.name || '',
+    name: contact?.name || lead.name || '',
     email: contact?.email || '',
-    phone: contact?.phone || '',
+    phone: contact?.phone || lead.phoneEmail || '',
     alternatePhone: contact?.alternatePhone || '',
     company: contact?.company || '',
-    address: contact?.address || '',
-    city: contact?.city || '',
-    state: contact?.state || '',
-    zipCode: contact?.zipCode || '',
+    address: contact?.address || lead.street || '',
+    city: contact?.city || lead.city || '',
+    state: contact?.state || lead.state || '',
+    zipCode: contact?.zipCode || lead.zip || '',
     ownerNumber: contact?.ownerNumber || '',
     partyType: contact?.partyType || 'individual',
     interestType: contact?.interestType || 'mineral',
-    ownershipPercent: contact?.ownershipPercent || 0,
-    royaltyPercent: contact?.royaltyPercent || 0,
+    ownershipPercent: contact?.ownershipPercent || lead.ownershipPercentage || 0,
+    royaltyPercent: contact?.royaltyPercent || lead.royalty || 0,
     doNotContact: contact?.doNotContact || false,
     deceased: contact?.deceased || false,
     litigation: contact?.litigation || false,

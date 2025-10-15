@@ -49,9 +49,9 @@ const DashboardPage: React.FC = () => {
   const modules: ModuleButton[] = [
     // Core Land Management Modules
     {
-      name: 'Tracts',
-      description: 'Manage land tracts, ownership, and mineral rights',
-      href: '/tracts',
+      name: 'Sections',
+      description: 'Manage land sections, ownership, and mineral rights',
+      href: '/sections',
       icon: MapIcon,
       category: 'core',
       color: 'from-green-500 to-emerald-600',

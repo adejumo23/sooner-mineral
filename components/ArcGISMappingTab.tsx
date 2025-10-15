@@ -8,16 +8,23 @@ import MapView from "@arcgis/core/views/MapView";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 interface ArcGISMappingTabProps {
-  tractId: string;
-  tractName: string;
+  sectionId: string;
+  sectionName: string;
+  section?: {
+    sectionNumber?: string;
+    township?: string;
+    range?: string;
+    county?: string;
+    state?: string;
+  };
 }
 
-const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName }) => {
-  console.log('ArcGISMappingTab component rendered with tractId:', tractId, 'tractName:', tractName);
+const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionName, section }) => {
+  console.log('ArcGISMappingTab component rendered with sectionId:', sectionId, 'sectionName:', sectionName);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapView, setMapView] = useState<any>(null);
-  const [tractSpatial, setTractSpatial] = useState<TractSpatial | null>(null);
+  const [sectionSpatial, setSectionSpatial] = useState<TractSpatial | null>(null);
   const [wells, setWells] = useState<ProducingWell[]>([]);
   const [permits, setPermits] = useState<Permit[]>([]);
   const [rigs, setRigs] = useState<Rig[]>([]);
@@ -47,14 +54,14 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
     if (arcgisLoaded || useFallbackMap) {
       fetchMapData();
     }
-  }, [tractId, arcgisLoaded, useFallbackMap]);
+  }, [sectionId, arcgisLoaded, useFallbackMap]);
 
   // Add section graphics when tract spatial data is available
   useEffect(() => {
-    if (arcgisLoaded && tractSpatial && !useFallbackMap) {
+    if (arcgisLoaded && sectionSpatial && !useFallbackMap) {
       addSectionGraphics();
     }
-  }, [arcgisLoaded, tractSpatial, useFallbackMap]);
+  }, [arcgisLoaded, sectionSpatial, useFallbackMap]);
 
   const initializeMap = async (container: HTMLElement) => {
     if (!container) {
@@ -145,11 +152,11 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
     
     try {
       const [spatial, preferences] = await Promise.all([
-        api.fetchTractSpatial(tractId),
+        api.fetchSectionSpatial(sectionId),
         api.fetchMapLayerPreferences()
       ]);
       
-      setTractSpatial(spatial);
+      setSectionSpatial(spatial);
       setLayerPreferences(Array.isArray(preferences) ? preferences : []);
 
       if (spatial?.latitude && spatial?.longitude) {
@@ -257,8 +264,8 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
       }
 
       // Refresh map data if needed
-      if (tractSpatial && !useFallbackMap) {
-        addFeaturesToMap(tractSpatial, wells, permits, rigs, units);
+      if (sectionSpatial && !useFallbackMap) {
+        addFeaturesToMap(sectionSpatial, wells, permits, rigs, units);
       }
     } catch (error) {
       console.error('Failed to update layer preference:', error);
@@ -317,19 +324,19 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
 
   // Add section graphics to the map
   const addSectionGraphics = async () => {
-    if (!mapView || !tractSpatial || !layers.sections) return;
+    if (!mapView || !sectionSpatial || !layers.sections) return;
 
     try {
       // Clear existing section graphics
       layers.sections.removeAll();
 
       // Get the current section number
-      const currentSection = parseInt(tractSpatial.section_number || '1');
+      const currentSection = parseInt(sectionSpatial.section_number || '1');
       
       // Create a 6x6 grid of sections
       const sectionSize = 0.01; // Approximate size in degrees
-      const centerLat = tractSpatial.centroid_lat || tractSpatial.latitude || 35.8617;
-      const centerLon = tractSpatial.centroid_lon || tractSpatial.longitude || -97.9365;
+      const centerLat = sectionSpatial.centroid_lat || sectionSpatial.latitude || 35.8617;
+      const centerLon = sectionSpatial.centroid_lon || sectionSpatial.longitude || -97.9365;
 
       // Calculate the starting position (top-left corner of the 6x6 grid)
       const startLat = centerLat + (sectionSize * 2.5); // Start from top
@@ -370,18 +377,18 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
             attributes: {
               sectionNumber: sectionNum,
               isCurrentSection: isCurrentSection,
-              township: tractSpatial.township,
-              range: tractSpatial.range,
-              str: `${sectionNum}-${tractSpatial.township}-${tractSpatial.range}`
+              township: sectionSpatial.township,
+              range: sectionSpatial.range,
+              str: `${sectionNum}-${sectionSpatial.township}-${sectionSpatial.range}`
             },
             popupTemplate: {
               title: `Section ${sectionNum}`,
               content: `
                 <div>
                   <p><strong>Section:</strong> ${sectionNum}</p>
-                  <p><strong>Township:</strong> ${tractSpatial.township || 'N/A'}</p>
-                  <p><strong>Range:</strong> ${tractSpatial.range || 'N/A'}</p>
-                  <p><strong>STR:</strong> ${sectionNum}-${tractSpatial.township}-${tractSpatial.range}</p>
+                  <p><strong>Township:</strong> ${sectionSpatial.township || 'N/A'}</p>
+                  <p><strong>Range:</strong> ${sectionSpatial.range || 'N/A'}</p>
+                  <p><strong>STR:</strong> ${sectionNum}-${sectionSpatial.township}-${sectionSpatial.range}</p>
                   ${isCurrentSection ? '<p><strong>Current Tract Section</strong></p>' : ''}
                 </div>
               `
@@ -454,7 +461,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
             {useFallbackMap ? 'Simple Spatial View' : 'ArcGIS Spatial View'}
           </h3>
           <p className="text-sc-slate text-sm">
-            {tractName} • {tractSpatial?.geometryType === 'STR' ? tractSpatial.geometryData?.str : 'Point Location'}
+            {sectionName} • {sectionSpatial?.geometryType === 'STR' ? sectionSpatial.geometryData?.str : 'Point Location'}
           </p>
           {useFallbackMap && (
             <p className="text-yellow-400 text-xs">Simple map mode - ArcGIS not available</p>
@@ -507,8 +514,8 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
               <div className="bg-blue-600 text-white p-4">
                 <h3 className="text-lg font-semibold">Tract Section Map</h3>
                 <p className="text-sm text-blue-100">
-                  {tractSpatial?.township && tractSpatial?.range 
-                    ? `Township ${tractSpatial.township}, Range ${tractSpatial.range}`
+                  {sectionSpatial?.township && sectionSpatial?.range 
+                    ? `Township ${sectionSpatial.township}, Range ${sectionSpatial.range}`
                     : 'Section Information'
                   }
                 </p>
@@ -521,7 +528,7 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
                   <div className="grid grid-cols-6 gap-1 max-w-md mx-auto">
                     {Array.from({ length: 36 }, (_, i) => {
                       const sectionNum = i + 1;
-                      const isCurrentSection = sectionNum.toString() === tractSpatial?.section_number;
+                      const isCurrentSection = sectionNum.toString() === sectionSpatial?.section_number;
                       
                       return (
                         <div
@@ -541,8 +548,8 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
                   </div>
                   
                   <div className="mt-4 text-center text-sm text-gray-600">
-                    <p><strong>Current Section:</strong> {tractSpatial?.section_number || 'N/A'}</p>
-                    <p><strong>STR:</strong> {tractSpatial?.str || 'N/A'}</p>
+                    <p><strong>Current Section:</strong> {sectionSpatial?.section_number || 'N/A'}</p>
+                    <p><strong>STR:</strong> {sectionSpatial?.str || 'N/A'}</p>
                   </div>
                 </div>
                 
@@ -550,10 +557,10 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ tractId, tractName 
                 <div className="bg-white p-4 rounded shadow">
                   <h4 className="font-semibold text-gray-800 mb-2">Tract Details</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="text-gray-600">Section:</span> <span className="font-semibold">{tractSpatial?.section_number || 'N/A'}</span></div>
-                    <div><span className="text-gray-600">Township:</span> <span className="font-semibold">{tractSpatial?.township || 'N/A'}</span></div>
-                    <div><span className="text-gray-600">Range:</span> <span className="font-semibold">{tractSpatial?.range || 'N/A'}</span></div>
-                    <div><span className="text-gray-600">STR:</span> <span className="font-semibold">{tractSpatial?.str || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">Section:</span> <span className="font-semibold">{sectionSpatial?.section_number || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">Township:</span> <span className="font-semibold">{sectionSpatial?.township || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">Range:</span> <span className="font-semibold">{sectionSpatial?.range || 'N/A'}</span></div>
+                    <div><span className="text-gray-600">STR:</span> <span className="font-semibold">{sectionSpatial?.str || 'N/A'}</span></div>
                   </div>
                 </div>
                 
