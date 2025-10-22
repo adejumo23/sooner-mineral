@@ -17,17 +17,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.API_PORT || 3052;
+const PORT = process.env.API_PORT || 3051;
 
 // Database connection pool
 let dbPool;
 let dataImportService;
 
+// Assignment cache to ensure consistency between list and detail views
+let assignmentCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 const createDatabasePool = () => {
   try {
     dbPool = mysql.createPool({
       host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 3359,
+      port: process.env.DB_PORT || 3306,
       user: process.env.MYSQL_USER || 'soonermineral',
       password: process.env.MYSQL_PASSWORD || 'soonermineralpass',
       database: process.env.MYSQL_DATABASE || 'soonermineraldb',
@@ -53,6 +58,134 @@ const createDatabasePool = () => {
 
 // Initialize database connection pool
 createDatabasePool();
+
+// Function to load all assignments into cache
+const loadAssignmentCache = async () => {
+  try {
+    if (!dbPool) {
+      throw new Error('Database pool not initialized');
+    }
+
+    console.log('🔄 Loading assignment cache...');
+    
+    const query = `
+      SELECT DISTINCT
+        OWNER as contactName,
+        CURRENT_UNIT_NAME as unitName,
+        NMA as grossAcres,
+        NMA as netMineralAcres,
+        ROY as royalty,
+        NMA as nra,
+        ALLO_ as ownershipPercentage,
+        BUYER as buyer,
+        STATUS as status,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE OWNER IS NOT NULL AND OWNER != ''
+        AND BUYER IS NOT NULL AND BUYER != ''
+      ORDER BY 
+        CASE 
+          WHEN BUYER = 'MICHELLE' THEN 0
+          WHEN BUYER = 'JOSH' THEN 1
+          ELSE 2
+        END,
+        OWNER,
+        CURRENT_UNIT_NAME
+    `;
+
+    const rows = await executeQuery(query);
+    
+    // Function to simplify contact names
+    const simplifyContactName = (name) => {
+      if (!name) return 'Unknown Contact';
+      
+      // Remove "a/k/a" and everything after ">"
+      let simplified = name.split('>')[0].split('a/k/a')[0].trim();
+      
+      // Remove common suffixes and clean up
+      simplified = simplified.replace(/\s*,\s*$/, ''); // Remove trailing commas
+      simplified = simplified.replace(/\s+HEIRS:.*$/, ''); // Remove HEIRS: part
+      simplified = simplified.replace(/\s+et\s+al.*$/, ''); // Remove et al
+      
+      // Limit length to 50 characters
+      if (simplified.length > 50) {
+        simplified = simplified.substring(0, 47) + '...';
+      }
+      
+      return simplified;
+    };
+
+    // Transform all rows into assignment objects
+    assignmentCache = rows.map((row, index) => {
+      // Determine asset type and ID based on unit name
+      const assetType = row.unitName ? 'Unit' : 'Tract';
+      const assetId = row.unitName || `Tract-${row.contactName}-${index}`;
+      
+      // Calculate priority score based on acreage and royalty
+      const grossAcres = parseFloat(row.grossAcres) || 0;
+      const royalty = parseFloat(row.royalty) || 0;
+      const priorityScore = Math.min(100, Math.max(10, (grossAcres * 2) + (royalty * 2)));
+      
+      // Determine status based on database status
+      let assignmentStatus = 'Active';
+      if (row.status === 'DROPPED') assignmentStatus = 'Cancelled';
+      else if (row.status === 'LVM/TXT/EMAIL') assignmentStatus = 'Active';
+      else if (row.status === 'NEW') assignmentStatus = 'Active';
+      else if (row.status === 'WTL') assignmentStatus = 'Active';
+      
+      return {
+        id: `assignment-${index}`,
+        assetType: assetType,
+        assetId: assetId,
+        assignedBuyerId: row.buyer || 'unassigned',
+        priceCapUsd: Math.round(grossAcres * 1000), // Estimate based on acreage
+        priceCapType: 'Per Acre',
+        sourceChannel: 'Broker',
+        priorityScore: Math.round(priorityScore),
+        status: assignmentStatus,
+        notes: `Contact: ${simplifyContactName(row.contactName)}`,
+        assignedDate: row.created_at,
+        assignedById: 'system',
+        updatedAt: row.updated_at,
+        
+        // Populated fields for display
+        assignedBuyer: {
+          id: row.buyer?.toLowerCase() || 'unassigned',
+          name: row.buyer || 'Unassigned',
+          email: `${row.buyer?.toLowerCase()}@company.com` || 'unassigned@company.com'
+        },
+        asset: {
+          id: assetId,
+          sectionName: row.unitName || `Section ${index + 1}`,
+          unitName: row.unitName,
+          grossAcres: grossAcres,
+          netMineralAcres: parseFloat(row.netMineralAcres) || 0,
+          royalty: royalty
+        }
+      };
+    });
+
+    cacheTimestamp = Date.now();
+    console.log(`✅ Assignment cache loaded with ${assignmentCache.length} assignments`);
+    
+  } catch (error) {
+    console.error('❌ Error loading assignment cache:', error);
+    throw error;
+  }
+};
+
+// Function to get cached assignments or load if needed
+const getCachedAssignments = async () => {
+  const now = Date.now();
+  
+  // Check if cache is valid
+  if (!assignmentCache || !cacheTimestamp || (now - cacheTimestamp) > CACHE_DURATION) {
+    await loadAssignmentCache();
+  }
+  
+  return assignmentCache;
+};
 
 // Middleware
 app.use(cors());
@@ -889,100 +1022,18 @@ app.get('/api/assignments/:id', async (req, res) => {
 
     const { id } = req.params;
     
-    // Extract the index from the assignment ID (e.g., "assignment-0" -> 0)
-    const assignmentIndex = parseInt(id.replace('assignment-', ''));
+    // Get cached assignments
+    const allAssignments = await getCachedAssignments();
     
-    // Get the assignment data from the database using the same logic as the main endpoint
-    const query = `
-      SELECT DISTINCT
-        OWNER as contactName,
-        CURRENT_UNIT_NAME as unitName,
-        NMA as grossAcres,
-        NMA as netMineralAcres,
-        ROY as royalty,
-        NMA as nra,
-        ALLO_ as ownershipPercentage,
-        BUYER as buyer,
-        STATUS as status,
-        created_at,
-        updated_at
-      FROM prod_acreage_schedule
-      WHERE OWNER IS NOT NULL AND OWNER != ''
-        AND BUYER IS NOT NULL AND BUYER != ''
-      ORDER BY BUYER, OWNER
-      LIMIT 1 OFFSET ${assignmentIndex}
-    `;
-
-    const rows = await executeQuery(query);
+    // Find the assignment by ID
+    const assignment = allAssignments.find(a => a.id === id);
     
-    if (rows.length === 0) {
+    if (!assignment) {
       return res.status(404).json({ 
         success: false, 
         message: 'Assignment not found' 
       });
     }
-
-    const row = rows[0];
-    
-    // Simplify contact name function
-    const simplifyContactName = (name) => {
-      if (!name) return 'Unknown Contact';
-      let simplified = name.split('>')[0].split('a/k/a')[0].trim();
-      simplified = simplified.replace(/\s*,\s*$/, '');
-      simplified = simplified.replace(/\s+HEIRS:.*$/, '');
-      simplified = simplified.replace(/\s+et\s+al.*$/, '');
-      if (simplified.length > 50) {
-        simplified = simplified.substring(0, 47) + '...';
-      }
-      return simplified;
-    };
-
-    // Determine asset type and ID based on unit name
-    const assetType = row.unitName ? 'Unit' : 'Tract';
-    const assetId = row.unitName || `Tract-${row.contactName}-${assignmentIndex}`;
-    
-    // Calculate priority score based on acreage and royalty
-    const grossAcres = parseFloat(row.grossAcres) || 0;
-    const royalty = parseFloat(row.royalty) || 0;
-    const priorityScore = Math.min(100, Math.max(10, (grossAcres * 2) + (royalty * 2)));
-    
-    // Determine status based on database status
-    let assignmentStatus = 'Active';
-    if (row.status === 'DROPPED') assignmentStatus = 'Cancelled';
-    else if (row.status === 'LVM/TXT/EMAIL') assignmentStatus = 'Active';
-    else if (row.status === 'NEW') assignmentStatus = 'Active';
-    else if (row.status === 'WTL') assignmentStatus = 'Active';
-    
-    const assignment = {
-      id: id,
-      assetType: assetType,
-      assetId: assetId,
-      assignedBuyerId: row.buyer || 'unassigned',
-      priceCapUsd: Math.round(grossAcres * 1000), // Estimate based on acreage
-      priceCapType: 'Per Acre',
-      sourceChannel: 'Broker',
-      priorityScore: Math.round(priorityScore),
-      status: assignmentStatus,
-      notes: `Contact: ${simplifyContactName(row.contactName)}`,
-      assignedDate: row.created_at,
-      assignedById: 'system',
-      updatedAt: row.updated_at,
-      
-      // Populated fields for display
-      assignedBuyer: {
-        id: row.buyer?.toLowerCase() || 'unassigned',
-        name: row.buyer || 'Unassigned',
-        email: `${row.buyer?.toLowerCase()}@company.com` || 'unassigned@company.com'
-      },
-      asset: {
-        id: assetId,
-        sectionName: row.unitName || `Section ${assignmentIndex + 1}`,
-        unitName: row.unitName,
-        grossAcres: grossAcres,
-        netMineralAcres: parseFloat(row.netMineralAcres) || 0,
-        royalty: royalty
-      }
-    };
     
     res.json(assignment);
   } catch (error) {
@@ -3061,128 +3112,26 @@ app.get('/api/assignments', async (req, res) => {
       });
     }
 
-    // Build search conditions
-    let searchConditions = '';
+    // Get cached assignments
+    const allAssignments = await getCachedAssignments();
+    
+    // Apply search filter if provided
+    let filteredAssignments = allAssignments;
     if (search) {
-      searchConditions = `
-        AND (
-          OWNER LIKE '%${search}%' OR
-          BUYER LIKE '%${search}%' OR
-          CURRENT_UNIT_NAME LIKE '%${search}%' OR
-          STATUS LIKE '%${search}%'
-        )
-      `;
+      const searchLower = search.toLowerCase();
+      filteredAssignments = allAssignments.filter(assignment => 
+        assignment.assignedBuyer?.name?.toLowerCase().includes(searchLower) ||
+        assignment.asset?.sectionName?.toLowerCase().includes(searchLower) ||
+        assignment.asset?.unitName?.toLowerCase().includes(searchLower) ||
+        assignment.status?.toLowerCase().includes(searchLower) ||
+        assignment.notes?.toLowerCase().includes(searchLower)
+      );
     }
 
-    // Get total count for pagination metadata - focus on BUYER assignments
-    const countQuery = `
-      SELECT COUNT(DISTINCT CONCAT(OWNER, '|', BUYER)) as total
-      FROM prod_acreage_schedule
-      WHERE OWNER IS NOT NULL AND OWNER != '' 
-        AND BUYER IS NOT NULL AND BUYER != ''
-        ${searchConditions}
-    `;
-    const countResult = await executeQuery(countQuery);
-    const totalCount = countResult[0].total;
+    // Apply pagination
+    const totalCount = filteredAssignments.length;
+    const paginatedAssignments = filteredAssignments.slice(offset, offset + limit);
 
-    const query = `
-      SELECT DISTINCT
-        OWNER as contactName,
-        CURRENT_UNIT_NAME as unitName,
-        NMA as grossAcres,
-        NMA as netMineralAcres,
-        ROY as royalty,
-        NMA as nra,
-        ALLO_ as ownershipPercentage,
-        BUYER as buyer,
-        STATUS as status,
-        created_at,
-        updated_at
-      FROM prod_acreage_schedule
-      WHERE OWNER IS NOT NULL AND OWNER != ''
-        AND BUYER IS NOT NULL AND BUYER != ''
-        ${searchConditions}
-      ORDER BY 
-        CASE 
-          WHEN BUYER = 'MICHELLE' THEN 0
-          WHEN BUYER = 'JOSH' THEN 1
-          ELSE 2
-        END,
-        RAND()
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    const rows = await executeQuery(query);
-    
-    // Function to simplify contact names
-    const simplifyContactName = (name) => {
-      if (!name) return 'Unknown Contact';
-      
-      // Remove "a/k/a" and everything after ">"
-      let simplified = name.split('>')[0].split('a/k/a')[0].trim();
-      
-      // Remove common suffixes and clean up
-      simplified = simplified.replace(/\s*,\s*$/, ''); // Remove trailing commas
-      simplified = simplified.replace(/\s+HEIRS:.*$/, ''); // Remove HEIRS: part
-      simplified = simplified.replace(/\s+et\s+al.*$/, ''); // Remove et al
-      
-      // Limit length to 50 characters
-      if (simplified.length > 50) {
-        simplified = simplified.substring(0, 47) + '...';
-      }
-      
-      return simplified;
-    };
-
-    // Transform BUYER data into proper assignments (buyer assigned to asset)
-    const assignments = rows.map((row, index) => {
-      // Determine asset type and ID based on unit name
-      const assetType = row.unitName ? 'Unit' : 'Tract';
-      const assetId = row.unitName || `Tract-${row.contactName}-${index}`;
-      
-      // Calculate priority score based on acreage and royalty
-      const grossAcres = parseFloat(row.grossAcres) || 0;
-      const royalty = parseFloat(row.royalty) || 0;
-      const priorityScore = Math.min(100, Math.max(10, (grossAcres * 2) + (royalty * 2)));
-      
-      // Determine status based on database status
-      let assignmentStatus = 'Active';
-      if (row.status === 'DROPPED') assignmentStatus = 'Cancelled';
-      else if (row.status === 'LVM/TXT/EMAIL') assignmentStatus = 'Active';
-      else if (row.status === 'NEW') assignmentStatus = 'Active';
-      else if (row.status === 'WTL') assignmentStatus = 'Active';
-      
-      return {
-        id: `assignment-${offset + index}`,
-        assetType: assetType,
-        assetId: assetId,
-        assignedBuyerId: row.buyer || 'unassigned',
-        priceCapUsd: Math.round(grossAcres * 1000), // Estimate based on acreage
-        priceCapType: 'Per Acre',
-        sourceChannel: 'Broker',
-        priorityScore: Math.round(priorityScore),
-        status: assignmentStatus,
-        notes: `Contact: ${simplifyContactName(row.contactName)}`,
-        assignedDate: row.created_at,
-        assignedById: 'system',
-        updatedAt: row.updated_at,
-        
-        // Populated fields for display
-        assignedBuyer: {
-          id: row.buyer?.toLowerCase() || 'unassigned',
-          name: row.buyer || 'Unassigned',
-          email: `${row.buyer?.toLowerCase()}@company.com` || 'unassigned@company.com'
-        },
-        asset: {
-          id: assetId,
-          sectionName: row.unitName || `Section ${index + 1}`,
-          unitName: row.unitName,
-          grossAcres: grossAcres,
-          netMineralAcres: parseFloat(row.netMineralAcres) || 0,
-          royalty: royalty
-        }
-      };
-    });
 
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
@@ -3191,7 +3140,7 @@ app.get('/api/assignments', async (req, res) => {
 
     // Return paginated response
     res.json({
-      data: assignments,
+      data: paginatedAssignments,
       pagination: {
         page: page,
         limit: limit,
@@ -3634,27 +3583,23 @@ app.get('/api/sections', async (req, res) => {
     const countResult = await executeQuery(countQuery);
     const totalCount = countResult[0].total;
 
-    // Get paginated data
+    // Get paginated data - group by S_T_R only to get unique sections
     const query = `
-      SELECT DISTINCT
+      SELECT 
         S_T_R as str,
-        COUNTY as county,
-        ST as state,
-        STATUS as title_status,
-        LEGAL_DESCRIPTION as legal_description,
-        NMA as net_mineral_acres,
-        CALCULATED_ACREAGE as calculated_acreage,
-        BUYER as assigned_buyer,
-        OWNER as owner_name,
-        CONTACT as contact_info,
-        PHONE_EMAIL as phone_email,
-        NOTE as notes,
-        CURRENT_UNIT_NAME as current_unit,
-        NEW_UNIT_NAME as new_unit,
-        DATE as date_created,
-        TITLE_SOURCE as title_source
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        COUNT(DISTINCT STATUS) as status_count,
+        COUNT(DISTINCT LEGAL_DESCRIPTION) as legal_count,
+        AVG(NMA) as net_mineral_acres,
+        AVG(CALCULATED_ACREAGE) as calculated_acreage,
+        COUNT(DISTINCT BUYER) as buyer_count,
+        COUNT(DISTINCT OWNER) as owner_count,
+        MIN(DATE) as date_created,
+        COUNT(DISTINCT TITLE_SOURCE) as title_source_count
       FROM prod_acreage_schedule 
       WHERE S_T_R IS NOT NULL 
+      GROUP BY S_T_R
       ORDER BY S_T_R
       LIMIT ${limit} OFFSET ${offset}
     `;
@@ -3688,17 +3633,12 @@ app.get('/api/sections', async (req, res) => {
         str: row.str,
         grossAcres: netAcres,
         netMineralAcres: netAcres,
-        titleStatus: row.title_status || 'Unknown',
-        legalDescription: row.legal_description,
-        assigned_buyer: row.assigned_buyer,
-        owner_name: row.owner_name,
-        contact_info: row.contact_info,
-        phone_email: row.phone_email,
-        notes: row.notes,
-        current_unit: row.current_unit,
-        new_unit: row.new_unit,
-        date_created: row.date_created,
-        title_source: row.title_source,
+        titleStatus: `Multiple (${row.status_count})`,
+        legalDescription: `Multiple (${row.legal_count})`,
+        buyerCount: row.buyer_count || 0,
+        ownerCount: row.owner_count || 0,
+        date_created: row.date_created || new Date().toISOString(),
+        title_source: `Multiple (${row.title_source_count})`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };

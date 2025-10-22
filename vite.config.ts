@@ -34,13 +34,6 @@ export default defineConfig(({ mode }) => {
         port: 3050,
         fs: {
           allow: ['..']
-        },
-        proxy: {
-          '/api': {
-            target: 'http://localhost:3052',
-            changeOrigin: true,
-            secure: false
-          }
         }
       }
     };
