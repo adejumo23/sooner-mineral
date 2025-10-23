@@ -763,8 +763,8 @@ const ContactDetailPage: React.FC = () => {
           <div className="h-96">
             <CommunicationTab
               contactId={id!}
-              contact={contact}
               currentUser={currentUser}
+              users={[]}
             />
           </div>
         )}

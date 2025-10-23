@@ -91,28 +91,34 @@ const UnitsPage: React.FC = () => {
     {
       header: 'Unit Name',
       accessor: 'unitName',
+      className: 'whitespace-normal min-w-0 w-1/3',
       cell: (unit: Unit) => (
         <Link 
           to={`/units/${unit.id}`}
-          className="text-sc-blue hover:text-sc-blue-dark font-medium"
+          className="text-sc-blue hover:text-sc-blue-dark font-medium block"
         >
-          {unit.unitName}
+          {unit.unitName.split('\n').map((line, index) => (
+            <div key={index} className="break-words">{line}</div>
+          ))}
         </Link>
       )
     },
     {
       header: 'Operator',
       accessor: 'operator',
+      className: 'w-24',
       cell: (unit: Unit) => unit.operator
     },
     {
       header: 'County',
       accessor: 'county',
+      className: 'w-32',
       cell: (unit: Unit) => `${unit.county}, ${unit.state}`
     },
     {
       header: 'Status',
       accessor: 'status',
+      className: 'w-32',
       cell: (unit: Unit) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(unit.status)}`}>
           {unit.status}
@@ -121,32 +127,36 @@ const UnitsPage: React.FC = () => {
     },
     {
       header: 'Sections',
-      accessor: 'linkedTractIds',
+      accessor: 'sectionCount',
+      className: 'w-20',
       cell: (unit: Unit) => (
         <span className="text-sm text-gray-600">
-          {unit.linkedTractIds?.length || 0} sections
+          {unit.sectionCount || unit.linkedSectionIds?.length || 0} sections
         </span>
       )
     },
     {
-      header: 'Gross Acres',
-      accessor: 'estimatedGrossAcres',
-      cell: (unit: Unit) => unit.estimatedGrossAcres ? unit.estimatedGrossAcres.toLocaleString() : 'N/A'
+      header: 'Net Acres',
+      accessor: 'estimatedNetAcres',
+      className: 'w-24',
+      cell: (unit: Unit) => unit.estimatedNetAcres ? unit.estimatedNetAcres.toLocaleString() : 'N/A'
     },
     {
       header: 'Assigned Buyer',
       accessor: 'assignedBuyer',
-      cell: (unit: Unit) => unit.assignedBuyer?.name || 'Unassigned'
+      className: 'w-28',
+      cell: (unit: Unit) => unit.buyer || unit.assignedBuyer?.name || 'Unassigned'
     },
     {
       header: 'Actions',
       accessor: 'actions',
+      className: 'w-24',
       cell: (unit: Unit) => (
         <div className="flex items-center space-x-2">
           {unit.isLocked ? (
-            <LockClosedIcon className="h-4 w-4 text-red-500" title="Unit is locked" />
+            <LockClosedIcon className="h-4 w-4 text-red-500" />
           ) : (
-            <LockOpenIcon className="h-4 w-4 text-green-500" title="Unit is unlocked" />
+            <LockOpenIcon className="h-4 w-4 text-green-500" />
           )}
           <Link
             to={`/units/${unit.id}`}
@@ -214,9 +224,8 @@ const UnitsPage: React.FC = () => {
 
             {/* Filter Toggle */}
             <Button
-              variant="outline"
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
             >
               <FunnelIcon className="h-5 w-5" />
               <span>Filters</span>
@@ -224,7 +233,10 @@ const UnitsPage: React.FC = () => {
 
             {/* Clear Filters */}
             {Object.keys(filters).length > 0 && (
-              <Button variant="outline" onClick={clearFilters}>
+              <Button 
+                onClick={clearFilters}
+                className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              >
                 Clear All
               </Button>
             )}
@@ -371,7 +383,7 @@ const UnitsPage: React.FC = () => {
             <Table
               data={units}
               columns={columns}
-              className="w-full"
+              className="w-full table-auto"
             />
           )}
         </div>

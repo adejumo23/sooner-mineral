@@ -63,7 +63,7 @@ const SectionsPage: React.FC = () => {
     
     const sectionData: Omit<Section, 'id' | 'assignedBuyer' | 'nra'> = {
         sectionName: formData.get('sectionName') as string,
-        state: formData.get('state') as string,
+        state: 'OK', // Hardcode state to 'OK' as requested
         county: formData.get('county') as string,
         legalDescription: formData.get('legalDescription') as string,
         str: formData.get('str') as string || undefined,
@@ -139,16 +139,16 @@ const SectionsPage: React.FC = () => {
     },
     {
       header: 'Current Unit',
-      accessor: 'currentUnit',
+      accessor: 'current_unit',
       cell: (section: Section) => (
-        <span className="text-sm text-gray-900">{section.currentUnit || 'N/A'}</span>
+        <div className="text-sm text-gray-900 whitespace-pre-line">{section.current_unit || 'N/A'}</div>
       )
     },
     {
       header: 'Status',
       accessor: 'titleStatus',
       cell: (section: Section) => (
-        <span className="text-sm text-gray-900">{section.titleStatus}</span>
+        <div className="text-sm text-gray-900 whitespace-pre-line">{section.titleStatus}</div>
       )
     },
     {
@@ -159,10 +159,10 @@ const SectionsPage: React.FC = () => {
       )
     },
     {
-      header: 'Acres (Net/Gross)',
+      header: 'Net Mineral Acres',
       accessor: 'acres',
       cell: (section: Section) => (
-        <span className="text-sm text-gray-900">{section.netMineralAcres || 'N/A'} / {section.grossAcres}</span>
+        <span className="text-sm text-gray-900">{section.netMineralAcres || 'N/A'}</span>
       )
     },
     {

@@ -26,7 +26,11 @@ let dataImportService;
 // Assignment cache to ensure consistency between list and detail views
 let assignmentCache = null;
 let cacheTimestamp = null;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let cacheLoading = false;
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+// Request deduplication to prevent multiple identical requests
+const pendingRequests = new Map();
 
 const createDatabasePool = () => {
   try {
@@ -181,7 +185,22 @@ const getCachedAssignments = async () => {
   
   // Check if cache is valid
   if (!assignmentCache || !cacheTimestamp || (now - cacheTimestamp) > CACHE_DURATION) {
-    await loadAssignmentCache();
+    // If cache is already being loaded, wait for it
+    if (cacheLoading) {
+      // Wait for the current loading to complete
+      while (cacheLoading) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return assignmentCache;
+    }
+    
+    // Set loading flag and load cache
+    cacheLoading = true;
+    try {
+      await loadAssignmentCache();
+    } finally {
+      cacheLoading = false;
+    }
   }
   
   return assignmentCache;
@@ -1963,9 +1982,9 @@ app.get('/api/units', async (req, res) => {
       });
     }
 
-    // Get total count for pagination metadata
+    // Get total count for pagination metadata - count unique unit names (not split by line breaks)
     const countQuery = `
-      SELECT COUNT(DISTINCT CURRENT_UNIT_NAME) as total
+      SELECT COUNT(DISTINCT TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))) as total
       FROM prod_acreage_schedule
       WHERE CURRENT_UNIT_NAME IS NOT NULL 
         AND CURRENT_UNIT_NAME != ''
@@ -1973,13 +1992,13 @@ app.get('/api/units', async (req, res) => {
     const countResult = await executeQuery(countQuery);
     const totalCount = countResult[0].total;
 
-    // First, get all unique unit names to properly paginate
+    // First, get all unique unit names to properly paginate (treat as single units, not split)
     const uniqueUnitsQuery = `
-      SELECT DISTINCT CURRENT_UNIT_NAME
+      SELECT DISTINCT TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) as CURRENT_UNIT_NAME
       FROM prod_acreage_schedule
       WHERE CURRENT_UNIT_NAME IS NOT NULL 
         AND CURRENT_UNIT_NAME != ''
-      ORDER BY CURRENT_UNIT_NAME
+      ORDER BY TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))
     `;
     
     const uniqueUnits = await executeQuery(uniqueUnitsQuery);
@@ -2006,111 +2025,79 @@ app.get('/api/units', async (req, res) => {
       });
     }
     
-    // Now get full data for the paginated unit names
+    // Now get aggregated data for the paginated unit names with section counts and buyer info
     const placeholders = paginatedUnitNames.map(() => '?').join(',');
     const query = `
       SELECT 
-        id,
-        COUNTY,
-        S_T_R,
-        CURRENT_UNIT_NAME,
-        OWNER,
-        NMA,
-        ROY,
-        ALLO_ AS ALLOCATION_PERCENT,
-        STATUS,
-        BUYER,
-        NOTE,
-        INTEREST_TYPE,
-        LEGAL_DESCRIPTION,
-        STREET,
-        CITY,
-        ST,
-        ZIP,
-        PHONE_EMAIL,
-        CONTACT,
-        created_at,
-        updated_at
+        TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) as unit_name,
+        COUNT(DISTINCT S_T_R) as section_count,
+        SUM(NMA) as total_net_mineral_acres,
+        AVG(ROY) as average_royalty,
+        MAX(BUYER) as assigned_buyer,
+        MAX(COUNTY) as primary_county,
+        MAX(ST) as state,
+        MAX(STATUS) as status,
+        MAX(NOTE) as notes,
+        MAX(created_at) as created_at,
+        MAX(updated_at) as updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME IN (${placeholders})
-      ORDER BY CURRENT_UNIT_NAME, COUNTY, S_T_R
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) IN (${placeholders})
+      GROUP BY TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))
+      ORDER BY TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))
     `;
 
     const rows = await executeQuery(query, paginatedUnitNames);
     
-    // Process the data to extract units
-    const unitMap = new Map();
-    
-    rows.forEach(row => {
-      if (row.CURRENT_UNIT_NAME) {
-        // Split unit names by line breaks and process each
-        const unitNames = row.CURRENT_UNIT_NAME.split('\r\n').filter(name => name.trim() !== '');
-        
-        unitNames.forEach(unitName => {
-          const trimmedUnitName = unitName.trim();
-          if (trimmedUnitName && !unitMap.has(trimmedUnitName)) {
-            // Create unit with proper numeric ID based on database record
-            unitMap.set(trimmedUnitName, {
-              id: row.id,
-              unitName: trimmedUnitName,
-              operator: 'Unknown', // Not available in current data
-              apiNumbers: [], // Would need to be extracted from unit name or other sources
-              targetFormations: ['Hunton', 'Woodford', 'Mississippian'], // Common OK formations
-              status: row.STATUS === 'PRODUCING' ? 'Producing' : 
-                     row.STATUS === 'PERMITTED' ? 'Permitted' : 'Held by Production',
-              estimatedGrossAcres: parseFloat(row.NMA) || 0,
-              estimatedNetAcres: parseFloat(row.NMA) || 0,
-              county: row.COUNTY,
-              state: row.ST || 'OK',
-              linkedTractIds: [row.id],
-              linkedContactIds: [],
-              assignedBuyerId: null,
-              assignedBuyer: null,
-              heldByFund: false,
-              exitStrategy: 'Hold',
-              isLocked: false,
-              notes: row.NOTE || '',
-              createdAt: row.created_at,
-              updatedAt: row.updated_at,
-              createdBy: 'system',
-              updatedBy: 'system',
-              createdByUser: null,
-              updatedByUser: null,
-              esgProfileId: null,
-              esgRiskLevel: null,
-              carbonIntensity: null,
-              operatorComplianceScore: null,
-              regulatoryCompliance: null,
-              hasRiskFlags: false,
-              lastESGUpdate: null,
-              // Additional fields from acreage data
-              totalNetMineralAcres: parseFloat(row.NMA) || 0,
-              averageRoyalty: parseFloat(row.ROY) || 0,
-              allocationPercentage: parseFloat(row.ALLOCATION_PERCENT) || 0,
-              buyer: row.BUYER,
-              interestType: row.INTEREST_TYPE,
-              legalDescription: row.LEGAL_DESCRIPTION,
-              owner: row.OWNER,
-              contact: row.CONTACT,
-              street: row.STREET,
-              city: row.CITY,
-              zip: row.ZIP,
-              phoneEmail: row.PHONE_EMAIL
-            });
-          } else if (unitMap.has(trimmedUnitName)) {
-            // Add tract to existing unit
-            const existingUnit = unitMap.get(trimmedUnitName);
-            existingUnit.linkedTractIds.push(row.id);
-            existingUnit.estimatedGrossAcres += parseFloat(row.NMA) || 0;
-            existingUnit.estimatedNetAcres += parseFloat(row.NMA) || 0;
-            existingUnit.totalNetMineralAcres += parseFloat(row.NMA) || 0;
-          }
-        });
-      }
+    // Process the aggregated data to create units
+    const units = rows.map((row, index) => {
+      // Use the unit name as the ID (URL encoded)
+      const unitId = encodeURIComponent(row.unit_name);
+      
+      return {
+        id: unitId,
+        unitName: row.unit_name.replace(/([A-Z0-9]+)\s+(?=[A-Z]+\s)/g, '$1\n'), // Add line breaks between well names
+        operator: 'Unknown', // Not available in current data
+        apiNumbers: [], // Would need to be extracted from unit name or other sources
+        targetFormations: ['Hunton', 'Woodford', 'Mississippian'], // Common OK formations
+        status: row.status === 'PRODUCING' ? 'Producing' : 
+               row.status === 'PERMITTED' ? 'Permitted' : 'Held by Production',
+        estimatedGrossAcres: parseFloat(row.total_net_mineral_acres) || 0,
+        estimatedNetAcres: parseFloat(row.total_net_mineral_acres) || 0,
+        county: row.primary_county || 'Unknown',
+        state: row.state || 'OK',
+        linkedSectionIds: [], // Will be populated with section count
+        linkedContactIds: [],
+        assignedBuyerId: null,
+        assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
+        heldByFund: false,
+        exitStrategy: 'Hold',
+        isLocked: false,
+        notes: row.notes || '',
+        createdAt: row.created_at || new Date().toISOString(),
+        updatedAt: row.updated_at || new Date().toISOString(),
+        createdBy: 'system',
+        updatedBy: 'system',
+        createdByUser: null,
+        updatedByUser: null,
+        esgProfileId: null,
+        esgRiskLevel: null,
+        carbonIntensity: null,
+        operatorComplianceScore: null,
+        regulatoryCompliance: null,
+        hasRiskFlags: false,
+        lastESGUpdate: null,
+        // Additional fields from acreage data
+        totalNetMineralAcres: parseFloat(row.total_net_mineral_acres) || 0,
+        averageRoyalty: parseFloat(row.average_royalty) || 0,
+        allocationPercentage: 0,
+        buyer: row.assigned_buyer,
+        sectionCount: parseInt(row.section_count) || 0,
+        // Store section count in linkedTractIds for compatibility
+        linkedTractIds: Array.from({ length: parseInt(row.section_count) || 0 }, (_, i) => `section_${i + 1}`)
+      };
     });
 
-    // Convert map to array and sort
-    const units = Array.from(unitMap.values()).sort((a, b) => a.unitName.localeCompare(b.unitName));
+    // Units are already processed and sorted
 
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalUniqueUnits / limit);
@@ -2150,23 +2137,9 @@ app.get('/api/units/:id', async (req, res) => {
 
     const { id } = req.params;
     
-    // Use the ID directly as it's now just the database ID
-    const databaseId = id;
-    
-    // First, get the unit name from the database record
-    const unitQuery = `
-      SELECT DISTINCT CURRENT_UNIT_NAME
-      FROM prod_acreage_schedule
-      WHERE id = ?
-    `;
-    
-    const unitRows = await executeQuery(unitQuery, [databaseId]);
-    
-    if (unitRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Unit not found' });
-    }
-    
-    const unitName = unitRows[0].CURRENT_UNIT_NAME;
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for unit name:', unitName);
     
     // Now get all records for this unit
     const query = `
@@ -2193,11 +2166,13 @@ app.get('/api/units/:id', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME = ?
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
       ORDER BY CURRENT_UNIT_NAME, COUNTY, S_T_R
     `;
 
+    console.log('Querying for unit name:', unitName);
     const rows = await executeQuery(query, [unitName]);
+    console.log('Found rows:', rows.length);
     
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Unit not found' });
@@ -2208,67 +2183,65 @@ app.get('/api/units/:id', async (req, res) => {
     
     rows.forEach(row => {
       if (row.CURRENT_UNIT_NAME) {
-        const unitNames = row.CURRENT_UNIT_NAME.split('\r\n').filter(name => name.trim() !== '');
+        // Get the full unit name with line breaks for display
+        const fullUnitName = row.CURRENT_UNIT_NAME;
+        const trimmedUnitName = fullUnitName.trim();
         
-        unitNames.forEach(unitNameItem => {
-          const trimmedUnitName = unitNameItem.trim();
-          
-          if (!unitMap.has(trimmedUnitName)) {
-            unitMap.set(trimmedUnitName, {
-              id: row.id,
-              unitName: trimmedUnitName,
-              operator: 'Unknown',
-              apiNumbers: [],
-              targetFormations: ['Hunton', 'Woodford', 'Mississippian'],
-              status: row.STATUS === 'PRODUCING' ? 'Producing' : 
-                     row.STATUS === 'PERMITTED' ? 'Permitted' : 'Held by Production',
-              estimatedGrossAcres: parseFloat(row.NMA) || 0,
-              estimatedNetAcres: parseFloat(row.NMA) || 0,
-              county: row.COUNTY,
-              state: row.ST || 'OK',
-              linkedTractIds: [row.id],
-              linkedContactIds: [],
-              assignedBuyerId: null,
-              assignedBuyer: null,
-              heldByFund: false,
-              exitStrategy: 'Hold',
-              isLocked: false,
-              notes: row.NOTE || '',
-              createdAt: row.created_at,
-              updatedAt: row.updated_at,
-              createdBy: 'system',
-              updatedBy: 'system',
-              createdByUser: null,
-              updatedByUser: null,
-              esgProfileId: null,
-              esgRiskLevel: null,
-              carbonIntensity: null,
-              operatorComplianceScore: null,
-              regulatoryCompliance: null,
-              hasRiskFlags: false,
-              lastESGUpdate: null,
-              // Additional fields from acreage data
-              totalNetMineralAcres: parseFloat(row.NMA) || 0,
-              averageRoyalty: parseFloat(row.ROY) || 0,
-              allocationPercentage: parseFloat(row.ALLOCATION_PERCENT) || 0,
-              buyer: row.BUYER,
-              interestType: row.INTEREST_TYPE,
-              legalDescription: row.LEGAL_DESCRIPTION,
-              owner: row.OWNER,
-              contact: row.CONTACT,
-              street: row.STREET,
-              city: row.CITY,
-              zip: row.ZIP,
-              phoneEmail: row.PHONE_EMAIL
-            });
-          } else if (unitMap.has(trimmedUnitName)) {
-            const existingUnit = unitMap.get(trimmedUnitName);
-            existingUnit.linkedTractIds.push(row.id);
-            existingUnit.estimatedGrossAcres += parseFloat(row.NMA) || 0;
-            existingUnit.estimatedNetAcres += parseFloat(row.NMA) || 0;
-            existingUnit.totalNetMineralAcres += parseFloat(row.NMA) || 0;
-          }
-        });
+        if (!unitMap.has(trimmedUnitName)) {
+          unitMap.set(trimmedUnitName, {
+            id: row.id,
+            unitName: trimmedUnitName.replace(/\s+(?=[A-Z]+\s+[A-Z]+\s+\d+)/g, '\n'), // Add line breaks between complete unit names
+            operator: 'Unknown',
+            apiNumbers: [],
+            targetFormations: ['Hunton', 'Woodford', 'Mississippian'],
+            status: row.STATUS === 'PRODUCING' ? 'Producing' : 
+                   row.STATUS === 'PERMITTED' ? 'Permitted' : 'Held by Production',
+            estimatedGrossAcres: parseFloat(row.NMA) || 0,
+            estimatedNetAcres: parseFloat(row.NMA) || 0,
+            county: row.COUNTY,
+            state: row.ST || 'OK',
+            linkedTractIds: [row.id],
+            linkedContactIds: [],
+            assignedBuyerId: null,
+            assignedBuyer: null,
+            heldByFund: false,
+            exitStrategy: 'Hold',
+            isLocked: false,
+            notes: row.NOTE || '',
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            createdBy: 'system',
+            updatedBy: 'system',
+            createdByUser: null,
+            updatedByUser: null,
+            esgProfileId: null,
+            esgRiskLevel: null,
+            carbonIntensity: null,
+            operatorComplianceScore: null,
+            regulatoryCompliance: null,
+            hasRiskFlags: false,
+            lastESGUpdate: null,
+            // Additional fields from acreage data
+            totalNetMineralAcres: parseFloat(row.NMA) || 0,
+            averageRoyalty: parseFloat(row.ROY) || 0,
+            allocationPercentage: parseFloat(row.ALLOCATION_PERCENT) || 0,
+            buyer: row.BUYER,
+            interestType: row.INTEREST_TYPE,
+            legalDescription: row.LEGAL_DESCRIPTION,
+            owner: row.OWNER,
+            contact: row.CONTACT,
+            street: row.STREET,
+            city: row.CITY,
+            zip: row.ZIP,
+            phoneEmail: row.PHONE_EMAIL
+          });
+        } else if (unitMap.has(trimmedUnitName)) {
+          const existingUnit = unitMap.get(trimmedUnitName);
+          existingUnit.linkedTractIds.push(row.id);
+          existingUnit.estimatedGrossAcres += parseFloat(row.NMA) || 0;
+          existingUnit.estimatedNetAcres += parseFloat(row.NMA) || 0;
+          existingUnit.totalNetMineralAcres += parseFloat(row.NMA) || 0;
+        }
       }
     });
 
@@ -2284,7 +2257,68 @@ app.get('/api/units/:id', async (req, res) => {
     console.error('Error fetching unit:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Error fetching unit', 
+      message: 'Error fetching unit',
+      error: error.message 
+    });
+  }
+});
+
+// Get unit names for a specific unit
+app.get('/api/units/:id/unit-names', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const { id } = req.params;
+    
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for unit names for:', unitName);
+    
+    // Get all records for this unit to extract unit names
+    const query = `
+      SELECT DISTINCT CURRENT_UNIT_NAME
+      FROM prod_acreage_schedule
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
+      ORDER BY CURRENT_UNIT_NAME
+    `;
+    
+    const rows = await executeQuery(query, [unitName]);
+    console.log('Found unit name records:', rows.length);
+    
+    if (rows.length === 0) {
+      return res.json({
+        currentUnitNames: [],
+        newUnitNames: [],
+        totalRecords: 0
+      });
+    }
+    
+    // Extract individual unit names from the grouped unit name
+    const allUnitNames = new Set();
+    
+    rows.forEach(row => {
+      if (row.CURRENT_UNIT_NAME) {
+        // Split by line breaks to get individual unit names
+        const unitNames = row.CURRENT_UNIT_NAME.split(/\r\n|\n/).filter(name => name.trim() !== '');
+        unitNames.forEach(name => allUnitNames.add(name.trim()));
+      }
+    });
+    
+    const currentUnitNames = Array.from(allUnitNames);
+    
+    res.json({
+      currentUnitNames: currentUnitNames,
+      newUnitNames: [], // No new unit names for now
+      totalRecords: currentUnitNames.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching unit names:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching unit names',
       error: error.message 
     });
   }
@@ -2518,9 +2552,89 @@ app.get('/api/units/:id/assignments', async (req, res) => {
 
     const { id } = req.params;
     
-    // For now, return empty assignments array since we don't have assignment data
-    // This prevents 404 errors while maintaining the API structure
-    res.json([]);
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for assignments for unit:', unitName);
+    
+    // Check if there's already a pending request for this unit
+    if (pendingRequests.has(unitName)) {
+      console.log('🔄 Deduplicating request for unit:', unitName);
+      const result = await pendingRequests.get(unitName);
+      return res.json(result);
+    }
+    
+    // Create a promise for this request
+    const requestPromise = (async () => {
+      // Get assignments linked to this unit by matching assetId
+      // Since assignments are stored in memory, we need to filter them by assetId
+      const allAssignments = await getCachedAssignments();
+      console.log('Retrieved assignments from cache, total:', allAssignments.length);
+      
+      // Filter assignments that match this unit name
+      const matchingAssignments = allAssignments.filter(assignment => {
+        if (assignment.assetType !== 'Unit') return false;
+        
+        // Check if the assetId contains the unit name (for grouped units)
+        const assetId = assignment.assetId || '';
+        const normalizedAssetId = assetId.replace(/\r\n/g, ' ').replace(/\n/g, ' ').trim();
+        const normalizedUnitName = unitName.replace(/\r\n/g, ' ').replace(/\n/g, ' ').trim();
+        
+        // Check for exact match or partial match
+        return normalizedAssetId === normalizedUnitName || 
+               normalizedAssetId.includes(normalizedUnitName) || 
+               normalizedUnitName.includes(normalizedAssetId);
+      });
+      
+      // Deduplicate by buyer name to avoid showing the same buyer multiple times
+      const uniqueAssignments = matchingAssignments.reduce((unique, assignment) => {
+        const buyerName = assignment.assignedBuyer?.name || assignment.assignedBuyerId;
+        if (!unique.find(item => (item.assignedBuyer?.name || item.assignedBuyerId) === buyerName)) {
+          unique.push(assignment);
+        }
+        return unique;
+      }, []);
+      
+      console.log('Found assignments:', matchingAssignments.length);
+      console.log('Unique assignments after deduplication:', uniqueAssignments.length);
+      
+      // Transform the assignment data to match the UnitAssignment interface
+      const transformedAssignments = uniqueAssignments.map(assignment => ({
+        id: assignment.id,
+        unitId: assignment.assetId,
+        buyerId: assignment.assignedBuyerId,
+        buyer: assignment.assignedBuyer ? {
+          id: assignment.assignedBuyer.id,
+          name: assignment.assignedBuyer.name,
+          email: assignment.assignedBuyer.email
+        } : null,
+        assignedBy: assignment.assignedById,
+        assignedByUser: null, // Will be populated if needed
+        assignedAt: assignment.assignedDate,
+        removedBy: assignment.status === 'Cancelled' ? assignment.assignedById : null,
+        removedByUser: null, // Will be populated if needed
+        removedAt: assignment.status === 'Cancelled' ? assignment.updatedAt : null,
+        status: assignment.status,
+        notes: assignment.notes ? assignment.notes.replace(/^Contact:\s*/, '') : assignment.notes,
+        priceCapUsd: assignment.priceCapUsd,
+        priceCapType: assignment.priceCapType,
+        sourceChannel: assignment.sourceChannel,
+        priorityScore: assignment.priorityScore,
+        asset: assignment.asset
+      }));
+      
+      return transformedAssignments;
+    })();
+    
+    // Store the promise in pending requests
+    pendingRequests.set(unitName, requestPromise);
+    
+    try {
+      const result = await requestPromise;
+      res.json(result);
+    } finally {
+      // Clean up the pending request
+      pendingRequests.delete(unitName);
+    }
   } catch (error) {
     console.error('Error fetching unit assignments:', error);
     res.status(500).json({ 
@@ -2604,23 +2718,9 @@ app.get('/api/units/:id/contacts', async (req, res) => {
 
     const { id } = req.params;
     
-    // Use the ID directly as it's now just the database ID
-    const databaseId = id;
-    
-    // First, get the unit name from the database record
-    const unitQuery = `
-      SELECT DISTINCT CURRENT_UNIT_NAME
-      FROM prod_acreage_schedule
-      WHERE id = ?
-    `;
-    
-    const unitRows = await executeQuery(unitQuery, [databaseId]);
-    
-    if (unitRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Unit not found' });
-    }
-    
-    const unitName = unitRows[0].CURRENT_UNIT_NAME;
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for contacts for unit:', unitName);
     
     const query = `
       SELECT 
@@ -2635,11 +2735,12 @@ app.get('/api/units/:id/contacts', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME = ?
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
       ORDER BY OWNER
     `;
 
     const rows = await executeQuery(query, [unitName]);
+    console.log('Found contacts:', rows.length);
     
     // Transform contacts data
     const contacts = rows
@@ -2739,23 +2840,9 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
 
     const { id } = req.params;
     
-    // Use the ID directly as it's now just the database ID
-    const databaseId = id;
-    
-    // First, get the unit name from the database record
-    const unitQuery = `
-      SELECT DISTINCT CURRENT_UNIT_NAME
-      FROM prod_acreage_schedule
-      WHERE id = ?
-    `;
-    
-    const unitRows = await executeQuery(unitQuery, [databaseId]);
-    
-    if (unitRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Unit not found' });
-    }
-    
-    const unitName = unitRows[0].CURRENT_UNIT_NAME;
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for aggregated contacts for unit:', unitName);
     
     const query = `
       SELECT 
@@ -2774,7 +2861,7 @@ app.get('/api/units/:id/contacts/aggregated', async (req, res) => {
         AVG(CAST(ROY AS DECIMAL(5,2))) as avgRoyalty,
         AVG(CAST(ALLO_ AS DECIMAL(5,2))) as avgAllocation
       FROM prod_acreage_schedule
-      WHERE CURRENT_UNIT_NAME = ?
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
         AND OWNER IS NOT NULL AND OWNER != ''
       GROUP BY OWNER, CONTACT, STREET, CITY, ST, ZIP, PHONE_EMAIL, NMA, ROY, ALLO_
       ORDER BY OWNER
@@ -3589,14 +3676,16 @@ app.get('/api/sections', async (req, res) => {
         S_T_R as str,
         MAX(COUNTY) as county,
         MAX(ST) as state,
-        COUNT(DISTINCT STATUS) as status_count,
-        COUNT(DISTINCT LEGAL_DESCRIPTION) as legal_count,
-        AVG(NMA) as net_mineral_acres,
+        GROUP_CONCAT(DISTINCT STATUS ORDER BY STATUS SEPARATOR ',\n') as statuses,
+        GROUP_CONCAT(DISTINCT LEGAL_DESCRIPTION ORDER BY LEGAL_DESCRIPTION SEPARATOR ';\n') as legal_descriptions,
+        SUM(NMA) as net_mineral_acres,
         AVG(CALCULATED_ACREAGE) as calculated_acreage,
+        GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
         COUNT(DISTINCT BUYER) as buyer_count,
         COUNT(DISTINCT OWNER) as owner_count,
         MIN(DATE) as date_created,
-        COUNT(DISTINCT TITLE_SOURCE) as title_source_count
+        GROUP_CONCAT(DISTINCT TITLE_SOURCE ORDER BY TITLE_SOURCE SEPARATOR ', ') as title_sources,
+        GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit
       FROM prod_acreage_schedule 
       WHERE S_T_R IS NOT NULL 
       GROUP BY S_T_R
@@ -3633,12 +3722,14 @@ app.get('/api/sections', async (req, res) => {
         str: row.str,
         grossAcres: netAcres,
         netMineralAcres: netAcres,
-        titleStatus: `Multiple (${row.status_count})`,
-        legalDescription: `Multiple (${row.legal_count})`,
+        titleStatus: row.statuses || 'Unknown',
+        legalDescription: row.legal_descriptions || 'No description available',
+        assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
         buyerCount: row.buyer_count || 0,
         ownerCount: row.owner_count || 0,
         date_created: row.date_created || new Date().toISOString(),
-        title_source: `Multiple (${row.title_source_count})`,
+        title_source: row.title_sources || 'Unknown',
+        current_unit: row.current_unit || 'Unknown',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -3992,6 +4083,7 @@ app.get('/api/leads/:id/sections', async (req, res) => {
         CURRENT_UNIT_NAME as sectionName,
         COUNTY as county,
         ST as state,
+        S_T_R as str,
         NMA as grossAcres,
         NMA as netMineralAcres,
         ROY as royalty,
@@ -4014,11 +4106,13 @@ app.get('/api/leads/:id/sections', async (req, res) => {
       sectionName: row.sectionName,
       county: row.county,
       state: row.state || 'OK',
+      str: row.str,
       legalDescription: row.sectionName || '',
       grossAcres: parseFloat(row.grossAcres) || 0,
       netMineralAcres: parseFloat(row.netMineralAcres) || 0,
       royalty: parseFloat(row.royalty) || 0,
       assignedBuyerId: row.assignedBuyerId?.toLowerCase() || 'unassigned',
+      assignedBuyerName: row.assignedBuyerId || 'Unassigned',
       titleStatus: 'Not Verified',
       heldByFund: false,
       isLocked: false,
@@ -4050,38 +4144,70 @@ app.get('/api/leads/:id/notes', async (req, res) => {
 
     const { id } = req.params;
     
-    // For now, return mock notes since we don't have a notes table
-    // In a real implementation, this would query a notes table
-    const mockNotes = [
-      {
-        id: `note-${id}-1`,
-        leadId: id,
-        noteText: 'Initial contact made via phone call. Owner expressed interest in selling mineral rights.',
-        outreachMethod: 'Phone Call',
-        createdBy: 'system',
-        createdAt: new Date().toISOString(),
-        createdByUser: {
-          id: 'system',
-          name: 'System',
-          email: 'system@company.com'
-        }
-      },
-      {
-        id: `note-${id}-2`,
-        leadId: id,
-        noteText: 'Follow-up email sent with offer details and next steps.',
-        outreachMethod: 'Email',
-        createdBy: 'system',
-        createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-        createdByUser: {
-          id: 'system',
-          name: 'System',
-          email: 'system@company.com'
-        }
-      }
-    ];
+    // Extract the index from the lead ID (e.g., "lead-0" -> 0)
+    const leadIndex = parseInt(id.replace('lead-', ''));
     
-    res.json(mockNotes);
+    // Get the lead data first to find the actual lead ID
+    const leadQuery = `
+      SELECT DISTINCT
+        OWNER as name,
+        CURRENT_UNIT_NAME as unitName,
+        BUYER as buyer,
+        STATUS as status,
+        created_at,
+        updated_at
+      FROM prod_acreage_schedule
+      WHERE OWNER IS NOT NULL AND OWNER != ''
+      ORDER BY OWNER
+      LIMIT 1 OFFSET ${leadIndex}
+    `;
+
+    const leadRows = await executeQuery(leadQuery);
+    
+    if (leadRows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Lead not found' 
+      });
+    }
+
+    const leadRow = leadRows[0];
+    
+    // Query the lead_notes table for this lead
+    const notesQuery = `
+      SELECT 
+        ln.id,
+        ln.lead_id,
+        ln.note_text,
+        ln.note_type,
+        ln.created_by_id,
+        ln.created_at,
+        u.name as created_by_name,
+        u.email as created_by_email
+      FROM lead_notes ln
+      LEFT JOIN users u ON ln.created_by_id = u.id
+      WHERE ln.lead_id = 'lead${leadIndex + 1}'
+      ORDER BY ln.created_at DESC
+    `;
+
+    const notesRows = await executeQuery(notesQuery);
+    
+    // Transform notes data to match frontend expectations
+    const notes = notesRows.map((row, index) => ({
+      id: row.id,
+      leadId: row.lead_id,
+      noteText: row.note_text,
+      noteType: row.note_type || 'General',
+      createdBy: row.created_by_id,
+      createdAt: row.created_at,
+      createdByUser: {
+        id: row.created_by_id,
+        name: row.created_by_name || 'Unknown User',
+        email: row.created_by_email || 'unknown@company.com'
+      }
+    }));
+    
+    res.json(notes);
   } catch (error) {
     console.error('Error fetching lead notes:', error);
     res.status(500).json({ 
@@ -4319,6 +4445,10 @@ app.get('/api/units/:id/sections', async (req, res) => {
 
     const { id } = req.params;
     
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for sections for unit:', unitName);
+    
     // Get sections related to this unit
     const query = `
       SELECT DISTINCT
@@ -4339,11 +4469,12 @@ app.get('/api/units/:id/sections', async (req, res) => {
         DATE as date_created,
         TITLE_SOURCE as title_source
       FROM prod_acreage_schedule 
-      WHERE id = ? AND S_T_R IS NOT NULL 
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ? AND S_T_R IS NOT NULL 
       ORDER BY S_T_R
     `;
 
-    const rows = await executeQuery(query, [id]);
+    const rows = await executeQuery(query, [unitName]);
+    console.log('Found sections:', rows.length);
     
     // Transform sections data
     const sections = rows.map((row, index) => {
@@ -4408,35 +4539,41 @@ app.get('/api/units/:id/sections/enhanced', async (req, res) => {
 
     const { id } = req.params;
     
-    // Get enhanced sections data with more details
+    // Decode the URL-encoded unit name
+    const unitName = decodeURIComponent(id);
+    console.log('Looking for enhanced sections for unit:', unitName);
+    
+    // Get enhanced sections data with more details, grouped by STR only
     const query = `
-      SELECT DISTINCT
+      SELECT 
         S_T_R as str,
-        COUNTY as county,
-        ST as state,
-        STATUS as title_status,
-        LEGAL_DESCRIPTION as legal_description,
-        NMA as net_mineral_acres,
-        CALCULATED_ACREAGE as calculated_acreage,
-        BUYER as assigned_buyer,
-        OWNER as owner_name,
-        CONTACT as contact_info,
-        PHONE_EMAIL as phone_email,
-        NOTE as notes,
-        CURRENT_UNIT_NAME as current_unit,
-        NEW_UNIT_NAME as new_unit,
-        DATE as date_created,
-        TITLE_SOURCE as title_source,
-        STREET as street,
-        CITY as city,
-        ZIP as zip,
-        INTEREST_TYPE as interest_type
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        MAX(STATUS) as title_status,
+        MAX(LEGAL_DESCRIPTION) as legal_description,
+        SUM(NMA) as net_mineral_acres,
+        SUM(CALCULATED_ACREAGE) as calculated_acreage,
+        MAX(BUYER) as assigned_buyer,
+        GROUP_CONCAT(DISTINCT OWNER SEPARATOR '; ') as owner_name,
+        GROUP_CONCAT(DISTINCT CONTACT SEPARATOR '; ') as contact_info,
+        GROUP_CONCAT(DISTINCT PHONE_EMAIL SEPARATOR '; ') as phone_email,
+        GROUP_CONCAT(DISTINCT NOTE SEPARATOR '; ') as notes,
+        MAX(CURRENT_UNIT_NAME) as current_unit,
+        MAX(NEW_UNIT_NAME) as new_unit,
+        MAX(DATE) as date_created,
+        MAX(TITLE_SOURCE) as title_source,
+        GROUP_CONCAT(DISTINCT STREET SEPARATOR '; ') as street,
+        GROUP_CONCAT(DISTINCT CITY SEPARATOR '; ') as city,
+        GROUP_CONCAT(DISTINCT ZIP SEPARATOR '; ') as zip,
+        GROUP_CONCAT(DISTINCT INTEREST_TYPE SEPARATOR '; ') as interest_type
       FROM prod_acreage_schedule 
-      WHERE id = ? AND S_T_R IS NOT NULL 
+      WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ? AND S_T_R IS NOT NULL 
+      GROUP BY S_T_R
       ORDER BY S_T_R
     `;
 
-    const rows = await executeQuery(query, [id]);
+    const rows = await executeQuery(query, [unitName]);
+    console.log('Found enhanced sections:', rows.length);
     
     // Transform enhanced sections data
     const sections = rows.map((row, index) => {

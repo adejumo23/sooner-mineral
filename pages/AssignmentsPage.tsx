@@ -218,11 +218,13 @@ const AssignmentsPage: React.FC = () => {
       accessor: 'assetType',
       cell: (assignment: Assignment) => (
         <div>
-          <div className="font-medium text-white">
-            {assignment.assetType}: {assignment.assetId}
-          </div>
-          <div className="text-sm text-sc-slate">
-            {assignment.asset?.sectionName || assignment.asset?.unitName || 'Unknown Asset'}
+          <div className="font-medium text-black">
+            {assignment.assetType}: 
+            <div className="mt-1">
+              {assignment.assetId.split(/\s+(?=[A-Z]+\s+\d+)/).map((unitName, index) => (
+                <div key={index} className="text-sm text-black">{unitName.trim()}</div>
+              ))}
+            </div>
           </div>
         </div>
       )

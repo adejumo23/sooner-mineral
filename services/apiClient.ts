@@ -152,7 +152,8 @@ export const fetchSections = async (page = 1, limit = 50) => {
     // Generate section names based on state and S-T-R data
     const processedSections = sections.map((section: any) => ({
       ...section,
-      sectionName: generateSectionName(section.state, section.str)
+      sectionName: generateSectionName(section.state, section.str),
+      state: 'OK' // Hardcode state to 'OK' as requested
     }));
     
     // Return both data and pagination info if available
@@ -172,7 +173,8 @@ export const fetchSection = async (id: string) => {
     // Generate section name based on state and S-T-R data
     return {
       ...section,
-      sectionName: generateSectionName(section.state, section.str)
+      sectionName: generateSectionName(section.state, section.str),
+      state: 'OK' // Hardcode state to 'OK' as requested
     };
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
@@ -182,25 +184,35 @@ export const fetchSection = async (id: string) => {
 
 export const createSection = async (sectionData: any) => {
   try {
+    // Ensure state is set to 'OK' for all new sections
+    const sectionDataWithState = {
+      ...sectionData,
+      state: 'OK'
+    };
     return await apiRequest('/sections', {
       method: 'POST',
-      body: JSON.stringify(sectionData),
+      body: JSON.stringify(sectionDataWithState),
     });
   } catch (error) {
     console.warn('Server not available, creating mock tract:', error);
-    return { ...sectionData, id: `s${Date.now()}` };
+    return { ...sectionData, id: `s${Date.now()}`, state: 'OK' };
   }
 };
 
 export const updateSection = async (id: string, sectionData: any) => {
   try {
+    // Ensure state is set to 'OK' for all section updates
+    const sectionDataWithState = {
+      ...sectionData,
+      state: 'OK'
+    };
     return await apiRequest(`/sections/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(sectionData),
+      body: JSON.stringify(sectionDataWithState),
     });
   } catch (error) {
     console.warn('Server not available, updating mock tract:', error);
-    return { ...sectionData, id };
+    return { ...sectionData, id, state: 'OK' };
   }
 };
 

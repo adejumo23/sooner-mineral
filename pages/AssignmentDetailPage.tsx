@@ -237,7 +237,11 @@ const AssignmentDetailPage: React.FC = () => {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Unit Name</label>
-                        <p className="text-gray-900">{assignment.asset.unitName}</p>
+                        <div className="text-gray-900">
+                          {assignment.asset.unitName.split(/\s+(?=[A-Z]+\s+\d+)/).map((unitName, index) => (
+                            <div key={index} className="break-words">{unitName.trim()}</div>
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Location</label>

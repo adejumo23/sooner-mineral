@@ -17,6 +17,13 @@ const SectionDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'contacts' | 'mapping' | 'title-chain' | 'leads'>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [collapsedCards, setCollapsedCards] = useState<{[key: string]: boolean}>({
+    basicInfo: false,
+    legalInfo: false,
+    acreageFinancial: false,
+    unitInfo: false,
+    notesFlags: false
+  });
 
   useEffect(() => {
     if (sectionId) {
@@ -133,6 +140,13 @@ const SectionDetailPage: React.FC = () => {
     setIsEditModalOpen(false);
   };
 
+  const toggleCardCollapse = (cardKey: string) => {
+    setCollapsedCards(prev => ({
+      ...prev,
+      [cardKey]: !prev[cardKey]
+    }));
+  };
+
   const handleSaveSection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!section) return;
@@ -143,7 +157,7 @@ const SectionDetailPage: React.FC = () => {
       
       const sectionData: Partial<Section> = {
         sectionName: formData.get('sectionName') as string,
-        state: formData.get('state') as string,
+        state: 'OK', // Hardcode state to 'OK' as requested
         county: formData.get('county') as string,
         legalDescription: formData.get('legalDescription') as string,
         str: formData.get('str') as string || undefined,
@@ -201,7 +215,7 @@ const SectionDetailPage: React.FC = () => {
             ← Back to Sections
           </button>
           <h1 className="text-3xl font-bold text-gray-900 mt-4">{section.sectionName}</h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 mt-2 whitespace-pre-line">
             {section.state}, {section.county} • {section.titleStatus}
           </p>
         </div>
@@ -245,9 +259,24 @@ const SectionDetailPage: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Basic Information */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('basicInfo')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.basicInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.basicInfo && (
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
                   <span className="text-gray-600 text-sm">Section Name</span>
                   <div className="text-gray-900 font-medium">{section.sectionName}</div>
@@ -262,7 +291,7 @@ const SectionDetailPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Title Status</span>
-                  <div className="text-gray-900 font-medium">{section.titleStatus}</div>
+                  <div className="text-gray-900 font-medium whitespace-pre-line">{section.titleStatus}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Assigned Buyer</span>
@@ -272,16 +301,33 @@ const SectionDetailPage: React.FC = () => {
                   <span className="text-gray-600 text-sm">Source Channel</span>
                   <div className="text-gray-900 font-medium">{section.sourceChannel || 'N/A'}</div>
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Legal Information */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Legal Information</h3>
-              <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('legalInfo')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Legal Information</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.legalInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.legalInfo && (
+                <div className="px-6 pb-6">
+                  <div className="space-y-4">
                 <div>
                   <span className="text-gray-600 text-sm">Legal Description</span>
-                  <div className="text-gray-900 mt-1">{section.legalDescription}</div>
+                  <div className="text-gray-900 mt-1 whitespace-pre-line">{section.legalDescription}</div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -316,13 +362,62 @@ const SectionDetailPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Unit Information */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('unitInfo')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Unit Information</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.unitInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
+              {!collapsedCards.unitInfo && (
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <span className="text-gray-600 text-sm">Current Unit</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{section.current_unit || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">New Unit</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{section.new_unit || 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Acreage & Financial */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Acreage & Financial</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('acreageFinancial')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Acreage & Financial</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.acreageFinancial ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.acreageFinancial && (
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
                   <span className="text-gray-600 text-sm">Gross Acres</span>
                   <div className="text-gray-900 font-medium">{formatAcres(section.grossAcres)}</div>
@@ -349,13 +444,30 @@ const SectionDetailPage: React.FC = () => {
                     {section.nraCapUsd ? `$${section.nraCapUsd.toLocaleString()}` : 'N/A'}
                   </div>
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notes & Flags */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes & Flags</h3>
-              <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('notesFlags')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Notes & Flags</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.notesFlags ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.notesFlags && (
+                <div className="px-6 pb-6">
+                  <div className="space-y-4">
                 <div>
                   <span className="text-gray-600 text-sm">Routing Notes</span>
                   <div className="text-gray-900 mt-1">{section.routingNotes || 'No notes'}</div>
@@ -380,7 +492,9 @@ const SectionDetailPage: React.FC = () => {
                     <span className="text-sm text-gray-600">Lock Flag</span>
                   </label>
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

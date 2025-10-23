@@ -74,7 +74,8 @@ const LeadSectionAssignmentTab: React.FC<{
     const matchesSearch = !searchTerm || 
       section.sectionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       section.county?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      section.state?.toLowerCase().includes(searchTerm.toLowerCase());
+      section.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      section.str?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = !statusFilter || section.status === statusFilter;
     
@@ -169,7 +170,10 @@ const LeadSectionAssignmentTab: React.FC<{
           </div>
         ) : (
           filteredSections.map((section) => {
-            const assignedBuyer = Array.isArray(users) ? users.find(u => u.id === section.assignedBuyerId) : null;
+            // Use assignedBuyerName if available, otherwise try to find user by ID
+            const assignedBuyer = section.assignedBuyerName && section.assignedBuyerName !== 'Unassigned' 
+              ? { name: section.assignedBuyerName }
+              : Array.isArray(users) ? users.find(u => u.id === section.assignedBuyerId) : null;
             const statusInfo = statusMeta[section.status || 'Pending'];
             
             return (
@@ -186,6 +190,11 @@ const LeadSectionAssignmentTab: React.FC<{
                         <p className="text-sm text-gray-600">
                           {section.county && section.state ? `${section.county}, ${section.state}` : 'Location not specified'}
                         </p>
+                        {section.str && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            STR: {section.str}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">

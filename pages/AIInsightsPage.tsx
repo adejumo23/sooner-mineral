@@ -657,3 +657,4 @@ const AIInsightsPage: React.FC = () => {
 
 export default AIInsightsPage;
 
+
