@@ -1,15 +1,14 @@
 import * as React from 'react';
-import type { Lead, User } from '../types';
+import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import { UserIcon, CheckCircleIcon, XCircleIcon, ArrowLeftIcon } from './icons/Icons';
 
 const statusColors: Record<string, string> = {
-  Unqualified: 'bg-red-100 text-red-700',
-  'Follow-Up': 'bg-yellow-100 text-yellow-700',
-  Committed: 'bg-blue-100 text-blue-700',
-  Converted: 'bg-green-100 text-green-700',
-  'Signed Paperwork': 'bg-green-100 text-green-700',
-  Qualified: 'bg-blue-100 text-blue-700',
+  Uncontacted: 'bg-gray-100 text-gray-700',
+  Spoke: 'bg-blue-100 text-blue-700',
+  Interested: 'bg-yellow-100 text-yellow-700',
+  'LOI Sent': 'bg-green-100 text-green-700',
+  Dead: 'bg-red-100 text-red-700',
 };
 
 const priorityTooltips: Record<string, string> = {
@@ -30,19 +29,19 @@ function getStatusColor(status: string) {
 }
 
 const LeadOverviewTab: React.FC<{
-  lead: Lead;
+  lead: LeadEnhanced;
   currentUser: User;
   users: User[];
   onConvertToDeal: () => void;
 }> = ({ lead, currentUser, users, onConvertToDeal }) => {
-  // Mocked/derived fields
-  const assignedBuyer = users.find(u => u.id === lead.buyerId) || users[0];
-  const contact = lead.linkedContact || { name: 'N/A', id: '', email: '', phone: '' };
-  const lastActivity = lead.lastActivity || '2024-06-01T10:00:00Z';
-  const lastStatusChange = lead.lastStatusChange || '2024-06-01T10:00:00Z';
-  const convertedBy = lead.convertedBy || null;
-  const convertedOn = lead.convertedOn || null;
-  const eligibleStatuses = ['Committed', 'Signed Paperwork'];
+  // Use real data from LeadEnhanced interface
+  const assignedBuyer = lead.buyer || { id: 'unassigned', name: 'Unassigned', email: 'unassigned@company.com' };
+  const contact = lead.linkedContact || { name: lead.name || 'N/A', id: lead.linkedContactId || '', email: '', phone: lead.phoneEmail || '' };
+  const lastActivity = lead.lastContactDate || lead.updatedAt || '2024-06-01T10:00:00Z';
+  const lastStatusChange = lead.updatedAt || '2024-06-01T10:00:00Z';
+  const convertedBy = null; // Not available in current interface
+  const convertedOn = null; // Not available in current interface
+  const eligibleStatuses = ['Interested', 'LOI Sent'];
   const isEligible = eligibleStatuses.includes(lead.status);
   const [showConfirm, setShowConfirm] = React.useState(false);
 
@@ -63,11 +62,14 @@ const LeadOverviewTab: React.FC<{
           </div>
         </div>
         <div className="flex flex-wrap gap-6 text-sm text-gray-700 mt-4">
-          <div title="User who created this lead">
-            <span className="font-medium">Created On/By:</span> {new Date(lead.createdAt || '').toLocaleString()} by {lead.createdBy || 'N/A'}
+          <div title="When this lead was created">
+            <span className="font-medium">Created On:</span> {new Date(lead.createdAt || '').toLocaleString()}
           </div>
           <div title="Most recent outreach (call, note, email)">
             <span className="font-medium">Last Activity:</span> {new Date(lastActivity).toLocaleString()}
+          </div>
+          <div title="Priority Score">
+            <span className="font-medium">Priority Score:</span> {lead.priorityScore}
           </div>
         </div>
       </div>
@@ -76,25 +78,27 @@ const LeadOverviewTab: React.FC<{
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Assignment Summary</h2>
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2" title="Assigned Buyer">
-            <UserIcon className="h-8 w-8 text-sc-blue" />
-            <a href={`/users/${assignedBuyer.id}`} className="font-semibold text-sc-blue hover:underline" title="View User Directory">{assignedBuyer.name}</a>
-            <span className="text-xs text-gray-500 ml-2" title={`Email: ${assignedBuyer.email}\nPhone: ${assignedBuyer.phone}`}>({assignedBuyer.role?.name || 'Buyer'})</span>
+            <UserIcon className="h-8 w-8 text-blue-600" />
+            <span className="font-semibold text-blue-600">{assignedBuyer.name}</span>
+            <span className="text-xs text-gray-500 ml-2" title={`Email: ${assignedBuyer.email}`}>(Buyer)</span>
           </div>
-          <div className="flex items-center gap-1" title={priorityTooltips[lead.priority || 'Hot'] || ''}>
-            <span className="font-medium">Priority:</span>
-            <span className="px-2 py-1 rounded bg-gray-100 text-gray-800 text-xs font-semibold">{lead.priority || 'Hot'}</span>
+          <div className="flex items-center gap-1" title="Priority Score">
+            <span className="font-medium">Priority Score:</span>
+            <span className="px-2 py-1 rounded bg-gray-100 text-gray-800 text-xs font-semibold">{lead.priorityScore}</span>
           </div>
           <div className="flex items-center gap-1" title="How the lead originated">
             <span className="font-medium">Source:</span>
-            <span className="text-xs text-gray-700">{lead.source || 'N/A'}</span>
+            <span className="text-xs text-gray-700">{lead.sourceChannel || 'Broker'}</span>
           </div>
-          <div className="flex items-center gap-1" title="Region or County">
-            <span className="font-medium">Region/County:</span>
-            <span className="text-xs text-gray-700">{lead.region || 'N/A'}</span>
+          <div className="flex items-center gap-1" title="Contact Information">
+            <span className="font-medium">Contact:</span>
+            <span className="text-xs text-gray-700">{contact.name || 'N/A'}</span>
           </div>
-          <div className="flex items-center gap-1" title="Asset Type">
-            <span className="font-medium">Asset Type:</span>
-            <span className="text-xs text-gray-700">{assetTypeLabels[lead.assetType || 'unknown']}</span>
+          <div className="flex items-center gap-1" title="Assets">
+            <span className="font-medium">Assets:</span>
+            <span className="text-xs text-gray-700">
+              {lead.linkedSections?.length || 0} sections, {lead.linkedUnits?.length || 0} units
+            </span>
           </div>
         </div>
       </div>
@@ -118,7 +122,7 @@ const LeadOverviewTab: React.FC<{
             <span className="font-medium">Last Status Change:</span>
             <span className="text-xs text-gray-700">{new Date(lastStatusChange).toLocaleString()}</span>
           </div>
-          {lead.status !== 'Converted' && isEligible && (currentUser.role.name === 'Admin' || currentUser.id === lead.buyerId) && (
+          {lead.status !== 'Dead' && isEligible && (currentUser.role?.name === 'Admin' || currentUser.id === lead.buyerId) && (
             <div className="space-x-2">
               <Button onClick={() => setShowConfirm(true)} variant="primary" className="flex items-center gap-1" title="Convert to Deal">
                 <ArrowLeftIcon className="h-4 w-4" /> Convert to Deal

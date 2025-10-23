@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Lead, User } from '../types';
+import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import { DocumentTextIcon, LockClosedIcon, LockOpenIcon, TrashIcon, PencilIcon, EyeIcon, DownloadIcon, PlusIcon, XCircleIcon } from './icons/Icons';
 
@@ -42,7 +42,7 @@ function getFileIcon(type: string) {
   }
 }
 
-const LeadDocumentsTab: React.FC<{ lead: Lead; currentUser: User }> = ({ lead, currentUser }) => {
+const LeadDocumentsTab: React.FC<{ lead: LeadEnhanced; currentUser: User }> = ({ lead, currentUser }) => {
   const [files, setFiles] = React.useState(mockFiles);
   const [search, setSearch] = React.useState('');
   const [tagFilter, setTagFilter] = React.useState('');

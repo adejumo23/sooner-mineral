@@ -37,8 +37,8 @@ const executeQuery = async (query: string, params: any[] = []): Promise<any[]> =
 // NORMALIZED TRACT FUNCTIONS
 // ============================================================================
 
-// Get all tracts using normalized database structure
-export const fetchTracts = async (filters?: {
+// Get all sections using normalized database structure
+export const fetchSections = async (filters?: {
   state?: string;
   county?: string;
   status?: string;
@@ -317,8 +317,8 @@ export const fetchTractPricing = async (tractId: string): Promise<any[]> => {
   }));
 };
 
-// Search tracts
-export const searchTracts = async (searchTerm: string, limit: number = 50, offset: number = 0): Promise<any[]> => {
+// Search sections
+export const searchSections = async (searchTerm: string, limit: number = 50, offset: number = 0): Promise<any[]> => {
   const query = `
     SELECT DISTINCT
       p.id as tract_id,
@@ -372,12 +372,12 @@ export const searchTracts = async (searchTerm: string, limit: number = 50, offse
 export const fetchTractDashboard = async (): Promise<any> => {
   const query = `
     SELECT 
-      COUNT(DISTINCT p.id) as total_tracts,
-      COUNT(DISTINCT CASE WHEN ast.name = 'WORKING' THEN p.id END) as working_tracts,
-      COUNT(DISTINCT CASE WHEN ast.name = 'DROPPED' THEN p.id END) as dropped_tracts,
-      COUNT(DISTINCT CASE WHEN ast.name = 'NEW' THEN p.id END) as new_tracts,
-      COUNT(DISTINCT CASE WHEN at.buyer_id IS NOT NULL THEN p.id END) as assigned_tracts,
-      COUNT(DISTINCT CASE WHEN at.buyer_id IS NULL THEN p.id END) as unassigned_tracts,
+      COUNT(DISTINCT p.id) as total_sections,
+      COUNT(DISTINCT CASE WHEN ast.name = 'WORKING' THEN p.id END) as working_sections,
+      COUNT(DISTINCT CASE WHEN ast.name = 'DROPPED' THEN p.id END) as dropped_sections,
+      COUNT(DISTINCT CASE WHEN ast.name = 'NEW' THEN p.id END) as new_sections,
+      COUNT(DISTINCT CASE WHEN at.buyer_id IS NOT NULL THEN p.id END) as assigned_sections,
+      COUNT(DISTINCT CASE WHEN at.buyer_id IS NULL THEN p.id END) as unassigned_sections,
       SUM(p.gross_acres) as total_gross_acres,
       SUM(mi.net_mineral_acres) as total_net_mineral_acres,
       COUNT(DISTINCT mi.owner_id) as total_owners,
@@ -406,10 +406,10 @@ export const fetchTractDashboard = async (): Promise<any> => {
 // ============================================================================
 
 export default {
-  fetchTracts,
+  fetchSections,
   fetchTract,
   fetchTractOwners,
   fetchTractPricing,
-  searchTracts,
+  searchSections,
   fetchTractDashboard
 };

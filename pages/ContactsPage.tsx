@@ -54,7 +54,8 @@ const ContactsPage: React.FC = () => {
     try {
       setLoading(true);
       // In a real implementation, this would fetch enhanced contacts with all the calculated fields
-      const contactsData = await fetchContacts();
+      const contactsResponse = await fetchContacts();
+      const contactsData = contactsResponse.data || contactsResponse;
       const enhancedContacts: ContactEnhanced[] = contactsData.map(contact => ({
         ...contact,
         role: 'Landowner' as const,

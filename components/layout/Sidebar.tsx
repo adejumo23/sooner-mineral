@@ -6,7 +6,7 @@ import './Sidebar.css';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Tracts', href: '/tracts', icon: MapIcon },
+  { name: 'Sections', href: '/sections', icon: MapIcon },
   { name: 'Units', href: '/units', icon: CubeIcon },
   { name: 'Assignments', href: '/assignments', icon: ClipboardDocumentListIcon },
   { name: 'Leads', href: '/leads', icon: UserIcon },

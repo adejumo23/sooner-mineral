@@ -4,8 +4,8 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
-import { fetchUnit, createUnit, updateUnit, fetchUsers, fetchTracts, fetchContacts } from '../services/api';
-import { Unit, User, Tract, Contact } from '../types';
+import { fetchUnit, createUnit, updateUnit, fetchUsers, fetchSections, fetchContacts } from '../services/api';
+import { Unit, User, Section, Contact } from '../types';
 
 const UnitFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +23,7 @@ const UnitFormPage: React.FC = () => {
     estimatedNetAcres: 0,
     county: '',
     state: '',
-    linkedTractIds: [],
+    linkedSectionIds: [],
     linkedContactIds: [],
     assignedBuyerId: '',
     heldByFund: false,
@@ -33,12 +33,12 @@ const UnitFormPage: React.FC = () => {
   });
 
   const [users, setUsers] = useState<User[]>([]);
-  const [tracts, setTracts] = useState<Tract[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showTractModal, setShowTractModal] = useState(false);
+  const [showSectionModal, setShowSectionModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [tempApiNumber, setTempApiNumber] = useState('');
   const [tempFormation, setTempFormation] = useState('');
@@ -47,13 +47,13 @@ const UnitFormPage: React.FC = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [usersData, tractsData, contactsData] = await Promise.all([
+        const [usersData, sectionsData, contactsData] = await Promise.all([
           fetchUsers(),
-          fetchTracts(),
+          fetchSections().then(response => response.data || response),
           fetchContacts()
         ]);
         setUsers(usersData);
-        setTracts(tractsData);
+        setSections(sectionsData);
         setContacts(contactsData);
 
         if (isEditing && id) {
@@ -148,16 +148,16 @@ const UnitFormPage: React.FC = () => {
     handleInputChange('targetFormations', newFormations);
   };
 
-  const addTract = (tractId: string) => {
-    if (!formData.linkedTractIds?.includes(tractId)) {
-      handleInputChange('linkedTractIds', [...(formData.linkedTractIds || []), tractId]);
+  const addSection = (sectionId: string) => {
+    if (!formData.linkedSectionIds?.includes(sectionId)) {
+      handleInputChange('linkedSectionIds', [...(formData.linkedSectionIds || []), sectionId]);
     }
-    setShowTractModal(false);
+    setShowSectionModal(false);
   };
 
-  const removeTract = (tractId: string) => {
-    const newTractIds = formData.linkedTractIds?.filter(id => id !== tractId) || [];
-    handleInputChange('linkedTractIds', newTractIds);
+  const removeSection = (sectionId: string) => {
+    const newSectionIds = formData.linkedSectionIds?.filter(id => id !== sectionId) || [];
+    handleInputChange('linkedSectionIds', newSectionIds);
   };
 
   const addContact = (contactId: string) => {
@@ -388,26 +388,26 @@ const UnitFormPage: React.FC = () => {
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Linked Tracts
+                  Linked Sections
                 </label>
                 <Button
-                  onClick={() => setShowTractModal(true)}
+                  onClick={() => setShowSectionModal(true)}
                   type="button"
                   variant="secondary"
                 >
-                  Add Tracts
+                  Add Sections
                 </Button>
               </div>
-              {formData.linkedTractIds && formData.linkedTractIds.length > 0 ? (
+              {formData.linkedSectionIds && formData.linkedSectionIds.length > 0 ? (
                 <div className="space-y-2">
-                  {formData.linkedTractIds.map(tractId => {
-                    const tract = tracts.find(t => t.id === tractId);
-                    return tract ? (
-                      <div key={tractId} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                        <span className="text-sm">{tract.tractName} - {tract.county}, {tract.state}</span>
+                  {formData.linkedSectionIds.map(sectionId => {
+                    const section = sections.find(s => s.id === sectionId);
+                    return section ? (
+                      <div key={sectionId} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <span className="text-sm">{section.sectionName} - {section.county}, {section.state}</span>
                         <button
                           type="button"
-                          onClick={() => removeTract(tractId)}
+                          onClick={() => removeSection(sectionId)}
                           className="text-red-600 hover:text-red-800 text-sm"
                         >
                           Remove
@@ -417,7 +417,7 @@ const UnitFormPage: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No tracts linked to this unit</p>
+                <p className="text-gray-500 text-sm">No sections linked to this unit</p>
               )}
             </div>
 
@@ -541,24 +541,24 @@ const UnitFormPage: React.FC = () => {
         </div>
       </form>
 
-      {/* Tract Selection Modal */}
+      {/* Section Selection Modal */}
       <Modal
-        isOpen={showTractModal}
-        onClose={() => setShowTractModal(false)}
-        title="Select Tracts to Link"
+        isOpen={showSectionModal}
+        onClose={() => setShowSectionModal(false)}
+        title="Select Sections to Link"
       >
         <div className="max-h-96 overflow-y-auto">
-          {tracts.map(tract => (
+          {sections.map(section => (
             <div
-              key={tract.id}
+              key={section.id}
               className="flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50"
             >
               <div>
-                <div className="font-medium">{tract.tractName}</div>
-                <div className="text-sm text-gray-600">{tract.county}, {tract.state}</div>
+                <div className="font-medium">{section.sectionName}</div>
+                <div className="text-sm text-gray-600">{section.county}, {section.state}</div>
               </div>
               <Button
-                onClick={() => addTract(tract.id)}
+                onClick={() => addSection(section.id)}
                 type="button"
                 variant="secondary"
                 size="sm"

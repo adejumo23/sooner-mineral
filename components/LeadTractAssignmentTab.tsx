@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Lead, User } from '../types';
+import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import { UserIcon, MapIcon, EyeIcon, PencilIcon, CheckIcon, XCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from './icons/Icons';
 
@@ -76,7 +76,7 @@ function getInitials(name: string) {
 }
 
 const LeadTractAssignmentTab: React.FC<{
-  lead: Lead;
+  lead: LeadEnhanced;
   currentUser: User;
   users: User[];
 }> = ({ lead, currentUser, users }) => {

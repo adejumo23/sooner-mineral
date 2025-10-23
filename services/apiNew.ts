@@ -11,7 +11,7 @@ export const createUser = apiClient.createUser;
 export const updateUser = apiClient.updateUser;
 export const deleteUser = apiClient.deleteUser;
 
-export const fetchTracts = apiClient.fetchTracts;
+export const fetchSections = apiClient.fetchSections;
 export const fetchTract = apiClient.fetchTract;
 export const createTract = apiClient.createTract;
 export const updateTract = apiClient.updateTract;
@@ -33,7 +33,6 @@ export const updateLead = apiClient.updateLead;
 export const deleteLead = apiClient.deleteLead;
 export const fetchLeadCallLogs = apiClient.fetchLeadCallLogs;
 export const createLeadCallLog = apiClient.createLeadCallLog;
-export const fetchLeadNotes = apiClient.fetchLeadNotes;
 export const createLeadNote = apiClient.createLeadNote;
 
 export const fetchContacts = apiClient.fetchContacts;
@@ -162,8 +161,8 @@ export default {
   updateUser,
   deleteUser,
   
-  // Tracts
-  fetchTracts,
+  // Sections
+  fetchSections,
   fetchTract,
   createTract,
   updateTract,
@@ -187,7 +186,6 @@ export default {
   deleteLead,
   fetchLeadCallLogs,
   createLeadCallLog,
-  fetchLeadNotes,
   createLeadNote,
   
   // Contacts

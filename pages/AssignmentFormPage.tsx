@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchUsers, fetchTracts, fetchUnits, createAssignment, updateAssignment, fetchAssignment } from '../services/api';
-import { User, Tract, Unit, Assignment, CreateAssignmentData } from '../types';
+import { fetchUsers, fetchSections, fetchUnits, createAssignment, updateAssignment, fetchAssignment } from '../services/api';
+import { User, Section, Unit, Assignment, CreateAssignmentData } from '../types';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -43,14 +43,15 @@ const AssignmentFormPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [usersData, tractsData, unitsData] = await Promise.all([
+      const [usersData, sectionsResponse, unitsData] = await Promise.all([
         fetchUsers(),
-        fetchTracts(),
+        fetchSections(),
         fetchUnits()
       ]);
       
+      const sectionsData = sectionsResponse.data || sectionsResponse;
       setUsers(usersData || []);
-      setTracts(tractsData || []);
+      setSections(sectionsData || []);
       setUnits(unitsData || []);
     } catch (error) {
       console.error('Error loading data:', error);

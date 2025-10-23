@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchLeads, fetchUsers, fetchTracts, fetchUnits } from '../services/api';
-import { Lead, User, Tract, Unit, LeadFilters } from '../types';
+import { fetchLeads, fetchUsers, fetchSections, fetchUnits } from '../services/api';
+import { LeadEnhanced, User, Section, Unit, LeadFilters } from '../types';
 import Table from '../components/ui/Table';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -9,9 +9,9 @@ import Button from '../components/ui/Button';
 import { MagnifyingGlassIcon, FunnelIcon, PlusIcon } from '../components/icons/Icons';
 
 const LeadsPage: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<LeadEnhanced[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [tracts, setTracts] = useState<Tract[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<LeadFilters>({});
@@ -28,13 +28,13 @@ const LeadsPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [usersData, tractsData, unitsData] = await Promise.all([
+      const [usersData, sectionsData, unitsData] = await Promise.all([
         fetchUsers(),
-        fetchTracts(),
+        fetchSections().then(response => response.data || response),
         fetchUnits()
       ]);
       setUsers(usersData || []);
-      setTracts(tractsData || []);
+      setSections(sectionsData || []);
       setUnits(unitsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -44,10 +44,11 @@ const LeadsPage: React.FC = () => {
   const loadLeads = async () => {
     try {
       setLoading(true);
-      const leadsData = await fetchLeads({
+      const leadsResponse = await fetchLeads({
         ...filters,
         search: searchTerm || undefined
       });
+      const leadsData = leadsResponse.data || leadsResponse;
       setLeads(leadsData || []);
     } catch (error) {
       console.error('Error loading leads:', error);
@@ -65,7 +66,7 @@ const LeadsPage: React.FC = () => {
     setSearchTerm('');
   };
 
-  const getStatusColor = (status: Lead['status']) => {
+  const getStatusColor = (status: LeadEnhanced['status']) => {
     switch (status) {
       case 'Uncontacted': return 'bg-gray-100 text-gray-800';
       case 'Spoke': return 'bg-blue-100 text-blue-800';
@@ -86,13 +87,16 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Contact',
       accessor: 'linkedContact',
-      cell: (lead: Lead) => (
+      cell: (lead: LeadEnhanced) => (
         <div>
-          <div className="font-medium text-white">
-            {lead.linkedContact?.name || 'Unknown Contact'}
+          <div className="font-medium text-gray-900">
+            {lead.linkedContact?.name || lead.name || 'Unknown Contact'}
           </div>
-          <div className="text-sm text-sc-slate">
-            {lead.linkedContact?.city}, {lead.linkedContact?.state}
+          <div className="text-sm text-gray-600">
+            {lead.linkedContact?.city || lead.city}, {lead.linkedContact?.state || lead.state}
+          </div>
+          <div className="text-xs text-gray-500">
+            {lead.phoneEmail || 'No contact info'}
           </div>
         </div>
       )
@@ -100,32 +104,40 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Assets',
       accessor: 'assets',
-      cell: (lead: Lead) => (
+      cell: (lead: LeadEnhanced) => (
         <div>
-          {lead.linkedTracts?.map(tract => (
-            <div key={tract.id} className="text-sm text-sc-slate">
-              Tract: {tract.tractName}
+          {lead.linkedSections?.map(section => (
+            <div key={section.id} className="text-sm text-gray-600">
+              Section: {section.sectionName}
             </div>
           ))}
           {lead.linkedUnits?.map(unit => (
-            <div key={unit.id} className="text-sm text-sc-slate">
+            <div key={unit.id} className="text-sm text-gray-600">
               Unit: {unit.unitName}
             </div>
           ))}
+          {lead.unitName && (
+            <div className="text-sm text-gray-600">
+              Unit: {lead.unitName}
+            </div>
+          )}
+          <div className="text-xs text-gray-500">
+            {lead.grossAcres ? `${lead.grossAcres.toFixed(2)} acres` : 'No acreage data'}
+          </div>
         </div>
       )
     },
     {
       header: 'Buyer',
       accessor: 'buyer',
-      cell: (lead: Lead) => (
-        <span className="text-sm text-sc-slate">{lead.buyer?.name || 'Unknown'}</span>
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-600">{lead.buyer?.name || 'Unassigned'}</span>
       )
     },
     {
       header: 'Status',
       accessor: 'status',
-      cell: (lead: Lead) => (
+      cell: (lead: LeadEnhanced) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
           {lead.status}
         </span>
@@ -134,7 +146,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Priority',
       accessor: 'priorityScore',
-      cell: (lead: Lead) => (
+      cell: (lead: LeadEnhanced) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(lead.priorityScore)}`}>
           {lead.priorityScore}
         </span>
@@ -143,8 +155,8 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Last Contact',
       accessor: 'lastContactDate',
-      cell: (lead: Lead) => (
-        <span className="text-sm text-sc-slate">
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-600">
           {lead.lastContactDate ? new Date(lead.lastContactDate).toLocaleDateString() : 'Never'}
         </span>
       )
@@ -152,8 +164,8 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Next Follow-up',
       accessor: 'nextFollowUpDate',
-      cell: (lead: Lead) => (
-        <span className="text-sm text-sc-slate">
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-600">
           {lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toLocaleDateString() : 'Not set'}
         </span>
       )
@@ -161,11 +173,11 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Actions',
       accessor: 'actions',
-      cell: (lead: Lead) => (
+      cell: (lead: LeadEnhanced) => (
         <div className="flex space-x-2">
           <Link
             to={`/leads/${lead.id}`}
-            className="text-sc-blue hover:text-sc-blue-dark text-sm font-medium"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
             View
           </Link>

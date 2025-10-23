@@ -4,7 +4,7 @@
 // Real database connection for the Sooner Mineral application
 // ============================================================================
 
-import mysql from 'mysql2/promise';
+import * as mysql from 'mysql2/promise';
 
 // Database configuration from environment variables
 const dbConfig = {
@@ -43,6 +43,14 @@ export const getDatabase = (): mysql.Pool => {
     throw new Error('Database not initialized. Call initializeDatabase() first.');
   }
   return pool;
+};
+
+// Get a single connection from the pool
+export const getConnection = async (): Promise<mysql.PoolConnection> => {
+  if (!pool) {
+    throw new Error('Database not initialized. Call initializeDatabase() first.');
+  }
+  return await pool.getConnection();
 };
 
 // Execute query with error handling

@@ -10,7 +10,7 @@ export const db = {
     
     // Return mock data based on query type
     if (query.includes('SELECT') && query.includes('properties p')) {
-      return [getMockNormalizedTracts(), []];
+      return [getMockNormalizedSections(), []];
     }
     
     return [[], []];
@@ -18,7 +18,7 @@ export const db = {
 };
 
 // Mock normalized tract data that matches the database structure
-function getMockNormalizedTracts(): any[] {
+function getMockNormalizedSections(): any[] {
   return [
     {
       tract_id: 'prop_1',

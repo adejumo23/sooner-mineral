@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import type { TractLead, LeadNote, User } from '../types';
+import type { SectionLead, LeadNote, User } from '../types';
 import * as api from '../services/api';
 import Button from './ui/Button';
 import Modal from './ui/Modal';
 
 interface LeadsTabProps {
-  tractId: string;
+  sectionId: string;
   users: User[];
 }
 
-const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
-  const [leads, setLeads] = useState<TractLead[]>([]);
+const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
+  const [leads, setLeads] = useState<SectionLead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const [isCreateLeadModalOpen, setIsCreateLeadModalOpen] = useState(false);
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<TractLead | null>(null);
+  const [selectedLead, setSelectedLead] = useState<SectionLead | null>(null);
   const [leadNotes, setLeadNotes] = useState<Record<string, LeadNote[]>>({});
 
   useEffect(() => {
     fetchLeads();
-  }, [tractId]);
+  }, [sectionId]);
 
   const fetchLeads = async () => {
     setIsLoading(true);
     try {
-      const leadsData = await api.fetchTractLeads(tractId);
+      const leadsData = await api.fetchSectionLeads(sectionId);
       setLeads(leadsData);
       
       // Expand the most recent active lead by default
@@ -71,7 +71,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
     };
 
     try {
-      await api.createTractLead(tractId, leadData);
+      await api.createSectionLead(sectionId, leadData);
       fetchLeads();
       setIsCreateLeadModalOpen(false);
       e.currentTarget.reset();
@@ -101,7 +101,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
     }
   };
 
-  const handleStatusChange = async (leadId: string, newStatus: TractLead['status']) => {
+  const handleStatusChange = async (leadId: string, newStatus: SectionLead['status']) => {
     try {
       await api.updateLeadStatus(leadId, newStatus);
       fetchLeads();
@@ -110,7 +110,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
     }
   };
 
-  const getStatusColor = (status: TractLead['status']) => {
+  const getStatusColor = (status: SectionLead['status']) => {
     switch (status) {
       case 'In Progress':
         return 'bg-blue-100 text-blue-800';
@@ -123,7 +123,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
     }
   };
 
-  const getStatusIcon = (status: TractLead['status']) => {
+  const getStatusIcon = (status: SectionLead['status']) => {
     switch (status) {
       case 'In Progress':
         return '🔵';
@@ -169,7 +169,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Tract Leads</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Section Leads</h3>
         <Button onClick={() => setIsCreateLeadModalOpen(true)}>
           Create New Lead
         </Button>
@@ -179,15 +179,15 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
       <div className="space-y-4">
         {leads.length === 0 ? (
           <div className="text-center text-sc-slate py-12">
-            <p>No leads found for this tract.</p>
+            <p>No leads found for this section.</p>
             <p className="text-sm mt-2">Create a new lead to get started.</p>
           </div>
         ) : (
           leads.map((lead) => (
-            <div key={lead.id} className="bg-sc-light-navy rounded-lg border border-sc-navy">
+            <div key={lead.id} className="bg-white rounded-lg border border-gray-200 shadow-sm">
               {/* Lead Header */}
               <div 
-                className="p-4 cursor-pointer hover:bg-sc-navy transition-colors"
+                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => toggleLeadExpansion(lead.id)}
               >
                 <div className="flex items-center justify-between">
@@ -195,15 +195,15 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
                     <span className="text-2xl">{getStatusIcon(lead.status)}</span>
                     <div>
                       <div className="flex items-center space-x-3">
-                        <h4 className="text-white font-medium">{lead.buyer?.name}</h4>
+                        <h4 className="text-gray-900 font-medium">{lead.name}</h4>
                         <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(lead.status)}`}>
                           {lead.status}
                         </span>
-                        <span className="text-xs text-sc-slate bg-sc-navy px-2 py-1 rounded">
-                          {lead.leadSource}
+                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                          {lead.priority || 'Medium'}
                         </span>
                       </div>
-                      <div className="text-sm text-sc-slate mt-1">
+                      <div className="text-sm text-gray-600 mt-1">
                         Created: {formatDate(lead.createdAt)} • 
                         Last Activity: {lead.lastActivity ? formatDate(lead.lastActivity) : 'No activity'}
                         {lead.noteCount && lead.noteCount > 0 && (
@@ -244,41 +244,57 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
 
               {/* Expanded Content */}
               {expandedLeads.has(lead.id) && (
-                <div className="border-t border-sc-navy p-4">
+                <div className="border-t border-gray-200 p-4">
                   {/* Lead Details */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div>
-                      <span className="text-sc-slate text-sm">Buyer</span>
-                      <div className="text-white font-medium">{lead.buyer?.name}</div>
+                      <span className="text-gray-600 text-sm">Contact</span>
+                      <div className="text-gray-900 font-medium">{lead.contact || 'N/A'}</div>
                     </div>
                     <div>
-                      <span className="text-sc-slate text-sm">Lead Source</span>
-                      <div className="text-white font-medium">{lead.leadSource}</div>
+                      <span className="text-gray-600 text-sm">Phone/Email</span>
+                      <div className="text-gray-900 font-medium">{lead.phoneEmail || 'N/A'}</div>
                     </div>
                     <div>
-                      <span className="text-sc-slate text-sm">Status</span>
-                      <div className="text-white font-medium">{lead.status}</div>
+                      <span className="text-gray-600 text-sm">Status</span>
+                      <div className="text-gray-900 font-medium">{lead.status}</div>
                     </div>
                     <div>
-                      <span className="text-sc-slate text-sm">Created</span>
-                      <div className="text-white font-medium">{formatDateTime(lead.createdAt)}</div>
+                      <span className="text-gray-600 text-sm">Created</span>
+                      <div className="text-gray-900 font-medium">{formatDateTime(lead.createdAt)}</div>
                     </div>
                     <div>
-                      <span className="text-sc-slate text-sm">Last Updated</span>
-                      <div className="text-white font-medium">{formatDateTime(lead.updatedAt)}</div>
+                      <span className="text-gray-600 text-sm">Last Updated</span>
+                      <div className="text-gray-900 font-medium">{formatDateTime(lead.updatedAt)}</div>
                     </div>
                     <div>
-                      <span className="text-sc-slate text-sm">Last Activity</span>
-                      <div className="text-white font-medium">
+                      <span className="text-gray-600 text-sm">Last Activity</span>
+                      <div className="text-gray-900 font-medium">
                         {lead.lastActivity ? formatDateTime(lead.lastActivity) : 'No activity'}
                       </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">Gross Acres</span>
+                      <div className="text-gray-900 font-medium">{lead.grossAcres || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">Net Mineral Acres</span>
+                      <div className="text-gray-900 font-medium">{lead.netMineralAcres || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">Royalty</span>
+                      <div className="text-gray-900 font-medium">{lead.royalty || 'N/A'}%</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">Unit Name</span>
+                      <div className="text-gray-900 font-medium">{lead.unitName || 'N/A'}</div>
                     </div>
                   </div>
 
                   {/* Outreach Timeline */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
-                      <h5 className="text-white font-medium">Outreach Timeline</h5>
+                      <h5 className="text-gray-900 font-medium">Outreach Timeline</h5>
                       <Button 
                         variant="secondary" 
                         size="sm"
@@ -295,7 +311,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
                       {leadNotes[lead.id] ? (
                         leadNotes[lead.id].length > 0 ? (
                           leadNotes[lead.id].map((note) => (
-                            <div key={note.id} className="bg-sc-navy p-3 rounded-lg">
+                            <div key={note.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                               <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-lg">{getOutreachMethodIcon(note.outreachMethod)}</span>
@@ -303,22 +319,22 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ tractId, users }) => {
                                     {note.outreachMethod}
                                   </span>
                                 </div>
-                                <span className="text-xs text-sc-slate">
+                                <span className="text-xs text-gray-600">
                                   {formatDateTime(note.createdAt)}
                                 </span>
                               </div>
-                              <p className="text-white text-sm">{note.noteText}</p>
-                              <p className="text-xs text-sc-slate mt-1">
+                              <p className="text-gray-900 text-sm">{note.noteText}</p>
+                              <p className="text-xs text-gray-600 mt-1">
                                 By: {note.createdByUser?.name}
                               </p>
                             </div>
                           ))
                         ) : (
-                          <p className="text-sc-slate text-sm">No outreach notes yet.</p>
+                          <p className="text-gray-600 text-sm">No outreach notes yet.</p>
                         )
                       ) : (
-                        <div className="text-center text-sc-slate py-4">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sc-blue mx-auto"></div>
+                        <div className="text-center text-gray-600 py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
                           <p className="text-sm mt-2">Loading notes...</p>
                         </div>
                       )}
