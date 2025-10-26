@@ -1,11 +1,12 @@
 
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './src/theme';
 import MainLayout from './components/layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import TractsPage from './pages/TractsPage';
-import TractDetailPage from './pages/TractDetailPage';
+import SectionsPage from './pages/SectionsPage';
+import SectionDetailPage from './pages/SectionDetailPage';
 import UnitsPage from './pages/UnitsPage';
 import UnitDetailPage from './pages/UnitDetailPage';
 import UnitFormPage from './pages/UnitFormPage';
@@ -32,6 +33,16 @@ import RolesPage from './pages/RolesPage';
 import PrivilegesPage from './pages/PrivilegesPage';
 import TractTestComponent from './components/TractTestComponent';
 import DatabaseTestComponent from './components/DatabaseTestComponent';
+// New modules
+import DealsPage from './pages/DealsPage';
+import DealDetailPage from './pages/DealDetailPage';
+import DealFormPage from './pages/DealFormPage';
+import ProductionPage from './pages/ProductionPage';
+import CompliancePage from './pages/CompliancePage';
+import FinancialsPage from './pages/FinancialsPage';
+import MobilePage from './pages/MobilePage';
+import AIInsightsPage from './pages/AIInsightsPage';
+import IntegrationsPage from './pages/IntegrationsPage';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -54,8 +65,8 @@ function App() {
       <MainLayout>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/tracts" element={<TractsPage />} />
-          <Route path="/tracts/:tractId" element={<TractDetailPage />} />
+          <Route path="/sections" element={<SectionsPage />} />
+          <Route path="/sections/:sectionId" element={<SectionDetailPage />} />
           <Route path="/units" element={<UnitsPage />} />
           <Route path="/units/new" element={<UnitFormPage />} />
           <Route path="/units/:id" element={<UnitDetailPage />} />
@@ -85,6 +96,25 @@ function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/privileges" element={<PrivilegesPage />} />
+          
+          {/* New modules */}
+          <Route path="/deals" element={<DealsPage />} />
+          <Route path="/deals/new" element={<DealFormPage />} />
+          <Route path="/deals/:id" element={<DealDetailPage />} />
+          <Route path="/deals/:id/edit" element={<DealFormPage />} />
+          
+          <Route path="/production" element={<ProductionPage />} />
+          
+          <Route path="/compliance" element={<CompliancePage />} />
+          
+          <Route path="/financials" element={<FinancialsPage />} />
+          
+          <Route path="/mobile" element={<MobilePage />} />
+          
+          <Route path="/ai-insights" element={<AIInsightsPage />} />
+          
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          
           <Route path="/test-normalized" element={<TractTestComponent />} />
           <Route path="/test-database" element={<DatabaseTestComponent />} />
           <Route path="*" element={<Navigate to="/" replace />} />

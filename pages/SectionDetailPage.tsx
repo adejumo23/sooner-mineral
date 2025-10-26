@@ -1,28 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import type { Tract, User, TitleStatus } from '../types';
+import type { Section, User, TitleStatus } from '../types';
 import * as api from '../services/api';
 import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
 
-const TractDetailPage: React.FC = () => {
-  const { tractId } = useParams<{ tractId: string }>();
+const SectionDetailPage: React.FC = () => {
+  const { sectionId } = useParams<{ sectionId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [tract, setTract] = useState<Tract | null>(null);
+  const [section, setSection] = useState<Section | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'contacts' | 'mapping' | 'title-chain' | 'leads'>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [collapsedCards, setCollapsedCards] = useState<{[key: string]: boolean}>({
+    basicInfo: false,
+    legalInfo: false,
+    acreageFinancial: false,
+    unitInfo: false,
+    notesFlags: false
+  });
 
   useEffect(() => {
-    if (tractId) {
-      fetchTractData();
+    if (sectionId) {
+      fetchSectionData();
     }
-  }, [tractId]);
+  }, [sectionId]);
 
   useEffect(() => {
     // Check if there's a tab query parameter and set the active tab
@@ -32,39 +39,42 @@ const TractDetailPage: React.FC = () => {
     }
   }, [searchParams]);
 
-  const fetchTractData = async () => {
+  const fetchSectionData = async () => {
     setIsLoading(true);
     try {
-      const [tractsData, usersData, contactsData] = await Promise.all([
-        api.fetchTracts(),
+      const [sectionsResponse, usersResponse, contactsData] = await Promise.all([
+        api.fetchSections(),
         api.fetchUsers(),
-        api.fetchTractContacts(tractId!)
+        api.fetchSectionContacts(sectionId!)
       ]);
       
-      const foundTract = tractsData.find(t => t.id === tractId);
-      if (foundTract) {
-        setTract(foundTract);
+      const sectionsData = sectionsResponse.data || sectionsResponse;
+      const usersData = usersResponse.data || usersResponse;
+      
+      const foundSection = sectionsData.find(s => s.id === sectionId);
+      if (foundSection) {
+        setSection(foundSection);
       } else {
-        navigate('/tracts');
+        navigate('/sections');
         return;
       }
       
       setUsers(usersData);
       setContacts(contactsData);
     } catch (error) {
-      console.error('Failed to fetch tract data:', error);
-      navigate('/tracts');
+      console.error('Failed to fetch section data:', error);
+      navigate('/sections');
     } finally {
       setIsLoading(false);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center text-gray-600">Loading tract details...</div>;
+    return <div className="text-center text-gray-600">Loading section details...</div>;
   }
 
-  if (!tract) {
-    return <div className="text-center text-gray-600">Tract not found</div>;
+  if (!section) {
+    return <div className="text-center text-gray-600">Section not found</div>;
   }
 
   const formatPercentage = (value?: number): string => {
@@ -75,38 +85,38 @@ const TractDetailPage: React.FC = () => {
     return value ? value.toFixed(2) : 'N/A';
   };
 
-  const handleEditTract = () => {
+  const handleEditSection = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleExportTract = () => {
-    if (!tract) return;
+  const handleExportSection = () => {
+    if (!section) return;
 
     // Prepare the data for export
     const exportData = {
-      'Tract Name': tract.tractName,
-      'State': tract.state,
-      'County': tract.county,
-      'Legal Description': tract.legalDescription,
-      'STR': tract.str || '',
-      'Section Number': tract.sectionNumber || '',
-      'Township': tract.township || '',
-      'Range': tract.range || '',
-      'Abstract Number': tract.abstractNumber || '',
-      'ANUM': tract.anum || '',
-      'Gross Acres': tract.grossAcres,
-      'Net Mineral Acres': tract.netMineralAcres || '',
-      'Royalty': tract.royalty || '',
-      'Ownership Percentage': tract.ownershipPercentage || '',
-      'Title Status': tract.titleStatus,
-      'Assigned Buyer': tract.assignedBuyer?.name || 'Unassigned',
-      'NRA Cap USD': tract.nraCapUsd || '',
-      'Source Channel': tract.sourceChannel || '',
-      'Routing Notes': tract.routingNotes || '',
-      'Held by Fund': tract.heldByFund ? 'Yes' : 'No',
-      'Is Locked': tract.isLocked ? 'Yes' : 'No',
-      'Created At': tract.createdAt || '',
-      'Updated At': tract.updatedAt || ''
+      'Section Name': section.sectionName,
+      'State': section.state,
+      'County': section.county,
+      'Legal Description': section.legalDescription,
+      'STR': section.str || '',
+      'Section Number': section.sectionNumber || '',
+      'Township': section.township || '',
+      'Range': section.range || '',
+      'Abssection Number': section.abssectionNumber || '',
+      'ANUM': section.anum || '',
+      'Gross Acres': section.grossAcres,
+      'Net Mineral Acres': section.netMineralAcres || '',
+      'Royalty': section.royalty || '',
+      'Ownership Percentage': section.ownershipPercentage || '',
+      'Title Status': section.titleStatus,
+      'Assigned Buyer': section.assignedBuyer?.name || 'Unassigned',
+      'NRA Cap USD': section.nraCapUsd || '',
+      'Source Channel': section.sourceChannel || '',
+      'Routing Notes': section.routingNotes || '',
+      'Held by Fund': section.heldByFund ? 'Yes' : 'No',
+      'Is Locked': section.isLocked ? 'Yes' : 'No',
+      'Created At': section.createdAt || '',
+      'Updated At': section.updatedAt || ''
     };
 
     // Convert to CSV
@@ -119,7 +129,7 @@ const TractDetailPage: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `${tract.tractName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_tract_export.csv`);
+    link.setAttribute('download', `${section.sectionName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_section_export.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -130,24 +140,31 @@ const TractDetailPage: React.FC = () => {
     setIsEditModalOpen(false);
   };
 
-  const handleSaveTract = async (e: React.FormEvent<HTMLFormElement>) => {
+  const toggleCardCollapse = (cardKey: string) => {
+    setCollapsedCards(prev => ({
+      ...prev,
+      [cardKey]: !prev[cardKey]
+    }));
+  };
+
+  const handleSaveSection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!tract) return;
+    if (!section) return;
 
     setIsSaving(true);
     try {
       const formData = new FormData(e.currentTarget);
       
-      const tractData: Partial<Tract> = {
-        tractName: formData.get('tractName') as string,
-        state: formData.get('state') as string,
+      const sectionData: Partial<Section> = {
+        sectionName: formData.get('sectionName') as string,
+        state: 'OK', // Hardcode state to 'OK' as requested
         county: formData.get('county') as string,
         legalDescription: formData.get('legalDescription') as string,
         str: formData.get('str') as string || undefined,
         sectionNumber: formData.get('sectionNumber') as string || undefined,
         township: formData.get('township') as string || undefined,
         range: formData.get('range') as string || undefined,
-        abstractNumber: formData.get('abstractNumber') as string || undefined,
+        abssectionNumber: formData.get('abssectionNumber') as string || undefined,
         anum: formData.get('anum') as string || undefined,
         grossAcres: parseFloat(formData.get('grossAcres') as string) || undefined,
         netMineralAcres: parseFloat(formData.get('netMineralAcres') as string) || undefined,
@@ -161,17 +178,17 @@ const TractDetailPage: React.FC = () => {
         isLocked: formData.has('isLocked'),
       };
 
-      await api.updateTract(tract.id, tractData);
+      await api.updateSection(section.id, sectionData);
       
       // Update local state
-      setTract({ ...tract, ...tractData });
+      setSection({ ...section, ...sectionData });
       setIsEditModalOpen(false);
       
       // Show success message
-      alert('Tract updated successfully!');
+      alert('Section updated successfully!');
     } catch (error) {
-      console.error('Failed to update tract:', error);
-      alert('Failed to update tract. Please try again.');
+      console.error('Failed to update section:', error);
+      alert('Failed to update section. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -191,26 +208,26 @@ const TractDetailPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <button
-            onClick={() => navigate('/tracts')}
+            onClick={() => navigate('/sections')}
             className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
             style={{ backgroundColor: '#fbbf24' }}
           >
-            ← Back to Tracts
+            ← Back to Sections
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 mt-4">{tract.tractName}</h1>
-          <p className="text-gray-600 mt-2">
-            {tract.state}, {tract.county} • {tract.titleStatus}
+          <h1 className="text-3xl font-bold text-gray-900 mt-4">{section.sectionName}</h1>
+          <p className="text-gray-600 mt-2 whitespace-pre-line">
+            {section.state}, {section.county} • {section.titleStatus}
           </p>
         </div>
         <div className="flex space-x-3">
           <button 
-            onClick={handleEditTract}
+            onClick={handleEditSection}
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Edit Tract
+            Edit Section
           </button>
           <button 
-            onClick={handleExportTract}
+            onClick={handleExportSection}
             className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
             Export
@@ -242,56 +259,88 @@ const TractDetailPage: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Basic Information */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('basicInfo')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.basicInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.basicInfo && (
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
-                  <span className="text-gray-600 text-sm">Tract Name</span>
-                  <div className="text-gray-900 font-medium">{tract.tractName}</div>
+                  <span className="text-gray-600 text-sm">Section Name</span>
+                  <div className="text-gray-900 font-medium">{section.sectionName}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">State</span>
-                  <div className="text-gray-900 font-medium">{tract.state}</div>
+                  <div className="text-gray-900 font-medium">{section.state}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">County</span>
-                  <div className="text-gray-900 font-medium">{tract.county}</div>
+                  <div className="text-gray-900 font-medium">{section.county}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Title Status</span>
-                  <div className="text-gray-900 font-medium">{tract.titleStatus}</div>
+                  <div className="text-gray-900 font-medium whitespace-pre-line">{section.titleStatus}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Assigned Buyer</span>
-                  <div className="text-gray-900 font-medium">{tract.assignedBuyer?.name || 'Unassigned'}</div>
+                  <div className="text-gray-900 font-medium">{section.assignedBuyer?.name || 'Unassigned'}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Source Channel</span>
-                  <div className="text-gray-900 font-medium">{tract.sourceChannel || 'N/A'}</div>
+                  <div className="text-gray-900 font-medium">{section.sourceChannel || 'N/A'}</div>
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Legal Information */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Legal Information</h3>
-              <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('legalInfo')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Legal Information</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.legalInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.legalInfo && (
+                <div className="px-6 pb-6">
+                  <div className="space-y-4">
                 <div>
                   <span className="text-gray-600 text-sm">Legal Description</span>
-                  <div className="text-gray-900 mt-1">{tract.legalDescription}</div>
+                  <div className="text-gray-900 mt-1 whitespace-pre-line">{section.legalDescription}</div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <span className="text-gray-600 text-sm">STR (Combined)</span>
-                    <div className="text-gray-900 font-medium">{tract.str || 'N/A'}</div>
+                    <div className="text-gray-900 font-medium">{section.str || 'N/A'}</div>
                   </div>
                   <div>
-                    <span className="text-gray-600 text-sm">Abstract Number</span>
-                    <div className="text-gray-900 font-medium">{tract.abstractNumber || 'N/A'}</div>
+                    <span className="text-gray-600 text-sm">Abssection Number</span>
+                    <div className="text-gray-900 font-medium">{section.abssectionNumber || 'N/A'}</div>
                   </div>
                   <div>
                     <span className="text-gray-600 text-sm">ANUM</span>
-                    <div className="text-gray-900 font-medium">{tract.anum || 'N/A'}</div>
+                    <div className="text-gray-900 font-medium">{section.anum || 'N/A'}</div>
                   </div>
                 </div>
                 
@@ -301,67 +350,133 @@ const TractDetailPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <span className="text-gray-600 text-sm">Section Number</span>
-                      <div className="text-gray-900 font-medium">{tract.sectionNumber || 'N/A'}</div>
+                      <div className="text-gray-900 font-medium">{section.sectionNumber || 'N/A'}</div>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">Township</span>
-                      <div className="text-gray-900 font-medium">{tract.township || 'N/A'}</div>
+                      <div className="text-gray-900 font-medium">{section.township || 'N/A'}</div>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">Range</span>
-                      <div className="text-gray-900 font-medium">{tract.range || 'N/A'}</div>
+                      <div className="text-gray-900 font-medium">{section.range || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Unit Information */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('unitInfo')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Unit Information</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.unitInfo ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
+              {!collapsedCards.unitInfo && (
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <span className="text-gray-600 text-sm">Current Unit</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{section.current_unit || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm">New Unit</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{section.new_unit || 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Acreage & Financial */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Acreage & Financial</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('acreageFinancial')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Acreage & Financial</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.acreageFinancial ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.acreageFinancial && (
+                <div className="px-6 pb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
                   <span className="text-gray-600 text-sm">Gross Acres</span>
-                  <div className="text-gray-900 font-medium">{formatAcres(tract.grossAcres)}</div>
+                  <div className="text-gray-900 font-medium">{formatAcres(section.grossAcres)}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Net Mineral Acres</span>
-                  <div className="text-gray-900 font-medium">{formatAcres(tract.netMineralAcres)}</div>
+                  <div className="text-gray-900 font-medium">{formatAcres(section.netMineralAcres)}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Royalty %</span>
-                  <div className="text-gray-900 font-medium">{formatPercentage(tract.royalty)}</div>
+                  <div className="text-gray-900 font-medium">{formatPercentage(section.royalty)}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Ownership %</span>
-                  <div className="text-gray-900 font-medium">{formatPercentage(tract.ownershipPercentage)}</div>
+                  <div className="text-gray-900 font-medium">{formatPercentage(section.ownershipPercentage)}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">NRA (1/8 normalized)</span>
-                  <div className="text-gray-900 font-medium">{formatAcres(tract.nra)}</div>
+                  <div className="text-gray-900 font-medium">{formatAcres(section.nra)}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">$/NRA Cap</span>
                   <div className="text-gray-900 font-medium">
-                    {tract.nraCapUsd ? `$${tract.nraCapUsd.toLocaleString()}` : 'N/A'}
+                    {section.nraCapUsd ? `$${section.nraCapUsd.toLocaleString()}` : 'N/A'}
                   </div>
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notes & Flags */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes & Flags</h3>
-              <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div 
+                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                onClick={() => toggleCardCollapse('notesFlags')}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Notes & Flags</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.notesFlags ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              {!collapsedCards.notesFlags && (
+                <div className="px-6 pb-6">
+                  <div className="space-y-4">
                 <div>
                   <span className="text-gray-600 text-sm">Routing Notes</span>
-                  <div className="text-gray-900 mt-1">{tract.routingNotes || 'No notes'}</div>
+                  <div className="text-gray-900 mt-1">{section.routingNotes || 'No notes'}</div>
                 </div>
                 <div className="flex space-x-6">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input 
                       type="checkbox" 
-                      checked={tract.heldByFund} 
+                      checked={section.heldByFund} 
                       disabled 
                       className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600" 
                     />
@@ -370,14 +485,16 @@ const TractDetailPage: React.FC = () => {
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input 
                       type="checkbox" 
-                      checked={tract.isLocked} 
+                      checked={section.isLocked} 
                       disabled 
                       className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600" 
                     />
                     <span className="text-sm text-gray-600">Lock Flag</span>
                   </label>
                 </div>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -385,7 +502,7 @@ const TractDetailPage: React.FC = () => {
         {activeTab === 'contacts' && (
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Tract Contacts</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Section Contacts</h3>
               <div className="text-sm text-gray-500">
                 {contacts.length} contact{contacts.length !== 1 ? 's' : ''} found
               </div>
@@ -393,7 +510,7 @@ const TractDetailPage: React.FC = () => {
             
             {contacts.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
-                <p>No contacts found for this tract.</p>
+                <p>No contacts found for this section.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -464,15 +581,15 @@ const TractDetailPage: React.FC = () => {
 
         {activeTab === 'mapping' && (
           <ArcGISMappingTab 
-            tractId={tract.id} 
-            tractName={tract.tractName}
-            tract={{
-              sectionNumber: tract.sectionNumber,
-              township: tract.township,
-              range: tract.range,
-              county: tract.county,
-              state: tract.state,
-              str: tract.str
+            sectionId={section.id} 
+            sectionName={section.sectionName}
+            section={{
+              sectionNumber: section.sectionNumber,
+              township: section.township,
+              range: section.range,
+              county: section.county,
+              state: section.state,
+              str: section.str
             }}
           />
         )}
@@ -485,7 +602,7 @@ const TractDetailPage: React.FC = () => {
         )}
 
         {activeTab === 'leads' && (
-          <LeadsTab tractId={tract.id} users={users} />
+          <LeadsTab sectionId={section.id} users={users} />
         )}
       </div>
 
@@ -495,7 +612,7 @@ const TractDetailPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Edit Tract</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Edit Section</h2>
                 <button
                   onClick={handleCloseEditModal}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -504,17 +621,17 @@ const TractDetailPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveTract} className="space-y-6">
+              <form onSubmit={handleSaveSection} className="space-y-6">
                 {/* Basic Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tract Name *
+                      Section Name *
                     </label>
                     <input
                       type="text"
-                      name="tractName"
-                      defaultValue={tract.tractName}
+                      name="sectionName"
+                      defaultValue={section.sectionName}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -526,7 +643,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="state"
-                      defaultValue={tract.state}
+                      defaultValue={section.state}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -538,7 +655,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="county"
-                      defaultValue={tract.county}
+                      defaultValue={section.county}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -549,7 +666,7 @@ const TractDetailPage: React.FC = () => {
                     </label>
                     <select
                       name="titleStatus"
-                      defaultValue={tract.titleStatus}
+                      defaultValue={section.titleStatus}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -569,7 +686,7 @@ const TractDetailPage: React.FC = () => {
                   </label>
                   <textarea
                     name="legalDescription"
-                    defaultValue={tract.legalDescription}
+                    defaultValue={section.legalDescription}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -583,7 +700,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="str"
-                      defaultValue={tract.str}
+                      defaultValue={section.str}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -594,18 +711,18 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="sectionNumber"
-                      defaultValue={tract.sectionNumber}
+                      defaultValue={section.sectionNumber}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Abstract Number
+                      Abssection Number
                     </label>
                     <input
                       type="text"
-                      name="abstractNumber"
-                      defaultValue={tract.abstractNumber}
+                      name="abssectionNumber"
+                      defaultValue={section.abssectionNumber}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -616,7 +733,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="township"
-                      defaultValue={tract.township}
+                      defaultValue={section.township}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -627,7 +744,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="range"
-                      defaultValue={tract.range}
+                      defaultValue={section.range}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -638,7 +755,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="anum"
-                      defaultValue={tract.anum}
+                      defaultValue={section.anum}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -654,7 +771,7 @@ const TractDetailPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       name="grossAcres"
-                      defaultValue={tract.grossAcres}
+                      defaultValue={section.grossAcres}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -666,7 +783,7 @@ const TractDetailPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       name="netMineralAcres"
-                      defaultValue={tract.netMineralAcres}
+                      defaultValue={section.netMineralAcres}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -678,7 +795,7 @@ const TractDetailPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       name="royalty"
-                      defaultValue={tract.royalty ? (tract.royalty * 100).toFixed(2) : ''}
+                      defaultValue={section.royalty ? (section.royalty * 100).toFixed(2) : ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -690,7 +807,7 @@ const TractDetailPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       name="ownershipPercentage"
-                      defaultValue={tract.ownershipPercentage ? (tract.ownershipPercentage * 100).toFixed(2) : ''}
+                      defaultValue={section.ownershipPercentage ? (section.ownershipPercentage * 100).toFixed(2) : ''}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -702,7 +819,7 @@ const TractDetailPage: React.FC = () => {
                       type="number"
                       step="0.01"
                       name="nraCapUsd"
-                      defaultValue={tract.nraCapUsd}
+                      defaultValue={section.nraCapUsd}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -713,7 +830,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="text"
                       name="sourceChannel"
-                      defaultValue={tract.sourceChannel}
+                      defaultValue={section.sourceChannel}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -726,7 +843,7 @@ const TractDetailPage: React.FC = () => {
                   </label>
                   <textarea
                     name="routingNotes"
-                    defaultValue={tract.routingNotes}
+                    defaultValue={section.routingNotes}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -737,7 +854,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="checkbox"
                       name="heldByFund"
-                      defaultChecked={tract.heldByFund}
+                      defaultChecked={section.heldByFund}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">Held by Fund</span>
@@ -746,7 +863,7 @@ const TractDetailPage: React.FC = () => {
                     <input
                       type="checkbox"
                       name="isLocked"
-                      defaultChecked={tract.isLocked}
+                      defaultChecked={section.isLocked}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">Lock Flag</span>
@@ -779,4 +896,4 @@ const TractDetailPage: React.FC = () => {
   );
 };
 
-export default TractDetailPage; 
+export default SectionDetailPage; 

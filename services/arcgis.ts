@@ -268,7 +268,7 @@ export const createGraphicsFromData = (data: any[], type: string, layerConfig: a
         };
         break;
       case 'tract':
-        // For tracts, create a section boundary polygon
+        // For sections, create a section boundary polygon
         if (item.centroid_lat && item.centroid_lon) {
           const tractCenter = new Point({
             longitude: item.centroid_lon,
@@ -436,7 +436,7 @@ export const loadModules = async () => {
 export const createContactMapView = async (
   container: HTMLElement, 
   contact: any, 
-  tracts: any[], 
+  sections: any[], 
   units: any[]
 ) => {
   if (!Map || !MapView) {
@@ -499,8 +499,8 @@ export const createTractLayerForMap = async (tractAssets: any[]) => {
   }
   
   const layer = new GraphicsLayer({
-    id: 'tracts-map',
-    title: 'Tracts'
+    id: 'sections-map',
+    title: 'Sections'
   });
 
   tractAssets.forEach(asset => {
@@ -581,17 +581,17 @@ export const createUnitLayerForMap = async (unitAssets: any[]) => {
 };
 
 // Create tract layer
-export const createTractLayer = async (tractSpatialData: any[], options: any = {}) => {
+export const createSectionLayer = async (sectionSpatialData: any[], options: any = {}) => {
   if (!GraphicsLayer || !Polygon || !Point || !SimpleFillSymbol || !Graphic || !SpatialReference) {
     throw new Error('ArcGIS modules not loaded. Call loadModules() first.');
   }
   
   const layer = new GraphicsLayer({
-    id: 'tracts',
-    title: 'Tracts'
+    id: 'sections',
+    title: 'Sections'
   });
 
-  tractSpatialData.forEach(tract => {
+  sectionSpatialData.forEach(section => {
     if (tract.geometryData) {
       let geometry;
       if (tract.geometryType === 'Polygon' && tract.geometryData.coordinates) {

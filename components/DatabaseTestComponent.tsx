@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  fetchTracts, 
+  fetchSections, 
   fetchContacts, 
   fetchLeads, 
   fetchAssignments,
-  fetchTractOwners,
-  fetchTractDashboard 
+  fetchSectionOwners,
+  fetchSectionDashboard 
 } from '../services/api';
 
 const DatabaseTestComponent: React.FC = () => {
-  const [tracts, setTracts] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [dashboard, setDashboard] = useState<any>({});
-  const [selectedTract, setSelectedTract] = useState<any>(null);
+  const [selectedSection, setSelectedSection] = useState<any>(null);
   const [owners, setOwners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('tracts');
+  const [activeTab, setActiveTab] = useState('sections');
 
   useEffect(() => {
     loadAllData();
@@ -30,24 +30,24 @@ const DatabaseTestComponent: React.FC = () => {
       setError(null);
 
       // Load all data in parallel
-      const [tractsData, contactsData, leadsData, assignmentsData, dashboardData] = await Promise.all([
-        fetchTracts(),
+      const [sectionsData, contactsData, leadsData, assignmentsData, dashboardData] = await Promise.all([
+        fetchSections().then(response => response.data || response),
         fetchContacts(),
         fetchLeads(),
         fetchAssignments(),
-        fetchTractDashboard()
+        fetchSectionDashboard()
       ]);
 
-      setTracts(tractsData);
+      setSections(sectionsData);
       setContacts(contactsData);
       setLeads(leadsData);
       setAssignments(assignmentsData);
       setDashboard(dashboardData);
 
-      // Select first tract if available
-      if (tractsData.length > 0) {
-        setSelectedTract(tractsData[0]);
-        await loadTractOwners(tractsData[0].id);
+      // Select first section if available
+      if (sectionsData.length > 0) {
+        setSelectedSection(sectionsData[0]);
+        await loadSectionOwners(sectionsData[0].id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -56,18 +56,18 @@ const DatabaseTestComponent: React.FC = () => {
     }
   };
 
-  const loadTractOwners = async (tractId: string) => {
+  const loadSectionOwners = async (sectionId: string) => {
     try {
-      const ownersData = await fetchTractOwners(tractId);
+      const ownersData = await fetchSectionOwners(sectionId);
       setOwners(ownersData);
     } catch (err) {
-      console.error('Error loading tract owners:', err);
+      console.error('Error loading section owners:', err);
     }
   };
 
-  const handleTractSelect = async (tract: any) => {
-    setSelectedTract(tract);
-    await loadTractOwners(tract.id);
+  const handleSectionSelect = async (section: any) => {
+    setSelectedSection(section);
+    await loadSectionOwners(section.id);
   };
 
   if (loading) {
@@ -102,25 +102,25 @@ const DatabaseTestComponent: React.FC = () => {
         <h2 className="text-xl font-semibold mb-4">Dashboard Summary</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{dashboard.totalTracts || 0}</div>
-            <div className="text-sm text-gray-600">Total Tracts</div>
+            <div className="text-3xl font-bold text-blue-600">{dashboard.totalSections || 0}</div>
+            <div className="text-sm text-gray-600">Total Sections</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{dashboard.workingTracts || 0}</div>
+            <div className="text-3xl font-bold text-green-600">{dashboard.workingSections || 0}</div>
             <div className="text-sm text-gray-600">Working</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-red-600">{dashboard.droppedTracts || 0}</div>
+            <div className="text-3xl font-bold text-red-600">{dashboard.droppedSections || 0}</div>
             <div className="text-sm text-gray-600">Dropped</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-yellow-600">{dashboard.newTracts || 0}</div>
+            <div className="text-3xl font-bold text-yellow-600">{dashboard.newSections || 0}</div>
             <div className="text-sm text-gray-600">New</div>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{dashboard.assignedTracts || 0}</div>
+            <div className="text-2xl font-bold text-purple-600">{dashboard.assignedSections || 0}</div>
             <div className="text-sm text-gray-600">Assigned</div>
           </div>
           <div className="text-center">
@@ -138,7 +138,7 @@ const DatabaseTestComponent: React.FC = () => {
       <div className="mb-6">
         <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
           {[
-            { id: 'tracts', label: 'Tracts', count: tracts.length },
+            { id: 'sections', label: 'Sections', count: sections.length },
             { id: 'contacts', label: 'Contacts', count: contacts.length },
             { id: 'leads', label: 'Leads', count: leads.length },
             { id: 'assignments', label: 'Assignments', count: assignments.length }
@@ -160,46 +160,46 @@ const DatabaseTestComponent: React.FC = () => {
 
       {/* Tab Content */}
       <div className="bg-white border rounded-lg p-6">
-        {activeTab === 'tracts' && (
+        {activeTab === 'sections' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Tracts ({tracts.length})</h2>
+            <h2 className="text-xl font-semibold mb-4">Sections ({sections.length})</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {tracts.map((tract) => (
+                {sections.map((section) => (
                   <div
-                    key={tract.id}
+                    key={section.id}
                     className={`p-3 border rounded cursor-pointer transition-colors ${
-                      selectedTract?.id === tract.id
+                      selectedSection?.id === section.id
                         ? 'bg-blue-100 border-blue-300'
                         : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                     }`}
-                    onClick={() => handleTractSelect(tract)}
+                    onClick={() => handleSectionSelect(section)}
                   >
-                    <div className="font-medium">{tract.tract_name}</div>
+                    <div className="font-medium">{section.section_name}</div>
                     <div className="text-sm text-gray-600">
-                      {tract.state} - {tract.county}
+                      {section.state} - {section.county}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {tract.gross_acres} acres • {tract.title_status}
+                      {section.gross_acres} acres • {section.title_status}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {selectedTract && (
+              {selectedSection && (
                 <div>
-                  <h3 className="font-medium mb-3">Tract Details</h3>
+                  <h3 className="font-medium mb-3">Section Details</h3>
                   <div className="space-y-2 text-sm">
-                    <div><strong>ID:</strong> {selectedTract.id}</div>
-                    <div><strong>Name:</strong> {selectedTract.tract_name}</div>
-                    <div><strong>State:</strong> {selectedTract.state}</div>
-                    <div><strong>County:</strong> {selectedTract.county}</div>
-                    <div><strong>Legal Description:</strong> {selectedTract.legal_description}</div>
-                    <div><strong>STR:</strong> {selectedTract.str}</div>
-                    <div><strong>Gross Acres:</strong> {selectedTract.gross_acres}</div>
-                    <div><strong>Net Mineral Acres:</strong> {selectedTract.net_mineral_acres}</div>
-                    <div><strong>Status:</strong> {selectedTract.title_status}</div>
-                    <div><strong>NRA Cap USD:</strong> ${selectedTract.nra_cap_usd}</div>
+                    <div><strong>ID:</strong> {selectedSection.id}</div>
+                    <div><strong>Name:</strong> {selectedSection.section_name}</div>
+                    <div><strong>State:</strong> {selectedSection.state}</div>
+                    <div><strong>County:</strong> {selectedSection.county}</div>
+                    <div><strong>Legal Description:</strong> {selectedSection.legal_description}</div>
+                    <div><strong>STR:</strong> {selectedSection.str}</div>
+                    <div><strong>Gross Acres:</strong> {selectedSection.gross_acres}</div>
+                    <div><strong>Net Mineral Acres:</strong> {selectedSection.net_mineral_acres}</div>
+                    <div><strong>Status:</strong> {selectedSection.title_status}</div>
+                    <div><strong>NRA Cap USD:</strong> ${selectedSection.nra_cap_usd}</div>
                   </div>
 
                   {/* Owners */}
@@ -250,7 +250,7 @@ const DatabaseTestComponent: React.FC = () => {
                       <div className="font-medium">{lead.lead_name}</div>
                       <div className="text-sm text-gray-600">{lead.lead_type} • {lead.source}</div>
                       <div className="text-sm text-gray-500">
-                        {lead.tract_name} • {lead.contact_name}
+                        {lead.section_name} • {lead.contact_name}
                       </div>
                     </div>
                     <div className="text-right">
@@ -285,7 +285,7 @@ const DatabaseTestComponent: React.FC = () => {
                 <div key={assignment.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-medium">{assignment.tract_name}</div>
+                      <div className="font-medium">{assignment.section_name}</div>
                       <div className="text-sm text-gray-600">
                         {assignment.assigned_to_name} • {assignment.assignment_type}
                       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { fetchLead, fetchLeadCallLogs, fetchLeadNotes, createLeadCallLog, createLeadNote, updateLead, deleteLead, fetchUsers } from '../services/api';
-import { Lead, LeadCallLog, LeadNote, CreateCallLogData, CreateLeadNoteData, UpdateLeadData, User } from '../types';
+import { LeadEnhanced, LeadCallLog, LeadNote, CreateCallLogData, CreateLeadNoteData, UpdateLeadData, User } from '../types';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -52,7 +52,8 @@ import { useAuth } from '../hooks/useAuth';
 import LeadDocumentsTab from '../components/LeadDocumentsTab';
 import LeadNotesTab from '../components/LeadNotesTab';
 import LeadOverviewTab from '../components/LeadOverviewTab';
-import LeadTractAssignmentTab from '../components/LeadTractAssignmentTab';
+import LeadSectionAssignmentTab from '../components/LeadSectionAssignmentTab';
+import CommunicationTab from '../components/CommunicationTab';
 
 // Replace the ErrorBoundary function with a class-based component
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -77,7 +78,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 const LeadDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [lead, setLead] = useState<Lead | null>(null);
+  const [lead, setLead] = useState<LeadEnhanced | null>(null);
   const [callLogs, setCallLogs] = useState<LeadCallLog[]>([]);
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ const LeadDetailPage: React.FC = () => {
     noteText: '',
     noteType: 'General'
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity-log' | 'conversion'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity-log' | 'conversion' | 'communication'>('overview');
   const [users, setUsers] = useState<User[]>([]);
   const { user: currentUser } = useAuth();
 
@@ -319,7 +320,7 @@ const LeadDetailPage: React.FC = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            <MapIcon className="h-5 w-5" /> Tract Assignment
+            <MapIcon className="h-5 w-5" /> Section Assignment
           </button>
           <button
             onClick={() => setActiveTab('activity-log')}
@@ -362,6 +363,16 @@ const LeadDetailPage: React.FC = () => {
             <EnvelopeIcon className="h-5 w-5" /> Contact Info
           </button>
           <button
+            onClick={() => setActiveTab('communication')}
+            className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'communication'
+                ? 'border-sc-blue text-sc-blue'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <PhoneIcon className="h-5 w-5" /> Communication
+          </button>
+          <button
             className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'conversion'
                 ? 'border-sc-blue text-sc-blue'
@@ -385,11 +396,18 @@ const LeadDetailPage: React.FC = () => {
             {activeTab === 'overview' && (
               <LeadOverviewTab lead={lead!} currentUser={currentUser} users={users} onConvertToDeal={() => setActiveTab('conversion')} />
             )}
-            {activeTab === 'tract-assignment' && <LeadTractAssignmentTab lead={lead!} currentUser={currentUser} users={users} />}
+            {activeTab === 'tract-assignment' && <LeadSectionAssignmentTab lead={lead!} currentUser={currentUser} users={users} />}
             {activeTab === 'activity-log' && <ActivityLogTab leadId={id!} users={users} />}
             {activeTab === 'notes' && <LeadNotesTab lead={lead!} currentUser={currentUser} users={users} />}
             {activeTab === 'documents' && <LeadDocumentsTab lead={lead!} currentUser={currentUser} />}
             {activeTab === 'contact-info' && <ContactInfoTab lead={lead!} users={users} onContactUpdate={loadLead} />}
+            {activeTab === 'communication' && (
+              <CommunicationTab
+                leadId={id!}
+                currentUser={currentUser}
+                users={users}
+              />
+            )}
             {activeTab === 'conversion' && (
               <ConversionTrackerTab
                 lead={lead}

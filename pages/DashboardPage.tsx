@@ -49,9 +49,9 @@ const DashboardPage: React.FC = () => {
   const modules: ModuleButton[] = [
     // Core Land Management Modules
     {
-      name: 'Tracts',
-      description: 'Manage land tracts, ownership, and mineral rights',
-      href: '/tracts',
+      name: 'Sections',
+      description: 'Manage land sections, ownership, and mineral rights',
+      href: '/sections',
       icon: MapIcon,
       category: 'core',
       color: 'from-green-500 to-emerald-600',
@@ -201,10 +201,10 @@ const DashboardPage: React.FC = () => {
       description: 'End-to-end deal workflow and pipeline tracking',
       href: '/deals',
       icon: CurrencyDollarIcon,
-      category: 'future',
-      color: 'from-green-400 to-emerald-500',
-      gradient: 'bg-gradient-to-br from-green-400 to-emerald-500',
-      status: 'planned'
+      category: 'management',
+      color: 'from-green-500 to-emerald-600',
+      gradient: 'bg-gradient-to-br from-green-500 to-emerald-600',
+      status: 'active'
     },
     {
       name: 'LP Portal',
@@ -231,60 +231,60 @@ const DashboardPage: React.FC = () => {
       description: 'Real-time well production and performance tracking',
       href: '/production',
       icon: BeakerIcon,
-      category: 'future',
-      color: 'from-blue-400 to-indigo-500',
-      gradient: 'bg-gradient-to-br from-blue-400 to-indigo-500',
-      status: 'planned'
+      category: 'analytics',
+      color: 'from-blue-500 to-indigo-600',
+      gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600',
+      status: 'active'
     },
     {
       name: 'Regulatory Compliance',
       description: 'Track permits, regulations, and compliance status',
       href: '/compliance',
       icon: ShieldExclamationIcon,
-      category: 'future',
-      color: 'from-red-400 to-pink-500',
-      gradient: 'bg-gradient-to-br from-red-400 to-pink-500',
-      status: 'planned'
+      category: 'management',
+      color: 'from-red-500 to-pink-600',
+      gradient: 'bg-gradient-to-br from-red-500 to-pink-600',
+      status: 'active'
     },
     {
       name: 'Financial Management',
       description: 'Revenue tracking, budgeting, and financial reporting',
       href: '/financials',
       icon: ChartBarIcon,
-      category: 'future',
-      color: 'from-emerald-400 to-teal-500',
-      gradient: 'bg-gradient-to-br from-emerald-400 to-teal-500',
-      status: 'planned'
+      category: 'analytics',
+      color: 'from-emerald-500 to-teal-600',
+      gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600',
+      status: 'active'
     },
     {
       name: 'Mobile App',
       description: 'Field operations and mobile data collection',
       href: '/mobile',
       icon: PhoneIcon,
-      category: 'future',
-      color: 'from-cyan-400 to-blue-500',
-      gradient: 'bg-gradient-to-br from-cyan-400 to-blue-500',
-      status: 'coming-soon'
+      category: 'communication',
+      color: 'from-cyan-500 to-blue-600',
+      gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600',
+      status: 'active'
     },
     {
       name: 'AI Insights',
       description: 'Machine learning powered analytics and predictions',
       href: '/ai-insights',
       icon: LightBulbIcon,
-      category: 'future',
-      color: 'from-violet-400 to-purple-500',
-      gradient: 'bg-gradient-to-br from-violet-400 to-purple-500',
-      status: 'coming-soon'
+      category: 'analytics',
+      color: 'from-violet-500 to-purple-600',
+      gradient: 'bg-gradient-to-br from-violet-500 to-purple-600',
+      status: 'active'
     },
     {
       name: 'Integration Hub',
       description: 'Third-party system integrations and API\'s',
       href: '/integrations',
       icon: Cog6ToothIcon,
-      category: 'future',
-      color: 'from-orange-400 to-red-500',
-      gradient: 'bg-gradient-to-br from-orange-400 to-red-500',
-      status: 'coming-soon'
+      category: 'administration',
+      color: 'from-orange-500 to-red-600',
+      gradient: 'bg-gradient-to-br from-orange-500 to-red-600',
+      status: 'active'
     }
   ];
 
@@ -319,6 +319,7 @@ const DashboardPage: React.FC = () => {
 
   const categories = [
     { key: 'core', name: 'Core Land Management', color: 'from-green-500 to-emerald-600' },
+    { key: 'management', name: 'Business Management', color: 'from-indigo-500 to-blue-600' },
     { key: 'communication', name: 'Communication & Outreach', color: 'from-blue-500 to-indigo-600' },
     { key: 'analytics', name: 'Analytics & Reporting', color: 'from-purple-500 to-violet-600' },
     { key: 'administration', name: 'System Administration', color: 'from-gray-500 to-slate-600' },

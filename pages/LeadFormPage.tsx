@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchLead, createLead, updateLead, fetchUsers, fetchContacts, fetchTracts, fetchUnits } from '../services/api';
-import { Lead, User, Contact, Tract, Unit, CreateLeadData, UpdateLeadData } from '../types';
+import { fetchLead, createLead, updateLead, fetchUsers, fetchContacts, fetchSections, fetchUnits } from '../services/api';
+import { Lead, User, Contact, Section, Unit, CreateLeadData, UpdateLeadData } from '../types';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -45,7 +45,7 @@ const LeadFormPage: React.FC = () => {
       const [usersData, contactsData, tractsData, unitsData] = await Promise.all([
         fetchUsers(),
         fetchContacts(),
-        fetchTracts(),
+        fetchSections().then(response => response.data || response),
         fetchUnits()
       ]);
       setUsers(usersData || []);

@@ -459,25 +459,25 @@ export class DataImportService {
     console.log(`Normalizing pricing table: ${tableName}`);
     
     // Extract unique counties and create county records
-    const counties = [...new Set(data.map(row => row.County).filter(Boolean))];
+    const counties = Array.from(new Set(data.map(row => row.County).filter(Boolean)));
     for (const county of counties) {
       await this.ensureCountyExists(county, 'TX'); // Default to TX for now
     }
     
     // Extract unique basins and create basin records
-    const basins = [...new Set(data.map(row => row.Basin).filter(Boolean))];
+    const basins = Array.from(new Set(data.map(row => row.Basin).filter(Boolean)));
     for (const basin of basins) {
       await this.ensureBasinExists(basin);
     }
     
     // Extract unique survey companies and create survey company records
-    const surveys = [...new Set(data.map(row => row.Survey).filter(Boolean))];
+    const surveys = Array.from(new Set(data.map(row => row.Survey).filter(Boolean)));
     for (const survey of surveys) {
       await this.ensureSurveyCompanyExists(survey);
     }
     
     // Extract unique formations and create formation records
-    const formations = [...new Set(data.map(row => row.Formation).filter(Boolean))];
+    const formations = Array.from(new Set(data.map(row => row.Formation).filter(Boolean)));
     for (const formation of formations) {
       await this.ensureFormationExists(formation);
     }
@@ -503,14 +503,14 @@ export class DataImportService {
     console.log(`Normalizing acreage table: ${tableName}`);
     
     // Extract unique counties and create county records
-    const counties = [...new Set(data.map(row => row.COUNTY).filter(Boolean))];
+    const counties = Array.from(new Set(data.map(row => row.COUNTY).filter(Boolean)));
     for (const county of counties) {
       const state = county === 'KINGFISHER' ? 'OK' : 'TX';
       await this.ensureCountyExists(county, state);
     }
     
     // Extract unique acquisition statuses and create status records
-    const statuses = [...new Set(data.map(row => row.STATUS).filter(Boolean))];
+    const statuses = Array.from(new Set(data.map(row => row.STATUS).filter(Boolean)));
     for (const status of statuses) {
       await this.ensureAcquisitionStatusExists(status);
     }
@@ -547,25 +547,25 @@ export class DataImportService {
     console.log(`Normalizing unit summary table: ${tableName}`);
     
     // Extract unique operators and create operator records
-    const operators = [...new Set(data.map(row => row.Operator).filter(Boolean))];
+    const operators = Array.from(new Set(data.map(row => row.Operator).filter(Boolean)));
     for (const operator of operators) {
       await this.ensureOperatorExists(operator);
     }
     
     // Extract unique well statuses and create well status records
-    const wellStatuses = [...new Set(data.map(row => row['Well Status']).filter(Boolean))];
+    const wellStatuses = Array.from(new Set(data.map(row => row['Well Status']).filter(Boolean)));
     for (const status of wellStatuses) {
       await this.ensureWellStatusExists(status);
     }
     
     // Extract unique unit tiers and create unit tier records
-    const tiers = [...new Set(data.map(row => row['Tier/Class']).filter(Boolean))];
+    const tiers = Array.from(new Set(data.map(row => row['Tier/Class']).filter(Boolean)));
     for (const tier of tiers) {
       await this.ensureUnitTierExists(tier);
     }
     
     // Extract unique unit statuses and create unit status records
-    const unitStatuses = [...new Set(data.map(row => row.Status).filter(Boolean))];
+    const unitStatuses = Array.from(new Set(data.map(row => row.Status).filter(Boolean)));
     for (const status of unitStatuses) {
       await this.ensureUnitStatusExists(status);
     }

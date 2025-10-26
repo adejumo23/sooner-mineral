@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchAssignments, fetchUsers, fetchTracts, fetchUnits, createBulkAssignments } from '../services/api';
-import { Assignment, User, Tract, Unit, AssignmentFilters, CreateAssignmentData } from '../types';
+import { fetchAssignments, fetchUsers, fetchSections, fetchUnits, createBulkAssignments } from '../services/api';
+import { Assignment, User, Section, Unit, AssignmentFilters, CreateAssignmentData } from '../types';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -12,14 +12,20 @@ import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, ClipboardDocumentListIcon } 
 const AssignmentsPage: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [tracts, setTracts] = useState<Tract[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<AssignmentFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAssets, setSelectedAssets] = useState<Array<{ type: 'Tract' | 'Unit', id: string, name: string }>>([]);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
+  const [selectedAssets, setSelectedAssets] = useState<Array<{ type: 'Section' | 'Unit', id: string, name: string }>>([]);
   const [bulkAssignmentData, setBulkAssignmentData] = useState<Partial<CreateAssignmentData>>({
     assignedBuyerId: '',
     priceCapUsd: 0,
@@ -33,9 +39,17 @@ const AssignmentsPage: React.FC = () => {
     loadData();
   }, []);
 
+  // Load data when page or page size changes
+  useEffect(() => {
+    if (currentPage > 1 || pageSize !== 50) {
+      loadData(currentPage, pageSize);
+    }
+  }, [currentPage, pageSize]);
+
   useEffect(() => {
     if (searchTerm) {
       setFilters(prev => ({ ...prev, search: searchTerm }));
+      setCurrentPage(1); // Reset to first page when searching
     } else {
       setFilters(prev => {
         const { search, ...rest } = prev;
@@ -45,26 +59,43 @@ const AssignmentsPage: React.FC = () => {
   }, [searchTerm]);
 
   useEffect(() => {
-    loadAssignments();
+    // Only reload assignments if filters have actually changed (not on initial load)
+    if (Object.keys(filters).length > 0) {
+      loadAssignments();
+    }
   }, [filters]);
 
-  const loadData = async () => {
+  const loadData = async (page = currentPage, limit = pageSize) => {
     try {
-      const [assignmentsData, usersData, tractsData, unitsData] = await Promise.all([
-        fetchAssignments(),
+      setLoading(true);
+      
+      const [assignmentsResponse, usersResponse, sectionsResponse, unitsResponse] = await Promise.all([
+        fetchAssignments(page, limit, searchTerm),
         fetchUsers(),
-        fetchTracts(),
+        fetchSections(),
         fetchUnits()
       ]);
+      
+      const assignmentsData = assignmentsResponse.data || assignmentsResponse;
+      const usersData = usersResponse.data || usersResponse;
+      const sectionsData = sectionsResponse.data || sectionsResponse;
+      const unitsData = unitsResponse.data || unitsResponse;
+      
       setAssignments(assignmentsData || []);
       setUsers(usersData || []);
-      setTracts(tractsData || []);
+      setSections(sectionsData || []);
       setUnits(unitsData || []);
+      
+      // Update pagination info
+      if (assignmentsResponse.pagination) {
+        setTotalPages(assignmentsResponse.pagination.totalPages);
+        setTotalItems(assignmentsResponse.pagination.total);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       setAssignments([]);
       setUsers([]);
-      setTracts([]);
+      setSections([]);
       setUnits([]);
     } finally {
       setLoading(false);
@@ -74,8 +105,16 @@ const AssignmentsPage: React.FC = () => {
   const loadAssignments = async () => {
     try {
       setLoading(true);
-      const assignmentsData = await fetchAssignments(filters);
+      const assignmentsResponse = await fetchAssignments(currentPage, pageSize, searchTerm);
+      const assignmentsData = assignmentsResponse.data || assignmentsResponse;
+      
       setAssignments(assignmentsData || []);
+      
+      // Update pagination info
+      if (assignmentsResponse.pagination) {
+        setTotalPages(assignmentsResponse.pagination.totalPages);
+        setTotalItems(assignmentsResponse.pagination.total);
+      }
     } catch (error) {
       console.error('Error loading assignments:', error);
       setAssignments([]);
@@ -91,12 +130,24 @@ const AssignmentsPage: React.FC = () => {
     }));
   };
 
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    loadData(page, pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+    loadData(1, newPageSize);
+  };
+
   const clearFilters = () => {
     setFilters({});
     setSearchTerm('');
   };
 
-  const handleAssetSelection = (type: 'Tract' | 'Unit', id: string, name: string) => {
+  const handleAssetSelection = (type: 'Section' | 'Unit', id: string, name: string) => {
     const assetKey = `${type}-${id}`;
     const isSelected = selectedAssets.some(asset => `${asset.type}-${asset.id}` === assetKey);
     
@@ -143,12 +194,14 @@ const AssignmentsPage: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: Assignment['status']) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return 'text-green-600 bg-green-100';
       case 'Completed': return 'text-blue-600 bg-blue-100';
       case 'Cancelled': return 'text-red-600 bg-red-100';
       case 'Expired': return 'text-yellow-600 bg-yellow-100';
+      case 'Pending': return 'text-yellow-600 bg-yellow-100';
+      case 'DROPPED': return 'text-red-600 bg-red-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -162,28 +215,30 @@ const AssignmentsPage: React.FC = () => {
   const columns = [
     {
       header: 'Asset',
-      accessor: 'asset',
+      accessor: 'assetType',
       cell: (assignment: Assignment) => (
         <div>
-          <div className="font-medium text-white">
-            {assignment.assetType}: {assignment.assetId}
-          </div>
-          <div className="text-sm text-sc-slate">
-            {assignment.asset?.tractName || assignment.asset?.unitName || 'Unknown Asset'}
+          <div className="font-medium text-black">
+            {assignment.assetType}: 
+            <div className="mt-1">
+              {assignment.assetId.split(/\s+(?=[A-Z]+\s+\d+)/).map((unitName, index) => (
+                <div key={index} className="text-sm text-black">{unitName.trim()}</div>
+              ))}
+            </div>
           </div>
         </div>
       )
     },
     {
       header: 'Assigned Buyer',
-      accessor: 'assignedBuyer',
+      accessor: 'assignedBuyerId',
       cell: (assignment: Assignment) => (
-        <span className="text-sm text-sc-slate">{assignment.assignedBuyer?.name || 'Unknown'}</span>
+        <span className="text-sm text-sc-slate">{assignment.assignedBuyer?.name || assignment.assignedBuyerId || 'Unknown'}</span>
       )
     },
     {
       header: 'Price Cap',
-      accessor: 'priceCap',
+      accessor: 'priceCapUsd',
       cell: (assignment: Assignment) => (
         <div>
           <div className="font-medium text-white">
@@ -225,7 +280,7 @@ const AssignmentsPage: React.FC = () => {
       accessor: 'assignedDate',
       cell: (assignment: Assignment) => (
         <span className="text-sm text-sc-slate">
-          {new Date(assignment.assignedDate).toLocaleDateString()}
+          {assignment.assignedDate ? new Date(assignment.assignedDate).toLocaleDateString() : 'N/A'}
         </span>
       )
     },
@@ -267,7 +322,7 @@ const AssignmentsPage: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Assignment & Buyer Routing</h1>
               <p className="text-gray-600 mt-1">
-                Manage tract and unit assignments to buyers with pricing caps and priority scoring
+                Manage section and unit assignments to buyers with pricing caps and priority scoring
               </p>
             </div>
           </div>
@@ -339,7 +394,7 @@ const AssignmentsPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                   >
                     <option value="">All Types</option>
-                    <option value="Tract">Tract</option>
+                    <option value="Section">Section</option>
                     <option value="Unit">Unit</option>
                   </select>
                 </div>
@@ -439,25 +494,92 @@ const AssignmentsPage: React.FC = () => {
       {/* Assignments Table */}
       <Card>
         <div className="p-6">
-          {!assignments || assignments.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-lg mb-2">No assignments found</div>
-              <p className="text-gray-500">
-                {Object.keys(filters).length > 0 
-                  ? 'Try adjusting your filters or search terms'
-                  : 'Get started by creating your first assignment'
-                }
-              </p>
-            </div>
-          ) : (
-            <Table
-              data={assignments}
-              columns={columns}
-              className="w-full"
-            />
-          )}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-lg mb-2">Loading assignments...</div>
+        </div>
+      ) : !assignments || assignments.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-lg mb-2">No assignments found</div>
+          <p className="text-gray-500">
+            {Object.keys(filters).length > 0 
+              ? 'Try adjusting your filters or search terms'
+              : 'Get started by creating your first assignment'
+            }
+          </p>
+        </div>
+      ) : (
+        <Table
+          data={assignments}
+          columns={columns}
+          className="w-full"
+        />
+      )}
         </div>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Card className="mt-6">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} assignments
+                </span>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-700">Page size:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm"
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        onClick={() => handlePageChange(pageNum)}
+                        className="px-3 py-1 text-sm"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Bulk Assignment Modal */}
       <Modal
@@ -471,20 +593,20 @@ const AssignmentsPage: React.FC = () => {
           <div>
             <h3 className="text-lg font-medium mb-3">Select Assets to Assign</h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-64 overflow-y-auto">
-              {/* Tracts */}
+              {/* Sections */}
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Tracts</h4>
+                <h4 className="font-medium text-gray-700 mb-2">Sections</h4>
                 <div className="space-y-2">
-                  {tracts.map(tract => (
-                    <label key={tract.id} className="flex items-center space-x-2 cursor-pointer">
+                  {sections.map(section => (
+                    <label key={section.id} className="flex items-center space-x-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={selectedAssets.some(asset => asset.type === 'Tract' && asset.id === tract.id)}
-                        onChange={() => handleAssetSelection('Tract', tract.id, tract.tractName)}
+                        checked={selectedAssets.some(asset => asset.type === 'Section' && asset.id === section.id)}
+                        onChange={() => handleAssetSelection('Section', section.id, section.sectionName)}
                         className="rounded border-gray-300 text-sc-blue focus:ring-sc-blue"
                       />
                       <span className="text-sm text-gray-700">
-                        {tract.tractName} ({tract.county}, {tract.state})
+                        {section.sectionName} ({section.county}, {section.state})
                       </span>
                     </label>
                   ))}

@@ -1,474 +1,433 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import type { User } from '../types';
+import Button from './ui/Button';
+import Microsoft365Sync from './Microsoft365Sync';
 import { 
-  Communication, 
-  CommunicationMethod, 
-  CommunicationOutcome, 
-  CommunicationCampaign,
-  User 
-} from '../types';
-import { 
-  PhoneIcon, 
   EnvelopeIcon, 
+  PhoneIcon, 
   ChatBubbleLeftRightIcon, 
-  EnvelopeIcon as MailIcon,
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
   FunnelIcon,
-  CalendarIcon,
-  UserGroupIcon,
-  ChartBarIcon,
-  PlusIcon
+  PlusIcon,
+  EyeIcon,
+  PencilIcon,
+  TrashIcon,
+  CloudIcon
 } from './icons/Icons';
+
+interface Communication {
+  id: string;
+  user_id: string;
+  contact_id?: string;
+  lead_id?: string;
+  deal_id?: string;
+  method: 'Email' | 'Call' | 'SMS' | 'Mail';
+  direction: 'Inbound' | 'Outbound';
+  subject?: string;
+  message_snippet?: string;
+  full_message?: string;
+  outcome: 'No Answer' | 'Left Voicemail' | 'Sent' | 'Bounced' | 'Replied' | 'Delivered' | 'Failed' | 'Returned' | 'Opened' | 'Clicked';
+  timestamp: string;
+  duration_seconds?: number;
+  phone_number?: string;
+  email_address?: string;
+  campaign_id?: string;
+  sequence_step?: number;
+  attachment_count: number;
+  is_private: boolean;
+  user_name: string;
+  user_email: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  lead_name?: string;
+  deal_name?: string;
+}
 
 interface MessageCenterProps {
   currentUser: User;
+  users: User[];
 }
 
-const MessageCenter: React.FC<MessageCenterProps> = ({ currentUser }) => {
-  const [communications, setCommunications] = useState<Communication[]>([]);
-  const [campaigns, setCampaigns] = useState<CommunicationCampaign[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'inbox' | 'campaigns' | 'templates'>('inbox');
-  
-  // Filters
-  const [filters, setFilters] = useState({
-    buyer: '',
-    campaign: '',
-    method: '',
-    status: '',
-    dateRange: '7d' as '1d' | '7d' | '30d' | '90d' | 'all'
-  });
+const MessageCenter: React.FC<MessageCenterProps> = ({ currentUser, users }) => {
+  const [communications, setCommunications] = React.useState<Communication[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [search, setSearch] = React.useState('');
+  const [methodFilter, setMethodFilter] = React.useState('');
+  const [outcomeFilter, setOutcomeFilter] = React.useState('');
+  const [dateFilter, setDateFilter] = React.useState('');
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [selectedCommunication, setSelectedCommunication] = React.useState<Communication | null>(null);
+  const [showDetail, setShowDetail] = React.useState(false);
+  const [showMicrosoftSync, setShowMicrosoftSync] = React.useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Mock API calls - replace with actual API
-      const mockCommunications: Communication[] = [
-        {
-          id: '1',
-          userId: 'user1',
-          user: { id: 'user1', name: 'John Smith', email: 'john@example.com', role: { id: '1', name: 'Buyer', description: 'Land Buyer' } },
-          contactId: 'contact1',
-          contact: { id: 'contact1', name: 'Alice Johnson', email: 'alice@example.com', contactType: 'Landowner', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-          leadId: 'lead1',
-          method: 'Call',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          outcome: 'Left Voicemail',
-          messageSnippet: 'Called to discuss mineral rights offer',
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '2',
-          userId: 'user2',
-          user: { id: 'user2', name: 'Sarah Wilson', email: 'sarah@example.com', role: { id: '2', name: 'Buyer', description: 'Land Buyer' } },
-          contactId: 'contact2',
-          contact: { id: 'contact2', name: 'Bob Davis', email: 'bob@example.com', contactType: 'Landowner', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-          method: 'Email',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          outcome: 'Replied',
-          subject: 'Mineral Rights Acquisition',
-          messageSnippet: 'Interested in discussing the offer',
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '3',
-          userId: 'user1',
-          user: { id: 'user1', name: 'John Smith', email: 'john@example.com', role: { id: '1', name: 'Buyer', description: 'Land Buyer' } },
-          contactId: 'contact3',
-          contact: { id: 'contact3', name: 'Carol Brown', email: 'carol@example.com', contactType: 'Landowner', createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-          method: 'SMS',
-          timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          outcome: 'Delivered',
-          messageSnippet: 'Sent follow-up text message',
-          createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+  // Load communications
+  React.useEffect(() => {
+    const loadCommunications = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (methodFilter) params.append('method', methodFilter);
+        if (outcomeFilter) params.append('outcome', outcomeFilter);
+        if (dateFilter) {
+          const date = new Date();
+          date.setDate(date.getDate() - parseInt(dateFilter));
+          params.append('start_date', date.toISOString().split('T')[0]);
         }
-      ];
 
-      const mockCampaigns: CommunicationCampaign[] = [
-        {
-          id: 'camp1',
-          name: 'Q1 Mineral Rights Outreach',
-          description: 'Targeted outreach to landowners in Oklahoma',
-          type: 'Email Sequence',
-          status: 'Active',
-          createdBy: 'user1',
-          createdByUser: { id: 'user1', name: 'John Smith', email: 'john@example.com', role: { id: '1', name: 'Buyer', description: 'Land Buyer' } },
-          targetAudience: 'Geographic',
-          totalRecipients: 150,
-          successfulDeliveries: 142,
-          responses: 23,
-          optOuts: 3,
-          createdAt: '2024-01-01',
-          updatedAt: '2024-01-15'
-        },
-        {
-          id: 'camp2',
-          name: 'Tax Lien Follow-up',
-          description: 'Follow-up campaign for tax lien contacts',
-          type: 'Call Campaign',
-          status: 'Active',
-          createdBy: 'user2',
-          createdByUser: { id: 'user2', name: 'Sarah Wilson', email: 'sarah@example.com', role: { id: '2', name: 'Buyer', description: 'Land Buyer' } },
-          targetAudience: 'Specific Leads',
-          totalRecipients: 45,
-          successfulDeliveries: 42,
-          responses: 8,
-          optOuts: 1,
-          createdAt: '2024-01-10',
-          updatedAt: '2024-01-20'
+        const response = await fetch(`http://localhost:3053/api/communications?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setCommunications(data.data);
         }
-      ];
+      } catch (error) {
+        console.error('Error loading communications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setCommunications(mockCommunications);
-      setCampaigns(mockCampaigns);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadCommunications();
+  }, [search, methodFilter, outcomeFilter, dateFilter]);
 
-  const getMethodIcon = (method: CommunicationMethod) => {
+  const getMethodIcon = (method: string) => {
     switch (method) {
-      case 'Call':
-        return <PhoneIcon className="w-4 h-4" />;
-      case 'Email':
-        return <EnvelopeIcon className="w-4 h-4" />;
-      case 'SMS':
-        return <ChatBubbleLeftRightIcon className="w-4 h-4" />;
-      case 'Mail':
-        return <MailIcon className="w-4 h-4" />;
-      default:
-        return <EnvelopeIcon className="w-4 h-4" />;
+      case 'Email': return <EnvelopeIcon className="h-4 w-4" />;
+      case 'Call': return <PhoneIcon className="h-4 w-4" />;
+      case 'SMS': return <ChatBubbleLeftRightIcon className="h-4 w-4" />;
+      case 'Mail': return <DocumentTextIcon className="h-4 w-4" />;
+      default: return <EnvelopeIcon className="h-4 w-4" />;
     }
   };
 
-  const getOutcomeIcon = (outcome: CommunicationOutcome) => {
+  const getOutcomeColor = (outcome: string) => {
     switch (outcome) {
-      case 'Sent':
       case 'Delivered':
-        return <div className="w-2 h-2 bg-green-500 rounded-full"></div>;
       case 'Replied':
-        return <div className="w-2 h-2 bg-blue-500 rounded-full"></div>;
+      case 'Opened':
+      case 'Clicked':
+        return 'text-green-600 bg-green-100';
+      case 'Sent':
+      case 'Left Voicemail':
+        return 'text-blue-600 bg-blue-100';
+      case 'No Answer':
       case 'Bounced':
       case 'Failed':
-        return <div className="w-2 h-2 bg-red-500 rounded-full"></div>;
-      case 'No Answer':
-      case 'Left Voicemail':
-        return <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>;
+      case 'Returned':
+        return 'text-red-600 bg-red-100';
       default:
-        return <div className="w-2 h-2 bg-gray-500 rounded-full"></div>;
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 48) return 'Yesterday';
-    return date.toLocaleDateString();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 168) { // 7 days
+      return date.toLocaleDateString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
   };
 
   const filteredCommunications = communications.filter(comm => {
-    if (filters.buyer && comm.user?.name !== filters.buyer) return false;
-    if (filters.method && comm.method !== filters.method) return false;
-    if (filters.status && comm.outcome !== filters.status) return false;
-    if (filters.campaign && comm.campaignId !== filters.campaign) return false;
-    
-    if (filters.dateRange !== 'all') {
-      const commDate = new Date(comm.timestamp);
-      const now = new Date();
-      const diffInDays = Math.floor((now.getTime() - commDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      switch (filters.dateRange) {
-        case '1d': if (diffInDays > 1) return false; break;
-        case '7d': if (diffInDays > 7) return false; break;
-        case '30d': if (diffInDays > 30) return false; break;
-        case '90d': if (diffInDays > 90) return false; break;
-      }
+    if (search && !comm.subject?.toLowerCase().includes(search.toLowerCase()) && 
+        !comm.message_snippet?.toLowerCase().includes(search.toLowerCase()) &&
+        !comm.contact_name?.toLowerCase().includes(search.toLowerCase())) {
+      return false;
     }
-    
     return true;
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Header with white background and icon */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mr-4">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">Message Center</h2>
-              <p className="text-gray-600 mt-1">Manage all communications and campaigns</p>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Message Center</h1>
+        <p className="text-gray-600">Track and manage all communications with landowners and stakeholders</p>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Search */}
+          <div className="flex-1">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search communications..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sc-blue focus:border-transparent"
+              />
             </div>
           </div>
-          <div className="flex space-x-3">
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-              <CalendarIcon className="w-4 h-4 mr-2" />
-              Schedule Call
-            </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-              <UserGroupIcon className="w-4 h-4 mr-2" />
-              New Campaign
-            </button>
-          </div>
+
+          {/* Filter Toggle */}
+          <Button
+            variant="secondary"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2"
+          >
+            <FunnelIcon className="h-4 w-4" />
+            Filters
+          </Button>
+
+          {/* Microsoft 365 Sync */}
+          <Button
+            variant="secondary"
+            onClick={() => setShowMicrosoftSync(!showMicrosoftSync)}
+            className="flex items-center gap-2"
+          >
+            <CloudIcon className="h-4 w-4" />
+            Microsoft 365
+          </Button>
+
+          {/* New Communication */}
+          <Button className="flex items-center gap-2">
+            <PlusIcon className="h-4 w-4" />
+            New Communication
+          </Button>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('inbox')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'inbox'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Inbox
-          </button>
-          <button
-            onClick={() => setActiveTab('campaigns')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'campaigns'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Campaigns
-          </button>
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'templates'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Templates
-          </button>
-        </nav>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <FunnelIcon className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
-          </div>
-          
-          <select
-            value={filters.buyer}
-            onChange={(e) => setFilters(prev => ({ ...prev, buyer: e.target.value }))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Buyers</option>
-            <option value="John Smith">John Smith</option>
-            <option value="Sarah Wilson">Sarah Wilson</option>
-          </select>
-
-          <select
-            value={filters.method}
-            onChange={(e) => setFilters(prev => ({ ...prev, method: e.target.value }))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Methods</option>
-            <option value="Call">Call</option>
-            <option value="Email">Email</option>
-            <option value="SMS">SMS</option>
-            <option value="Mail">Mail</option>
-          </select>
-
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Outcomes</option>
-            <option value="Sent">Sent</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Replied">Replied</option>
-            <option value="No Answer">No Answer</option>
-            <option value="Left Voicemail">Left Voicemail</option>
-          </select>
-
-          <select
-            value={filters.dateRange}
-            onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value as any }))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="1d">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="all">All time</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Content based on active tab */}
-      {activeTab === 'inbox' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">
-              Recent Communications ({filteredCommunications.length})
-            </h3>
-          </div>
-          
-          {filteredCommunications.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <EnvelopeIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No communications found matching your filters.</p>
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                <select
+                  value={methodFilter}
+                  onChange={(e) => setMethodFilter(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                >
+                  <option value="">All Methods</option>
+                  <option value="Email">Email</option>
+                  <option value="Call">Call</option>
+                  <option value="SMS">SMS</option>
+                  <option value="Mail">Mail</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                <select
+                  value={outcomeFilter}
+                  onChange={(e) => setOutcomeFilter(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                >
+                  <option value="">All Outcomes</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Replied">Replied</option>
+                  <option value="Opened">Opened</option>
+                  <option value="Clicked">Clicked</option>
+                  <option value="Sent">Sent</option>
+                  <option value="Left Voicemail">Left Voicemail</option>
+                  <option value="No Answer">No Answer</option>
+                  <option value="Bounced">Bounced</option>
+                  <option value="Failed">Failed</option>
+                  <option value="Returned">Returned</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Time Range</label>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                >
+                  <option value="">All Time</option>
+                  <option value="1">Last 24 hours</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                </select>
+              </div>
             </div>
-          ) : (
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              <ul className="divide-y divide-gray-200">
-                {filteredCommunications.map((communication) => (
-                  <li key={communication.id} className="px-6 py-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            {getMethodIcon(communication.method)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-900">
-                              {communication.contact?.name}
-                            </span>
-                            <span className="text-sm text-gray-500">•</span>
-                            <span className="text-sm text-gray-500">
-                              {communication.user?.name}
-                            </span>
-                          </div>
-                          {communication.subject && (
-                            <p className="text-sm text-gray-600">{communication.subject}</p>
-                          )}
-                          {communication.messageSnippet && (
-                            <p className="text-sm text-gray-600">{communication.messageSnippet}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          {getOutcomeIcon(communication.outcome)}
-                          <span className="text-sm text-gray-500 capitalize">
-                            {communication.outcome.replace(/([A-Z])/g, ' $1').trim()}
-                          </span>
-                        </div>
-                        <span className="text-sm text-gray-400">
-                          {formatTimestamp(communication.timestamp)}
-                        </span>
+          </div>
+        )}
+
+        {/* Microsoft 365 Sync Section */}
+        {showMicrosoftSync && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <Microsoft365Sync 
+              userId={currentUser.id} 
+              currentUser={currentUser} 
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Communications List */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">Loading communications...</div>
+        ) : filteredCommunications.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No communications found</div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {filteredCommunications.map((comm) => (
+              <div
+                key={comm.id}
+                className="p-4 hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  setSelectedCommunication(comm);
+                  setShowDetail(true);
+                }}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3 flex-1">
+                    <div className="flex-shrink-0">
+                      <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">
+                        {getMethodIcon(comm.method)}
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'campaigns' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">
-              Active Campaigns ({campaigns.filter(c => c.status === 'Active').length})
-            </h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {campaigns.map((campaign) => (
-              <div key={campaign.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-medium text-gray-900">{campaign.name}</h4>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    campaign.status === 'Active' ? 'bg-green-100 text-green-800' :
-                    campaign.status === 'Draft' ? 'bg-gray-100 text-gray-800' :
-                    campaign.status === 'Paused' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {campaign.status}
-                  </span>
-                </div>
-                
-                <p className="text-sm text-gray-600 mb-4">{campaign.description}</p>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Type:</span>
-                    <span className="font-medium">{campaign.type}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900">
+                          {comm.contact_name || 'Unknown Contact'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {comm.method} • {comm.direction}
+                        </span>
+                        {comm.is_private && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Private
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-900 mb-1">
+                        {comm.subject || comm.message_snippet || 'No subject'}
+                      </div>
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <span>By {comm.user_name}</span>
+                        <span>{formatTimestamp(comm.timestamp)}</span>
+                        {comm.lead_name && <span>Lead: {comm.lead_name}</span>}
+                        {comm.attachment_count > 0 && (
+                          <span>{comm.attachment_count} attachment(s)</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Recipients:</span>
-                    <span className="font-medium">{campaign.totalRecipients}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Responses:</span>
-                    <span className="font-medium text-green-600">{campaign.responses}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Success Rate:</span>
-                    <span className="font-medium">
-                      {Math.round((campaign.successfulDeliveries / campaign.totalRecipients) * 100)}%
+                  <div className="flex items-center space-x-2">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getOutcomeColor(comm.outcome)}`}>
+                      {comm.outcome}
                     </span>
-                  </div>
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">
-                      Created by {campaign.createdByUser?.name}
-                    </span>
-                    <button className="text-sm text-blue-600 hover:text-blue-800">
-                      View Details
-                    </button>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCommunication(comm);
+                        setShowDetail(true);
+                      }}
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {activeTab === 'templates' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">Communication Templates</h3>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-              <PlusIcon className="w-4 h-4 mr-2" />
-              New Template
-            </button>
-          </div>
-          
-          <div className="text-center py-8 text-gray-500">
-            <EnvelopeIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No templates created yet.</p>
-            <p className="text-sm">Create reusable templates for common communications.</p>
+      {/* Communication Detail Modal */}
+      {showDetail && selectedCommunication && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Communication Details</h3>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowDetail(false)}
+                >
+                  Close
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                    <div className="flex items-center space-x-2">
+                      {getMethodIcon(selectedCommunication.method)}
+                      <span className="text-sm text-gray-900">{selectedCommunication.method}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getOutcomeColor(selectedCommunication.outcome)}`}>
+                      {selectedCommunication.outcome}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                  <p className="text-sm text-gray-900">{selectedCommunication.subject || 'No subject'}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                  <div className="bg-gray-50 rounded p-3 text-sm text-gray-900 whitespace-pre-wrap">
+                    {selectedCommunication.full_message || selectedCommunication.message_snippet || 'No message content'}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
+                    <p className="text-sm text-gray-900">{selectedCommunication.contact_name || 'Unknown'}</p>
+                    {selectedCommunication.contact_email && (
+                      <p className="text-xs text-gray-500">{selectedCommunication.contact_email}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sent By</label>
+                    <p className="text-sm text-gray-900">{selectedCommunication.user_name}</p>
+                    <p className="text-xs text-gray-500">{selectedCommunication.user_email}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Timestamp</label>
+                  <p className="text-sm text-gray-900">
+                    {new Date(selectedCommunication.timestamp).toLocaleString()}
+                  </p>
+                </div>
+
+                {selectedCommunication.duration_seconds && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                    <p className="text-sm text-gray-900">
+                      {Math.floor(selectedCommunication.duration_seconds / 60)}m {selectedCommunication.duration_seconds % 60}s
+                    </p>
+                  </div>
+                )}
+
+                {selectedCommunication.lead_name && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Related Lead</label>
+                    <p className="text-sm text-gray-900">{selectedCommunication.lead_name}</p>
+                  </div>
+                )}
+
+                {selectedCommunication.deal_name && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Related Deal</label>
+                    <p className="text-sm text-gray-900">{selectedCommunication.deal_name}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
