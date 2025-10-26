@@ -3,7 +3,7 @@ import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Client } from '@azure/msal-node';
+import { ConfidentialClientApplication } from '@azure/msal-node';
 
 dotenv.config();
 
@@ -37,14 +37,17 @@ const initializeDatabase = async () => {
   }
 };
 
-// Microsoft Graph API client
-const msalClient = new Client({
-  auth: {
-    clientId: process.env.MICROSOFT_CLIENT_ID || '',
-    clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
-    authority: 'https://login.microsoftonline.com/common'
-  }
-});
+// Microsoft Graph API client (only initialize if credentials are available)
+let msalClient = null;
+if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
+  msalClient = new ConfidentialClientApplication({
+    auth: {
+      clientId: process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      authority: 'https://login.microsoftonline.com/common'
+    }
+  });
+}
 
 // ============================================================================
 // MICROSOFT 365 SYNC API ENDPOINTS
@@ -63,6 +66,13 @@ app.get('/api/health', (req, res) => {
 // Get Microsoft 365 authentication URL
 app.get('/api/microsoft/auth-url', async (req, res) => {
   try {
+    if (!msalClient) {
+      return res.status(400).json({
+        success: false,
+        message: 'Microsoft 365 integration not configured. Please set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET environment variables.'
+      });
+    }
+
     const authUrlParameters = {
       scopes: [
         'https://graph.microsoft.com/Mail.Read',

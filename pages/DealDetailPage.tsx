@@ -352,3 +352,4 @@ const DealDetailPage: React.FC = () => {
 export default DealDetailPage;
 
 
+
