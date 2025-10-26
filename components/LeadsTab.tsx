@@ -287,7 +287,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm">Unit Name</span>
-                      <div className="text-gray-900 font-medium">{lead.unitName || 'N/A'}</div>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{lead.unitName || 'N/A'}</div>
                     </div>
                   </div>
 

@@ -38,25 +38,26 @@ app.get('/api/sections', async (req, res) => {
     
     // Query the prod_acreage_schedule table
     const results = await executeQuery(`
-      SELECT DISTINCT
+      SELECT 
         S_T_R as str,
-        COUNTY as county,
-        ST as state,
-        STATUS as title_status,
-        LEGAL_DESCRIPTION as legal_description,
-        NMA as net_mineral_acres,
-        CALCULATED_ACREAGE as calculated_acreage,
-        BUYER as assigned_buyer,
-        OWNER as owner_name,
-        CONTACT as contact_info,
-        PHONE_EMAIL as phone_email,
-        NOTE as notes,
-        CURRENT_UNIT_NAME as current_unit,
-        NEW_UNIT_NAME as new_unit,
-        DATE as date_created,
-        TITLE_SOURCE as title_source
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        GROUP_CONCAT(DISTINCT STATUS ORDER BY STATUS SEPARATOR ',\n') as title_status,
+        GROUP_CONCAT(DISTINCT LEGAL_DESCRIPTION ORDER BY LEGAL_DESCRIPTION SEPARATOR ';\n') as legal_description,
+        SUM(NMA) as net_mineral_acres,
+        AVG(CALCULATED_ACREAGE) as calculated_acreage,
+        GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
+        GROUP_CONCAT(DISTINCT OWNER ORDER BY OWNER SEPARATOR ', ') as owner_name,
+        GROUP_CONCAT(DISTINCT CONTACT ORDER BY CONTACT SEPARATOR ', ') as contact_info,
+        GROUP_CONCAT(DISTINCT PHONE_EMAIL ORDER BY PHONE_EMAIL SEPARATOR ', ') as phone_email,
+        GROUP_CONCAT(DISTINCT NOTE ORDER BY NOTE SEPARATOR '; ') as notes,
+        GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit,
+        GROUP_CONCAT(DISTINCT NEW_UNIT_NAME ORDER BY NEW_UNIT_NAME SEPARATOR ', ') as new_unit,
+        MIN(DATE) as date_created,
+        GROUP_CONCAT(DISTINCT TITLE_SOURCE ORDER BY TITLE_SOURCE SEPARATOR ', ') as title_source
       FROM prod_acreage_schedule 
       WHERE S_T_R IS NOT NULL 
+      GROUP BY S_T_R
       ORDER BY S_T_R
     `);
     
@@ -89,7 +90,7 @@ app.get('/api/sections', async (req, res) => {
         netMineralAcres: netAcres,
         titleStatus: row.title_status || 'Unknown',
         legalDescription: row.legal_description,
-        assigned_buyer: row.assigned_buyer,
+        assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
         owner_name: row.owner_name,
         contact_info: row.contact_info,
         phone_email: row.phone_email,
@@ -281,6 +282,102 @@ app.get('/api/sections/:id/contacts', async (req, res) => {
   } catch (error) {
     console.error('Error fetching section contacts from database:', error);
     res.status(500).json({ error: 'Failed to fetch section contacts from database' });
+  }
+});
+
+// Section leads endpoint
+app.get('/api/sections/:id/leads', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/sections/${id}/leads requested`);
+    
+    // Parse the section ID to get the offset
+    const sectionNumber = parseInt(id.replace('s', ''));
+    if (isNaN(sectionNumber) || sectionNumber < 1) {
+      return res.status(404).json({ error: 'Invalid section ID' });
+    }
+    
+    const offset = sectionNumber - 1;
+    
+    // Get all sections and find the one with the matching ID
+    const allSectionResults = await executeQuery(`
+      SELECT DISTINCT S_T_R as str
+      FROM prod_acreage_schedule 
+      WHERE S_T_R IS NOT NULL 
+      ORDER BY S_T_R
+    `);
+    
+    const sectionResults = allSectionResults.slice(offset, offset + 1);
+    
+    if (sectionResults.length === 0) {
+      return res.json([]);
+    }
+    
+    const sectionStr = sectionResults[0].str;
+    
+    // Get all contact information for this section
+    const results = await executeQuery(`
+      SELECT 
+        S_T_R as str,
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        GROUP_CONCAT(DISTINCT CONTACT ORDER BY CONTACT SEPARATOR ',\n') as contact_info,
+        GROUP_CONCAT(DISTINCT OWNER ORDER BY OWNER SEPARATOR ',\n') as owner_name,
+        GROUP_CONCAT(DISTINCT PHONE_EMAIL ORDER BY PHONE_EMAIL SEPARATOR ',\n') as phone_email,
+        GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
+        AVG(NMA) as net_mineral_acres,
+        MIN(DATE) as date_created,
+        GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit
+      FROM prod_acreage_schedule 
+      WHERE S_T_R = ?
+      GROUP BY S_T_R
+    `, [sectionStr]);
+    
+    if (results.length === 0) {
+      return res.json([]);
+    }
+    
+    const sectionData = results[0];
+    
+    // Generate leads from the contact information for this specific section
+    const leads = [];
+    let leadId = 1;
+    
+    const contacts = sectionData.contact_info ? sectionData.contact_info.split(',\n').filter(c => c.trim()) : [];
+    const owners = sectionData.owner_name ? sectionData.owner_name.split(',\n').filter(o => o.trim()) : [];
+    const phones = sectionData.phone_email ? sectionData.phone_email.split(',\n').filter(p => p.trim()) : [];
+    
+    // Create leads from contacts for this section
+    contacts.forEach((contact, contactIndex) => {
+      if (contact.trim()) {
+        const lead = {
+          id: `lead${leadId++}`,
+          name: contact.trim(),
+          contact: contact.trim(),
+          phoneEmail: phones[contactIndex] || 'N/A',
+          city: sectionData.county || 'Unknown',
+          state: sectionData.state || 'OK',
+          status: Math.random() > 0.7 ? 'In Progress' : 'Closed',
+          priority: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
+          grossAcres: parseFloat(sectionData.net_mineral_acres) || 0,
+          netMineralAcres: parseFloat(sectionData.net_mineral_acres) || 0,
+          royalty: Math.floor(Math.random() * 25) + 1, // 1-25%
+          unitName: sectionData.current_unit || `Unit ${sectionData.str}`,
+          assignedBuyer: sectionData.assigned_buyer || 'Unassigned',
+          notes: `Generated from section ${sectionData.str} - Owner: ${owners[0] || 'Unknown'}`,
+          lastActivity: Math.random() > 0.5 ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+          noteCount: Math.floor(Math.random() * 5),
+          createdAt: sectionData.date_created || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        leads.push(lead);
+      }
+    });
+    
+    res.json(leads);
+  } catch (error) {
+    console.error('Error fetching section leads:', error);
+    res.status(500).json({ error: 'Failed to fetch section leads' });
   }
 });
 
@@ -2228,68 +2325,130 @@ app.get('/api/leads', async (req, res) => {
   try {
     console.log('GET /api/leads requested');
     
-    // For now, return mock leads data since we don't have a leads table yet
-    const mockLeads = [
-      {
-        id: 'lead1',
-        linkedContact: {
-          id: 'contact1',
-          name: 'John Smith',
-          city: 'Oklahoma City',
-          state: 'OK'
-        },
-        linkedSections: [
-          {
-            id: 's1',
-            sectionName: '06-01S-03W'
-          }
-        ],
-        linkedUnits: [],
-        buyer: {
-          id: 'buyer1',
-          name: 'Alice Admin'
-        },
-        status: 'Uncontacted',
-        priorityScore: 75,
-        lastContactDate: null,
-        nextFollowUpDate: null,
-        sourceChannel: 'Outbound',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'lead2',
-        linkedContact: {
-          id: 'contact2',
-          name: 'Jane Doe',
-          city: 'Tulsa',
-          state: 'OK'
-        },
-        linkedSections: [
-          {
-            id: 's2',
-            sectionName: '12-02N-04E'
-          }
-        ],
-        linkedUnits: [],
-        buyer: {
-          id: 'buyer2',
-          name: 'Bob Manager'
-        },
-        status: 'Spoke',
-        priorityScore: 85,
-        lastContactDate: '2024-01-15',
-        nextFollowUpDate: '2024-01-22',
-        sourceChannel: 'Broker',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
+    // Get sections data to generate leads from contact information
+    const results = await executeQuery(`
+      SELECT 
+        S_T_R as str,
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        GROUP_CONCAT(DISTINCT CONTACT ORDER BY CONTACT SEPARATOR ',\n') as contact_info,
+        GROUP_CONCAT(DISTINCT OWNER ORDER BY OWNER SEPARATOR ',\n') as owner_name,
+        GROUP_CONCAT(DISTINCT PHONE_EMAIL ORDER BY PHONE_EMAIL SEPARATOR ',\n') as phone_email,
+        GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
+        AVG(NMA) as net_mineral_acres,
+        MIN(DATE) as date_created
+      FROM prod_acreage_schedule 
+      WHERE S_T_R IS NOT NULL 
+      GROUP BY S_T_R
+      ORDER BY S_T_R
+    `);
     
-    res.json(mockLeads);
+    // Generate leads from contact information
+    const leads = [];
+    let leadId = 1;
+    
+    results.forEach((row, index) => {
+      // Parse contact information
+      const contacts = row.contact_info ? row.contact_info.split(',\n').filter(c => c.trim()) : [];
+      const owners = row.owner_name ? row.owner_name.split(',\n').filter(o => o.trim()) : [];
+      const phones = row.phone_email ? row.phone_email.split(',\n').filter(p => p.trim()) : [];
+      
+      // Create leads from contacts
+      contacts.forEach((contact, contactIndex) => {
+        if (contact.trim()) {
+          const lead = {
+            id: `lead${leadId++}`,
+            linkedContact: {
+              id: `contact${leadId}`,
+              name: contact.trim(),
+              city: row.county || 'Unknown',
+              state: row.state || 'OK',
+              phone: phones[contactIndex] || null,
+              email: contact.includes('@') ? contact : null
+            },
+            linkedSections: [
+              {
+                id: `s${index + 1}`,
+                sectionName: row.str || `Section ${index + 1}`
+              }
+            ],
+            linkedUnits: [],
+            buyer: row.assigned_buyer ? { 
+              id: 'buyer1', 
+              name: row.assigned_buyer 
+            } : null,
+            status: Math.random() > 0.7 ? 'Spoke' : 'Uncontacted',
+            priorityScore: Math.floor(Math.random() * 40) + 60, // 60-100
+            lastContactDate: Math.random() > 0.5 ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+            nextFollowUpDate: Math.random() > 0.3 ? new Date(Date.now() + Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString() : null,
+            sourceChannel: ['Broker', 'Inbound', 'Outbound'][Math.floor(Math.random() * 3)],
+            notes: `Generated from section ${row.str} - Owner: ${owners[0] || 'Unknown'}`,
+            outreachCount: Math.floor(Math.random() * 5),
+            createdAt: row.date_created || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          leads.push(lead);
+        }
+      });
+    });
+    
+    res.json(leads);
   } catch (error) {
     console.error('Error fetching leads:', error);
     res.status(500).json({ error: 'Failed to fetch leads' });
+  }
+});
+
+app.get('/api/leads/:id/sections', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/leads/${id}/sections requested`);
+    
+    // Get the lead first to find its linked sections
+    const leadResults = await executeQuery(`
+      SELECT 
+        S_T_R as str,
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        GROUP_CONCAT(DISTINCT CONTACT ORDER BY CONTACT SEPARATOR ',\n') as contact_info,
+        GROUP_CONCAT(DISTINCT OWNER ORDER BY OWNER SEPARATOR ',\n') as owner_name,
+        GROUP_CONCAT(DISTINCT PHONE_EMAIL ORDER BY PHONE_EMAIL SEPARATOR ',\n') as phone_email,
+        GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
+        AVG(NMA) as net_mineral_acres,
+        MIN(DATE) as date_created
+      FROM prod_acreage_schedule 
+      WHERE S_T_R IS NOT NULL 
+      GROUP BY S_T_R
+      ORDER BY S_T_R
+    `);
+    
+    // For now, return all sections as potential assignments
+    // In a real implementation, this would filter based on the lead's linked sections
+    const sections = leadResults.map((row, index) => {
+      const netAcres = parseFloat(row.net_mineral_acres) || 0;
+      
+      return {
+        id: `s${index + 1}`,
+        section_name: row.str || `Section ${index + 1}`,
+        state: row.state || 'OK',
+        county: row.county || 'Unknown',
+        str: row.str,
+        grossAcres: netAcres,
+        netMineralAcres: netAcres,
+        titleStatus: 'Active',
+        legalDescription: `Legal description for ${row.str}`,
+        assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
+        current_unit: 'Unit information',
+        new_unit: 'New unit information',
+        created_at: row.date_created || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    });
+    
+    res.json(sections);
+  } catch (error) {
+    console.error('Error fetching lead sections:', error);
+    res.status(500).json({ error: 'Failed to fetch lead sections' });
   }
 });
 

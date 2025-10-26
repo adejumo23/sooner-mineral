@@ -46,6 +46,8 @@ export interface Section {
   routingNotes?: string;
   heldByFund: boolean;
   isLocked: boolean;
+  current_unit?: string;
+  new_unit?: string;
   
   // ESG Tracking Fields
   esgProfileId?: string;
@@ -440,6 +442,13 @@ export interface Unit {
   regulatoryCompliance?: string;
   hasRiskFlags?: boolean;
   lastESGUpdate?: Date;
+  
+  // Additional fields from database
+  sectionCount?: number; // Number of unique sections in this unit
+  buyer?: string; // Buyer name from database
+  totalNetMineralAcres?: number;
+  averageRoyalty?: number;
+  allocationPercentage?: number;
 }
 
 export interface UnitAssignment {

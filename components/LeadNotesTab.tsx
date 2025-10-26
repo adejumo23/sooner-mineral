@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import { LockClosedIcon, PencilIcon, TrashIcon, PlusIcon, XCircleIcon } from './icons/Icons';
+import * as api from '../services/api';
 
 const tagOptions = ['Legal Risk', 'Hot Lead', 'Delay Flagged'];
 
@@ -36,7 +37,8 @@ function parseMentions(text: string, users: User[]) {
 }
 
 const LeadNotesTab: React.FC<{ lead: LeadEnhanced; currentUser: User; users: User[] }> = ({ lead, currentUser, users }) => {
-  const [notes, setNotes] = React.useState(mockNotes);
+  const [notes, setNotes] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState('');
   const [tagFilter, setTagFilter] = React.useState('');
   const [showAdd, setShowAdd] = React.useState(false);
@@ -46,14 +48,32 @@ const LeadNotesTab: React.FC<{ lead: LeadEnhanced; currentUser: User; users: Use
   const [deleteNoteId, setDeleteNoteId] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState<{ [id: string]: boolean }>({});
 
+  // Load notes from API
+  React.useEffect(() => {
+    const loadNotes = async () => {
+      try {
+        setLoading(true);
+        const notesData = await api.fetchLeadNotes(lead.id);
+        setNotes(Array.isArray(notesData) ? notesData : []);
+      } catch (error) {
+        console.error('Error loading notes:', error);
+        setNotes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNotes();
+  }, [lead.id]);
+
   // Filtered notes
   const filteredNotes = notes
-    .filter(n => (!search || n.text.toLowerCase().includes(search.toLowerCase())) && (!tagFilter || n.tags.includes(tagFilter)))
-    .filter(n => !n.private || currentUser.role.name === 'Admin' || currentUser.role.name === 'Legal' || n.authorId === currentUser.id)
+    .filter(n => (!search || n.noteText.toLowerCase().includes(search.toLowerCase())) && (!tagFilter || n.noteType === tagFilter))
+    .filter(n => !n.private || currentUser.role.name === 'Admin' || currentUser.role.name === 'Legal' || n.createdBy === currentUser.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   // Permission logic
-  const canEditOrDelete = (note: typeof mockNotes[0]) => currentUser.role.name === 'Admin' || note.authorId === currentUser.id;
+  const canEditOrDelete = (note: any) => currentUser.role.name === 'Admin' || note.createdBy === currentUser.id;
 
   // Add note handler (mock)
   const handleAddNote = (e: React.FormEvent) => {
@@ -118,19 +138,22 @@ const LeadNotesTab: React.FC<{ lead: LeadEnhanced; currentUser: User; users: Use
         </select>
       </div>
       <div className="space-y-4">
-        {filteredNotes.length === 0 && (
+        {loading && (
+          <div className="text-center text-gray-400 py-8">Loading notes...</div>
+        )}
+        {!loading && filteredNotes.length === 0 && (
           <div className="text-center text-gray-400 py-8">No notes found.</div>
         )}
-        {filteredNotes.map(note => (
+        {!loading && filteredNotes.map(note => (
           <div key={note.id} className="bg-white rounded-lg border border-gray-200 shadow p-4 relative">
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">{new Date(note.createdAt).toLocaleString()}</span>
-                <span className="text-xs text-sc-blue font-semibold cursor-pointer hover:underline">{note.author}</span>
+                <span className="text-xs text-sc-blue font-semibold cursor-pointer hover:underline">{note.createdByUser?.name || 'Unknown User'}</span>
                 {note.private && <LockClosedIcon className="h-4 w-4 text-red-500" title="Private Note" />}
-                {note.tags.map(tag => (
-                  <span key={tag} className="inline-block bg-gray-100 text-gray-800 rounded px-2 py-1 text-xs ml-1">{tag}</span>
-                ))}
+                {note.noteType && (
+                  <span className="inline-block bg-gray-100 text-gray-800 rounded px-2 py-1 text-xs ml-1">{note.noteType}</span>
+                )}
               </div>
               <div className="flex space-x-2">
                 {canEditOrDelete(note) && (
@@ -147,18 +170,18 @@ const LeadNotesTab: React.FC<{ lead: LeadEnhanced; currentUser: User; users: Use
             </div>
             {/* Collapsible note text */}
             <div className="text-sm text-gray-800 whitespace-pre-line">
-              {note.text.split('\n').length > 4 && !expanded[note.id] ? (
+              {note.noteText.split('\n').length > 4 && !expanded[note.id] ? (
                 <>
-                  {note.text.split('\n').slice(0, 4).join('\n')}
+                  {note.noteText.split('\n').slice(0, 4).join('\n')}
                   <span className="block text-xs text-sc-blue cursor-pointer mt-2" onClick={() => setExpanded(e => ({ ...e, [note.id]: true }))}>Show More</span>
                 </>
-              ) : note.text.split('\n').length > 4 ? (
+              ) : note.noteText.split('\n').length > 4 ? (
                 <>
-                  {note.text}
+                  {note.noteText}
                   <span className="block text-xs text-sc-blue cursor-pointer mt-2" onClick={() => setExpanded(e => ({ ...e, [note.id]: false }))}>Show Less</span>
                 </>
               ) : (
-                note.text
+                note.noteText
               )}
             </div>
           </div>

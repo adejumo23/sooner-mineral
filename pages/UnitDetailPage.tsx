@@ -284,7 +284,11 @@ const UnitDetailPage: React.FC = () => {
             <ArrowLeftIcon className="h-6 w-6" />
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{unit.unitName}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {unit.unitName.split('\n').map((line, index) => (
+                <div key={index} className="break-words">{line}</div>
+              ))}
+            </h1>
             <p className="text-gray-600 mt-1">
               {unit.operator} • {unit.county}, {unit.state}
             </p>
@@ -381,7 +385,11 @@ const UnitDetailPage: React.FC = () => {
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Unit Name</dt>
-                    <dd className="text-sm text-gray-900">{unit.unitName}</dd>
+                    <dd className="text-sm text-gray-900">
+                      {unit.unitName.split('\n').map((line, index) => (
+                        <div key={index} className="break-words">{line}</div>
+                      ))}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Operator</dt>
@@ -409,8 +417,8 @@ const UnitDetailPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Acreage & Wells</h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Estimated Gross Acres</dt>
-                    <dd className="text-sm text-gray-900">{unit.estimatedGrossAcres ? unit.estimatedGrossAcres.toLocaleString() : 'N/A'}</dd>
+                    <dt className="text-sm font-medium text-gray-500">Estimated Net Acres</dt>
+                    <dd className="text-sm text-gray-900">{unit.estimatedNetAcres ? unit.estimatedNetAcres.toLocaleString() : 'N/A'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Estimated Net Acres</dt>
@@ -544,7 +552,7 @@ const UnitDetailPage: React.FC = () => {
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                     >
                       <option value="sectionName">Sort by Section Name</option>
-                      <option value="grossAcres">Sort by Gross Acres</option>
+                      <option value="grossAcres">Sort by Net Acres</option>
                       <option value="netMineralAcres">Sort by Net Acres</option>
                       <option value="titleStatus">Sort by Title Status</option>
                       <option value="lastActivity">Sort by Last Activity</option>
@@ -572,25 +580,13 @@ const UnitDetailPage: React.FC = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Section ID
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             STR
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Gross Acres
+                            Net Acres
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Net Acres (NMA)
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Royalty %
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            NRA (1/8 Normalized)
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Title Status
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Assignment
@@ -620,16 +616,11 @@ const UnitDetailPage: React.FC = () => {
                               title={`${sectionName} - ${county}, ${state}`}
                             >
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {sectionName}
+                                <div className="text-sm text-gray-900 font-mono">
+                                  {str}
                                 </div>
                                 <div className="text-sm text-gray-500">
                                   {county}, {state}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 font-mono">
-                                  {str}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -642,70 +633,55 @@ const UnitDetailPage: React.FC = () => {
                                   {netAcres ? netAcres.toLocaleString() : 'N/A'}
                                 </div>
                               </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {section.royalty ? `${(section.royalty * 100).toFixed(2)}%` : 'N/A'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {section.nra ? section.nra.toLocaleString() : 'N/A'}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTitleStatusColor(titleStatus)}`}>
-                                {titleStatus}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {section.assignedBuyer ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    {section.assignedBuyer.name}
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                    Unassigned
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-500">
-                                {section.lastActivity ? (
-                                  <span title={`Last activity: ${new Date(section.lastActivity).toLocaleString()}`}>
-                                    {new Date(section.lastActivity).toLocaleDateString()}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400">No activity</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!section.hasTitleChain}
-                                  className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors duration-150"
-                                  onClick={() => handleViewTitleChain(section)}
-                                  title={section.hasTitleChain ? "View title chain details" : "No title chain data available"}
-                                >
-                                  View Title Chain
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!section.hasContacts}
-                                  className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors duration-150"
-                                  onClick={() => handleViewContacts(section)}
-                                  title={section.hasContacts ? "View contact information" : "No contact data available"}
-                                >
-                                  View Contacts
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {section.assignedBuyer ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      {section.assignedBuyer.name}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                      Unassigned
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-500">
+                                  {section.lastActivity ? (
+                                    <span title={`Last activity: ${new Date(section.lastActivity).toLocaleString()}`}>
+                                      {new Date(section.lastActivity).toLocaleDateString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">No activity</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!section.hasTitleChain}
+                                    className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors duration-150"
+                                    onClick={() => handleViewTitleChain(section)}
+                                    title={section.hasTitleChain ? "View title chain details" : "No title chain data available"}
+                                  >
+                                    View Title Chain
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!section.hasContacts}
+                                    className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors duration-150"
+                                    onClick={() => handleViewContacts(section)}
+                                    title={section.hasContacts ? "View contact information" : "No contact data available"}
+                                  >
+                                    View Contacts
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
                         );
                         })}
                       </tbody>
@@ -972,18 +948,6 @@ const UnitDetailPage: React.FC = () => {
                               </span>
                             </dd>
                           </div>
-                          <div>
-                            <dt className="text-sm font-medium text-gray-500">Assignment Date</dt>
-                                                      <dd className="text-sm text-gray-600">
-                            {unitAssignments.length > 0 && unitAssignments[0].assignedAt ? new Date(unitAssignments[0].assignedAt).toLocaleDateString() : 'N/A'}
-                          </dd>
-                          </div>
-                          <div>
-                            <dt className="text-sm font-medium text-gray-500">Assigned By</dt>
-                            <dd className="text-sm text-gray-600">
-                              {unitAssignments.length > 0 ? unitAssignments[0].assignedByUser?.name : 'N/A'}
-                            </dd>
-                          </div>
                         </dl>
                       </div>
                     </div>
@@ -1043,43 +1007,31 @@ const UnitDetailPage: React.FC = () => {
               </div>
             </Card>
 
-            {/* Assignment History */}
+            {/* Current Assignments */}
             <Card>
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Assignment History</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Assignments</h3>
                 {unitAssignments.length === 0 ? (
-                  <p className="text-gray-500">No assignment history available</p>
+                  <p className="text-gray-500">No current assignments</p>
                 ) : (
                   <div className="space-y-3">
-                    {unitAssignments.map((assignment) => (
-                      <div key={assignment.id} className="border-l-4 border-gray-200 pl-4 py-2">
+                    {unitAssignments
+                      .filter(assignment => assignment.assignmentStatus === 'In Progress' || !assignment.removedAt)
+                      .reduce((unique, assignment) => {
+                        // Only add if we haven't seen this buyer before
+                        if (!unique.find(item => item.buyer?.name === assignment.buyer?.name)) {
+                          unique.push(assignment);
+                        }
+                        return unique;
+                      }, [] as typeof unitAssignments)
+                      .map((assignment) => (
+                      <div key={assignment.id} className="border-l-4 border-blue-200 pl-4 py-2">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-sm text-gray-900">
-                              <span className="font-medium">Assigned to:</span> {assignment.buyer?.name}
+                              <span className="font-medium">Assigned to:</span> {assignment.buyer?.name || 'Unknown'}
                             </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">By:</span> {assignment.assignedByUser?.name}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">Date:</span> {new Date(assignment.assignedAt).toLocaleDateString()}
-                            </p>
-                            {assignment.notes && (
-                              <p className="text-sm text-gray-600 mt-1">{assignment.notes}</p>
-                            )}
                           </div>
-                          {assignment.removedAt && (
-                            <div className="text-right">
-                              <p className="text-sm text-red-600">
-                                Removed: {new Date(assignment.removedAt).toLocaleDateString()}
-                              </p>
-                              {assignment.removedByUser && (
-                                <p className="text-sm text-gray-600">
-                                  by {assignment.removedByUser.name}
-                                </p>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}

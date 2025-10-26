@@ -5,6 +5,7 @@ interface TableColumn<T> {
   header: string;
   accessor: keyof T | string;
   cell?: (item: T) => React.ReactNode;
+  className?: string;
 }
 
 interface TableProps<T> {
@@ -24,7 +25,7 @@ const Table = <T extends Record<string, any>>({ data, columns, className }: Tabl
 
   return (
     <div className={`overflow-x-auto bg-white rounded-lg border border-sc-light-orange shadow-lg ${className || ''}`}>
-      <table className="min-w-full divide-y divide-sc-light-orange">
+      <table className="min-w-full table-auto divide-y divide-sc-light-orange">
         <thead className="bg-gray-100">
           <tr>
             {columns.map((column, index) => (
@@ -44,7 +45,7 @@ const Table = <T extends Record<string, any>>({ data, columns, className }: Tabl
               {columns.map((column, colIndex) => (
                 <td
                   key={`${rowIndex}-${colIndex}`}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                  className={`px-6 py-4 text-sm text-gray-900 ${column.className || 'whitespace-nowrap'}`}
                 >
                   {column.cell ? column.cell(item) : (item[column.accessor] as React.ReactNode)}
                 </td>
