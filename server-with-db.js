@@ -3641,6 +3641,7 @@ app.get('/api/normalized/unit-summary', async (req, res) => {
   }
 });
 
+
 // Sections API endpoint with pagination
 app.get('/api/sections', async (req, res) => {
   try {
