@@ -2055,7 +2055,7 @@ app.get('/api/units', async (req, res) => {
       
       return {
         id: unitId,
-        unitName: row.unit_name.replace(/([A-Z0-9]+)\s+(?=[A-Z]+\s)/g, '$1\n'), // Add line breaks between well names
+        unitName: row.unit_name, // Keep unit name as-is without adding line breaks
         operator: 'Unknown', // Not available in current data
         apiNumbers: [], // Would need to be extracted from unit name or other sources
         targetFormations: ['Hunton', 'Woodford', 'Mississippian'], // Common OK formations
@@ -2277,15 +2277,25 @@ app.get('/api/units/:id/unit-names', async (req, res) => {
     console.log('Looking for unit names for:', unitName);
     
     // Get all records for this unit to extract unit names
+    // Find rows where CURRENT_UNIT_NAME matches, then extract both CURRENT and NEW unit names from those rows
     const query = `
-      SELECT DISTINCT CURRENT_UNIT_NAME
+      SELECT DISTINCT 
+        CURRENT_UNIT_NAME,
+        NEW_UNIT_NAME
       FROM prod_acreage_schedule
       WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
-      ORDER BY CURRENT_UNIT_NAME
+      ORDER BY CURRENT_UNIT_NAME, NEW_UNIT_NAME
     `;
     
     const rows = await executeQuery(query, [unitName]);
     console.log('Found unit name records:', rows.length);
+    console.log('Query for unit name:', unitName);
+    if (rows.length > 0) {
+      console.log('Sample rows:');
+      rows.slice(0, 3).forEach((row, idx) => {
+        console.log(`  Row ${idx}: CURRENT="${row.CURRENT_UNIT_NAME}", NEW="${row.NEW_UNIT_NAME}"`);
+      });
+    }
     
     if (rows.length === 0) {
       return res.json({
@@ -2297,20 +2307,42 @@ app.get('/api/units/:id/unit-names', async (req, res) => {
     
     // Extract individual unit names from the grouped unit name
     const allUnitNames = new Set();
+    const allNewUnitNames = new Set();
     
-    rows.forEach(row => {
+    rows.forEach((row, index) => {
       if (row.CURRENT_UNIT_NAME) {
         // Split by line breaks to get individual unit names
         const unitNames = row.CURRENT_UNIT_NAME.split(/\r\n|\n/).filter(name => name.trim() !== '');
         unitNames.forEach(name => allUnitNames.add(name.trim()));
       }
+      
+      // Check for NEW_UNIT_NAME - handle NULL, empty strings, and whitespace
+      if (row.NEW_UNIT_NAME != null && row.NEW_UNIT_NAME !== '') {
+        const trimmedNewName = String(row.NEW_UNIT_NAME).trim();
+        if (trimmedNewName && trimmedNewName !== 'NULL' && trimmedNewName !== 'null') {
+          console.log(`Row ${index} - NEW_UNIT_NAME found: "${trimmedNewName}"`);
+          // Check if it contains line breaks
+          if (trimmedNewName.includes('\n') || trimmedNewName.includes('\r\n')) {
+            const newUnitNames = trimmedNewName.split(/\r\n|\n/).filter(name => name.trim() !== '' && name.trim() !== 'NULL' && name.trim() !== 'null');
+            newUnitNames.forEach(name => allNewUnitNames.add(name.trim()));
+          } else {
+            // Single new unit name
+            allNewUnitNames.add(trimmedNewName);
+          }
+        }
+      } else {
+        console.log(`Row ${index} - NEW_UNIT_NAME is null or empty`);
+      }
     });
     
     const currentUnitNames = Array.from(allUnitNames);
+    const newUnitNames = Array.from(allNewUnitNames);
+    
+    console.log(`Extracted ${newUnitNames.length} new unit names:`, newUnitNames);
     
     res.json({
       currentUnitNames: currentUnitNames,
-      newUnitNames: [], // No new unit names for now
+      newUnitNames: newUnitNames,
       totalRecords: currentUnitNames.length
     });
     
@@ -3712,6 +3744,10 @@ app.get('/api/sections', async (req, res) => {
       // Use net mineral acres for both gross and net acres
       const netAcres = parseFloat(row.net_mineral_acres) || 0;
       
+      // Compute status based on buyer: empty buyer = unassigned, non-empty buyer = assigned
+      const buyer = row.assigned_buyer ? row.assigned_buyer.trim() : '';
+      const status = buyer ? 'assigned' : 'unassigned';
+      
       return {
         id: `s${offset + index + 1}`,
         section_name: row.str || `Section ${offset + index + 1}`,
@@ -3724,6 +3760,7 @@ app.get('/api/sections', async (req, res) => {
         grossAcres: netAcres,
         netMineralAcres: netAcres,
         titleStatus: row.statuses || 'Unknown',
+        status: status,
         legalDescription: row.legal_descriptions || 'No description available',
         assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
         buyerCount: row.buyer_count || 0,
@@ -3765,7 +3802,52 @@ app.get('/api/sections', async (req, res) => {
   }
 });
 
+// Find section by STR - using query parameter to avoid route conflicts
+app.get('/api/sections/by-str', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const str = req.query.str;
+    if (!str) {
+      return res.status(400).json({ success: false, message: 'STR query parameter is required' });
+    }
+    
+    const decodedStr = decodeURIComponent(str);
+    console.log('Looking for section with STR:', decodedStr);
+    
+    // Get all sections ordered by STR to find the index
+    const allResults = await executeQuery(`
+      SELECT DISTINCT S_T_R as str
+      FROM prod_acreage_schedule 
+      WHERE S_T_R IS NOT NULL 
+      ORDER BY S_T_R
+    `);
+    
+    // Find the index of the matching STR
+    const index = allResults.findIndex(row => row.str === decodedStr);
+    
+    if (index === -1) {
+      return res.status(404).json({ success: false, message: 'Section not found', str: decodedStr });
+    }
+    
+    // Return the section ID (s1, s2, etc.)
+    const sectionId = `s${index + 1}`;
+    console.log(`Found section ${sectionId} for STR ${decodedStr}`);
+    res.json({ id: sectionId, str: decodedStr, index });
+  } catch (error) {
+    console.error('Error finding section by STR:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error finding section by STR',
+      error: error.message 
+    });
+  }
+});
+
 // Get section contacts
+
 app.get('/api/sections/:id/contacts', async (req, res) => {
   try {
     if (!dbPool) {
