@@ -195,7 +195,7 @@ const ContactsPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-500">Loading contacts...</div>
+        <div className="text-lg text-gray-500">Loading owners...</div>
       </div>
     );
   }
@@ -212,7 +212,7 @@ const ContactsPage: React.FC = () => {
               </svg>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Contact Management</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Owner Management</h1>
               <p className="text-gray-600 mt-1">
                 Manage landowners, sellers, and individuals linked to mineral and non-op tracts
               </p>
@@ -221,7 +221,7 @@ const ContactsPage: React.FC = () => {
           <Link to="/contacts/new">
             <Button className="flex items-center space-x-2">
               <PlusIcon className="h-4 w-4" />
-              <span>Add Contact</span>
+              <span>Add Owner</span>
             </Button>
           </Link>
         </div>
@@ -235,7 +235,7 @@ const ContactsPage: React.FC = () => {
             <div className="flex-1 relative">
               <Input
                 type="text"
-                placeholder="Search contacts by name, email, or location..."
+                placeholder="Search owners by name, email, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -335,7 +335,7 @@ const ContactsPage: React.FC = () => {
                   onChange={(e) => setFilters({ ...filters, hasDistressSignals: e.target.value === 'true' || undefined })}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                 >
-                  <option value="">All Contacts</option>
+                  <option value="">All Owners</option>
                   <option value="true">With Distress Signals</option>
                 </select>
 
@@ -397,7 +397,7 @@ const ContactsPage: React.FC = () => {
 
       {/* Results Summary */}
       <div className="mb-4 text-sm text-gray-500">
-        Showing {filteredContacts.length} of {contacts.length} contacts
+        Showing {filteredContacts.length} of {contacts.length} owners
       </div>
 
       {/* Contacts Table */}
@@ -539,7 +539,7 @@ const ContactsPage: React.FC = () => {
         {filteredContacts.length === 0 && (
           <div className="text-center py-12">
             <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No contacts found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No owners found</h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm || Object.keys(filters).length > 0
                 ? 'Try adjusting your search or filters.'

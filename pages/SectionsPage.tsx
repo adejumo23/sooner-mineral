@@ -146,10 +146,20 @@ const SectionsPage: React.FC = () => {
     },
     {
       header: 'Status',
-      accessor: 'titleStatus',
-      cell: (section: Section) => (
-        <div className="text-sm text-gray-900 whitespace-pre-line">{section.titleStatus}</div>
-      )
+      accessor: 'status',
+      cell: (section: Section) => {
+        // Use status from server (computed from buyer column), or compute it if not available
+        const status = section.status || 
+          (section.assignedBuyer?.name || section.assignedBuyerId ? 'assigned' : 'unassigned');
+        const statusDisplay = status.charAt(0).toUpperCase() + status.slice(1);
+        return (
+          <span className={`text-sm font-medium ${
+            status === 'assigned' ? 'text-green-600' : 'text-gray-600'
+          }`}>
+            {statusDisplay}
+          </span>
+        );
+      }
     },
     {
       header: 'Assigned To',

@@ -983,7 +983,7 @@ const ContactDetailPage: React.FC = () => {
                   <div className="text-2xl font-bold text-purple-600">
                     {callLogs.filter(log => log.outcome === 'Interested').length}
                   </div>
-                  <div className="text-sm text-purple-800">Interested Contacts</div>
+                  <div className="text-sm text-purple-800">Interested Owners</div>
                 </div>
               </div>
 

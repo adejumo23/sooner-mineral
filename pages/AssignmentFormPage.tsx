@@ -174,10 +174,10 @@ const AssignmentFormPage: React.FC = () => {
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {isEditing ? 'Edit Assignment' : 'New Assignment'}
+              {isEditing ? 'Edit Buyer Assignment' : 'New Buyer Assignment'}
             </h1>
             <p className="text-gray-600 mt-1">
-              {isEditing ? 'Update assignment details' : 'Create a new asset assignment'}
+              {isEditing ? 'Update buyer assignment details' : 'Create a new buyer assignment'}
             </p>
           </div>
         </div>

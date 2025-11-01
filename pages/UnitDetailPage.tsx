@@ -10,6 +10,7 @@ import {
   fetchUnitAssignments,
   fetchUnitNames,
   fetchUsers,
+  fetchSections,
   assignUnit,
   unassignUnit,
   updateUnitLock,
@@ -226,9 +227,9 @@ const UnitDetailPage: React.FC = () => {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: DocumentTextIcon },
     { id: 'sections', name: 'Linked Sections', icon: MapIcon },
-    { id: 'contacts', name: 'Contacts', icon: UserIcon },
+    { id: 'contacts', name: 'Owners', icon: UserIcon },
     { id: 'mapping', name: 'Mapping Preview', icon: MapIcon },
-    { id: 'assignment', name: 'Assignment', icon: CogIcon },
+    { id: 'assignment', name: 'Buyer', icon: CogIcon },
   ];
 
   const filteredAndSortedSections = unitSectionsEnhanced
@@ -270,9 +271,68 @@ const UnitDetailPage: React.FC = () => {
     navigate(`/sections/${section.sectionId}?tab=title-chain`);
   };
 
-  const handleViewContacts = (section: UnitSectionEnhanced) => {
-    // Navigate to section detail page with contacts tab active
-    navigate(`/sections/${section.sectionId}?tab=contacts`);
+  const handleViewContacts = async (section: UnitSectionEnhanced) => {
+    console.log('handleViewContacts called with section:', section);
+    // Find the section ID by matching the STR value
+    const str = section.str || section.section?.str || '';
+    
+    console.log('STR value:', str);
+    
+    if (!str) {
+      console.error('No STR value found for section:', section);
+      alert('Unable to find section information. Please try navigating to sections manually.');
+      return;
+    }
+    
+    try {
+      console.log('Fetching section by STR:', str);
+      // Use the new API endpoint to find section by STR
+      // Use query parameter to avoid route conflicts
+      const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+      const encodedStr = encodeURIComponent(str);
+      const url = `${apiBaseUrl}/sections/by-str?str=${encodedStr}`;
+      
+      console.log('Fetching URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('Response status:', response.status, response.statusText);
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.substring(0, 200));
+        throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API error:', errorData);
+        throw new Error(`Section not found: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Section data received:', data);
+      
+      if (data.id) {
+        console.log('Navigating to section:', data.id);
+        // Navigate to section detail page with contacts tab active
+        navigate(`/sections/${data.id}?tab=contacts`);
+      } else {
+        throw new Error('Section ID not found in response');
+      }
+    } catch (error) {
+      console.error('Error finding section:', error);
+      // On error, navigate to sections page
+      navigate('/sections');
+      alert(`Error loading section with STR "${str}": ${error instanceof Error ? error.message : 'Unknown error'}. Please try navigating to sections manually.`);
+    }
   };
 
   return (
@@ -285,9 +345,17 @@ const UnitDetailPage: React.FC = () => {
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {unit.unitName.split('\n').map((line, index) => (
-                <div key={index} className="break-words">{line}</div>
-              ))}
+              {(() => {
+                const unitName = unit.unitName || 'Unnamed Unit';
+                // Split unit name if it contains multiple wells
+                // Pattern: Split on space after well identifier (ends with letters like XHW/XHM) followed by new well name (capital letters)
+                // Handles both single-word (GAPSTOW) and two-word (CURLY BILL) well names
+                const parts = unitName.split(/(?<=[\d-]+[A-Z0-9]{2,})\s+(?=[A-Z]+(?:\s+[A-Z]+)?\s+[\d-])/);
+                const wellNames = parts.length > 1 ? parts.map(p => p.trim()).filter(p => p) : [unitName];
+                return wellNames.map((name, index) => (
+                  <div key={index} className="break-words">{name}</div>
+                ));
+              })()}
             </h1>
             <p className="text-gray-600 mt-1">
               {unit.operator} • {unit.county}, {unit.state}
@@ -386,9 +454,15 @@ const UnitDetailPage: React.FC = () => {
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Unit Name</dt>
                     <dd className="text-sm text-gray-900">
-                      {unit.unitName.split('\n').map((line, index) => (
-                        <div key={index} className="break-words">{line}</div>
-                      ))}
+                      {(() => {
+                        const unitName = unit.unitName || 'Unnamed Unit';
+                        // Split unit name if it contains multiple wells
+                        const parts = unitName.split(/\s+(?=[A-Z]+(?:\s+[A-Z]+)*\s+[\d-]+[A-Z0-9]*)/);
+                        const wellNames = parts.length > 1 ? parts.map(p => p.trim()).filter(p => p) : [unitName];
+                        return wellNames.map((name, index) => (
+                          <div key={index} className="break-words">{name}</div>
+                        ));
+                      })()}
                     </dd>
                   </div>
                   <div>
@@ -489,13 +563,13 @@ const UnitDetailPage: React.FC = () => {
               </div>
             </Card>
 
-            {/* Assignment & Notes */}
+            {/* Buyer Assignment & Notes */}
             <Card className="lg:col-span-2">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Assignment & Notes</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Buyer Assignment & Notes</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="text-md font-medium text-gray-700 mb-3">Current Assignment</h4>
+                    <h4 className="text-md font-medium text-gray-700 mb-3">Current Buyer Assignment</h4>
                     {unit.assignedBuyer ? (
                       <div className="bg-gray-50 p-3 rounded-md">
                         <p className="text-sm text-gray-900">
@@ -589,7 +663,7 @@ const UnitDetailPage: React.FC = () => {
                             Net Acres (NMA)
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Assignment
+                            Assigned Buyers
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Last Activity
@@ -635,15 +709,21 @@ const UnitDetailPage: React.FC = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
-                                  {section.assignedBuyer ? (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      {section.assignedBuyer.name}
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                      Unassigned
-                                    </span>
-                                  )}
+                                  {(() => {
+                                    // Handle buyer as either string (from DB) or User object
+                                    const buyerName = typeof section.assignedBuyer === 'string' 
+                                      ? section.assignedBuyer 
+                                      : (section.assignedBuyer?.name || '');
+                                    return buyerName && buyerName.trim() ? (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {buyerName}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                        Unassigned
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -662,22 +742,16 @@ const UnitDetailPage: React.FC = () => {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={!section.hasTitleChain}
-                                    className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors duration-150"
-                                    onClick={() => handleViewTitleChain(section)}
-                                    title={section.hasTitleChain ? "View title chain details" : "No title chain data available"}
-                                  >
-                                    View Title Chain
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={!section.hasContacts}
                                     className="text-xs hover:bg-green-50 hover:border-green-300 transition-colors duration-150"
-                                    onClick={() => handleViewContacts(section)}
-                                    title={section.hasContacts ? "View contact information" : "No contact data available"}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      console.log('Button clicked for section:', section);
+                                      handleViewContacts(section);
+                                    }}
+                                    title="View owners for this section"
                                   >
-                                    View Contacts
+                                    View Owners
                                   </Button>
                                 </div>
                               </td>
@@ -705,7 +779,7 @@ const UnitDetailPage: React.FC = () => {
             <Card>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Unit Contacts</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Unit Owners</h3>
                   <div className="flex space-x-3">
                     <Button variant="outline" size="sm">
                       Filter & Sort
@@ -717,7 +791,7 @@ const UnitDetailPage: React.FC = () => {
                 </div>
                 
                 {unitContactsAggregated.length === 0 ? (
-                  <p className="text-gray-500">No contacts linked to this unit</p>
+                  <p className="text-gray-500">No owners linked to this unit</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -862,7 +936,7 @@ const UnitDetailPage: React.FC = () => {
                     <div className="text-2xl font-bold text-primary">
                       {unitContactsAggregated.length}
                     </div>
-                    <div className="text-sm text-gray-500">Total Contacts</div>
+                    <div className="text-sm text-gray-500">Total Owners</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
@@ -904,7 +978,7 @@ const UnitDetailPage: React.FC = () => {
             <Card>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Current Assignment</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Current Buyer Assignment</h3>
                   {!unit.assignedBuyer ? (
                     <Button onClick={() => setShowAssignmentModal(true)}>
                       Assign Unit
@@ -920,7 +994,7 @@ const UnitDetailPage: React.FC = () => {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Assignment Details</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">Buyer Assignment Details</h4>
                         <dl className="space-y-2">
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Assigned Buyer</dt>
@@ -938,7 +1012,7 @@ const UnitDetailPage: React.FC = () => {
                       </div>
                       
                       <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Assignment Status</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">Buyer Assignment Status</h4>
                         <dl className="space-y-2">
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Status</dt>
@@ -981,7 +1055,7 @@ const UnitDetailPage: React.FC = () => {
                               className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                             />
                             <label htmlFor="autoGenerateLeads" className="text-sm text-gray-700">
-                              Create leads for contacts tied to linked sections
+                              Create leads for owners tied to linked sections
                             </label>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
@@ -1007,12 +1081,12 @@ const UnitDetailPage: React.FC = () => {
               </div>
             </Card>
 
-            {/* Current Assignments */}
+            {/* Current Buyer Assignments */}
             <Card>
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Assignments</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Buyer Assignments</h3>
                 {unitAssignments.length === 0 ? (
-                  <p className="text-gray-500">No current assignments</p>
+                  <p className="text-gray-500">No current buyer assignments</p>
                 ) : (
                   <div className="space-y-3">
                     {unitAssignments
@@ -1155,7 +1229,7 @@ const UnitDetailPage: React.FC = () => {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Assignment Status
+              Buyer Assignment Status
             </label>
             <select
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -1196,7 +1270,7 @@ const UnitDetailPage: React.FC = () => {
                 className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
               />
               <label htmlFor="modalAutoGenerateLeads" className="text-sm text-gray-700">
-                Create leads for contacts tied to linked sections
+                Create leads for owners tied to linked sections
               </label>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -1206,14 +1280,14 @@ const UnitDetailPage: React.FC = () => {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Assignment Notes (Optional)
+              Buyer Assignment Notes (Optional)
             </label>
             <textarea
               value={assignmentNotes}
               onChange={(e) => setAssignmentNotes(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Add any notes about this assignment..."
+              placeholder="Add any notes about this buyer assignment..."
             />
           </div>
         </div>
@@ -1237,8 +1311,8 @@ const UnitDetailPage: React.FC = () => {
         <div className="space-y-4">
           <p className="text-gray-600">
             {unit.isLocked 
-              ? 'Unlocking this unit will allow outreach and assignment activities.'
-              : 'Locking this unit will prevent outreach and assignment activities while under due diligence.'
+              ? 'Unlocking this unit will allow outreach and buyer assignment activities.'
+              : 'Locking this unit will prevent outreach and buyer assignment activities while under due diligence.'
             }
           </p>
           
@@ -1277,7 +1351,7 @@ const UnitDetailPage: React.FC = () => {
             Are you sure you want to delete this unit?
           </p>
           <p className="text-gray-600">
-            This action cannot be undone. All unit data, assignments, and notes will be permanently removed.
+            This action cannot be undone. All unit data, buyer assignments, and notes will be permanently removed.
           </p>
         </div>
         
@@ -1308,7 +1382,7 @@ const UnitDetailPage: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
             >
               <option value="Internal">Internal</option>
-              <option value="Assignment">Assignment</option>
+              <option value="Assignment">Buyer Assignment</option>
               <option value="Status Change">Status Change</option>
               <option value="Lock/Unlock">Lock/Unlock</option>
               <option value="Other">Other</option>
