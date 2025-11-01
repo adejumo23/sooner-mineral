@@ -119,9 +119,9 @@ const AssignmentDetailPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="text-lg text-gray-500 mb-4">Assignment not found</div>
+          <div className="text-lg text-gray-500 mb-4">Buyer assignment not found</div>
           <Link to="/assignments">
-            <Button>Back to Assignments</Button>
+            <Button>Back to Buyers</Button>
           </Link>
         </div>
       </div>
@@ -141,7 +141,7 @@ const AssignmentDetailPage: React.FC = () => {
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Assignment: {assignment.assetType} {assignment.assetId}
+              Buyer Assignment: {assignment.assetType} {assignment.assetId}
             </h1>
             <p className="text-gray-600 mt-1">
               {assignment.asset?.tractName || assignment.asset?.unitName || 'Unknown Asset'}
@@ -238,9 +238,17 @@ const AssignmentDetailPage: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Unit Name</label>
                         <div className="text-gray-900">
-                          {assignment.asset.unitName.split(/\s+(?=[A-Z]+\s+\d+)/).map((unitName, index) => (
-                            <div key={index} className="break-words">{unitName.trim()}</div>
-                          ))}
+                          {(() => {
+                            const unitName = assignment.asset.unitName || 'Unnamed Unit';
+                            // Split unit name if it contains multiple wells
+                            // Pattern: Split on space after well identifier (ends with letters like XHW/XHM) followed by new well name (capital letters)
+                            // Handles both single-word (GAPSTOW) and two-word (CURLY BILL) well names
+                            const parts = unitName.split(/(?<=[\d-]+[A-Z0-9]{2,})\s+(?=[A-Z]+(?:\s+[A-Z]+)?\s+[\d-])/);
+                            const wellNames = parts.length > 1 ? parts.map(p => p.trim()).filter(p => p) : [unitName];
+                            return wellNames.map((name, index) => (
+                              <div key={index} className="break-words">{name}</div>
+                            ));
+                          })()}
                         </div>
                       </div>
                       <div>

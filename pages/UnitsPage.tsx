@@ -87,21 +87,48 @@ const UnitsPage: React.FC = () => {
     }
   };
 
+  // Split unit name into individual well names if multiple wells are present
+  // Pattern: Split when we see a well identifier (ending with pattern like XHW, XHM, or containing dashes/numbers)
+  // followed by a space and then a capital letter sequence that starts a new well name
+  const splitUnitName = (unitName: string): string[] => {
+    if (!unitName) return [];
+    
+    // Pattern: Split on space that comes after a well identifier pattern
+    // Well identifier: ends with letters like XHW/XHM or contains dashes with numbers/letters (at least 2 chars)
+    // Lookahead: followed by capital letters (could be single word like "GAPSTOW" or two words like "CURLY BILL")
+    // followed by space and then digits/dashes (the well number)
+    // This splits both:
+    // - "CURLY BILL 2-27-34XHW CURLY BILL 6-27-34XHM" (two-word well names)
+    // - "GAPSTOW 2-25-23XHW GAPSTOW 3-14-25XHW" (single-word well names)
+    const parts = unitName.split(/(?<=[\d-]+[A-Z0-9]{2,})\s+(?=[A-Z]+(?:\s+[A-Z]+)?\s+[\d-])/);
+    
+    // If no split occurred, return the original name as single item
+    if (parts.length === 1) {
+      return [unitName];
+    }
+    
+    // Return the split parts, trimming whitespace
+    return parts.map(part => part.trim()).filter(part => part.length > 0);
+  };
+
   const columns = [
     {
       header: 'Unit Name',
       accessor: 'unitName',
       className: 'whitespace-normal min-w-0 w-1/3',
-      cell: (unit: Unit) => (
-        <Link 
-          to={`/units/${unit.id}`}
-          className="text-sc-blue hover:text-sc-blue-dark font-medium block"
-        >
-          {unit.unitName.split('\n').map((line, index) => (
-            <div key={index} className="break-words">{line}</div>
-          ))}
-        </Link>
-      )
+      cell: (unit: Unit) => {
+        const wellNames = splitUnitName(unit.unitName || 'Unnamed Unit');
+        return (
+          <Link 
+            to={`/units/${unit.id}`}
+            className="text-sc-blue hover:text-sc-blue-dark font-medium block"
+          >
+            {wellNames.map((name, index) => (
+              <div key={index} className="break-words">{name}</div>
+            ))}
+          </Link>
+        );
+      }
     },
     {
       header: 'Operator',

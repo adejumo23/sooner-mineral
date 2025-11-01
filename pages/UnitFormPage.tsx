@@ -424,14 +424,14 @@ const UnitFormPage: React.FC = () => {
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Linked Contacts
+                  Linked Owners
                 </label>
                 <Button
                   onClick={() => setShowContactModal(true)}
                   type="button"
                   variant="secondary"
                 >
-                  Add Contacts
+                  Add Owners
                 </Button>
               </div>
               {formData.linkedContactIds && formData.linkedContactIds.length > 0 ? (
@@ -453,7 +453,7 @@ const UnitFormPage: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No contacts linked to this unit</p>
+                <p className="text-gray-500 text-sm">No owners linked to this unit</p>
               )}
             </div>
 
@@ -574,7 +574,7 @@ const UnitFormPage: React.FC = () => {
       <Modal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
-        title="Select Contacts to Link"
+        title="Select Owners to Link"
       >
         <div className="max-h-96 overflow-y-auto">
           {contacts.map(contact => (

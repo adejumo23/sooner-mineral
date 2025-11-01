@@ -1406,7 +1406,7 @@ export const fetchPrivileges = async () => {
       },
       {
         id: '6',
-        name: 'Contact Management',
+        name: 'Owner Management',
         description: 'Manage landowners, sellers, and contacts',
         roles: [
           { id: '1', name: 'Administrator' },

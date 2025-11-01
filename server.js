@@ -77,6 +77,10 @@ app.get('/api/sections', async (req, res) => {
       // Use net mineral acres for both gross and net acres as requested
       const netAcres = parseFloat(row.net_mineral_acres) || 0;
       
+      // Compute status based on buyer: empty buyer = unassigned, non-empty buyer = assigned
+      const buyer = row.assigned_buyer ? row.assigned_buyer.trim() : '';
+      const status = buyer ? 'assigned' : 'unassigned';
+      
       return {
         id: `s${index + 1}`,
         section_name: generateSectionName(row.state, row.str),
@@ -89,6 +93,7 @@ app.get('/api/sections', async (req, res) => {
         grossAcres: netAcres, // Using net acres for gross acres as requested
         netMineralAcres: netAcres,
         titleStatus: row.title_status || 'Unknown',
+        status: status,
         legalDescription: row.legal_description,
         assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
         owner_name: row.owner_name,

@@ -196,7 +196,7 @@ const SectionDetailPage: React.FC = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'contacts', label: 'Contacts' },
+    { id: 'contacts', label: 'Owners' },
     { id: 'mapping', label: 'Mapping' },
     { id: 'title-chain', label: 'Title Chain' },
     { id: 'leads', label: 'Leads' }
@@ -290,10 +290,6 @@ const SectionDetailPage: React.FC = () => {
                   <div className="text-gray-900 font-medium">{section.county}</div>
                 </div>
                 <div>
-                  <span className="text-gray-600 text-sm">Title Status</span>
-                  <div className="text-gray-900 font-medium whitespace-pre-line">{section.titleStatus}</div>
-                </div>
-                <div>
                   <span className="text-gray-600 text-sm">Assigned Buyer</span>
                   <div className="text-gray-900 font-medium">{section.assignedBuyer?.name || 'Unassigned'}</div>
                 </div>
@@ -341,25 +337,6 @@ const SectionDetailPage: React.FC = () => {
                   <div>
                     <span className="text-gray-600 text-sm">ANUM</span>
                     <div className="text-gray-900 font-medium">{section.anum || 'N/A'}</div>
-                  </div>
-                </div>
-                
-                {/* STR Breakdown */}
-                <div className="mt-4">
-                  <h4 className="text-md font-medium text-gray-900 mb-3">STR Breakdown</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <span className="text-gray-600 text-sm">Section Number</span>
-                      <div className="text-gray-900 font-medium">{section.sectionNumber || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 text-sm">Township</span>
-                      <div className="text-gray-900 font-medium">{section.township || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 text-sm">Range</span>
-                      <div className="text-gray-900 font-medium">{section.range || 'N/A'}</div>
-                    </div>
                   </div>
                 </div>
                   </div>
@@ -502,15 +479,15 @@ const SectionDetailPage: React.FC = () => {
         {activeTab === 'contacts' && (
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Section Contacts</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Section Owners</h3>
               <div className="text-sm text-gray-500">
-                {contacts.length} contact{contacts.length !== 1 ? 's' : ''} found
+                {contacts.length} owner{contacts.length !== 1 ? 's' : ''} found
               </div>
             </div>
             
             {contacts.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
-                <p>No contacts found for this section.</p>
+                <p>No owners found for this section.</p>
               </div>
             ) : (
               <div className="space-y-4">

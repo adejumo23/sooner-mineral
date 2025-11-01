@@ -39,6 +39,7 @@ export interface Section {
   nra?: number; // Net Royalty Acres. Auto-calculated: NMA * Royalty / 0.125
   ownershipPercentage?: number;
   titleStatus: TitleStatus;
+  status?: 'assigned' | 'unassigned'; // Computed from buyer column: empty = unassigned, non-empty = assigned
   assignedBuyerId?: string; // Foreign Key to User.id
   assignedBuyer?: User; // Populated from assignedBuyerId
   nraCapUsd?: number;
@@ -593,7 +594,7 @@ export interface MapLayer {
   icon?: string;
 }
 
-// Assignment & Buyer Routing Module Types
+// Buyer Assignment Module Types
 export interface Assignment {
   id: string;
   assetType: 'Tract' | 'Unit';

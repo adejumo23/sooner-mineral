@@ -69,7 +69,7 @@ const DashboardPage: React.FC = () => {
       status: 'active'
     },
     {
-      name: 'Assignments',
+      name: 'Buyer',
       description: 'Track buyer assignments and acquisition workflows',
       href: '/assignments',
       icon: ClipboardDocumentListIcon,
@@ -89,7 +89,7 @@ const DashboardPage: React.FC = () => {
       status: 'active'
     },
     {
-      name: 'Contacts',
+      name: 'Owners',
       description: 'Manage landowner and stakeholder relationships',
       href: '/contacts',
       icon: UserGroupIcon,
