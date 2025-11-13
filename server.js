@@ -18,16 +18,21 @@ app.use('/uploads', express.static('uploads'));
 initializeDatabase().catch(console.error);
 
 // Utility function to generate section name based on state and S-T-R data
-const generateSectionName = (state, str) => {
+const generateSectionName = (state, str, sectionName) => {
+  // If sectionName is already provided and not empty, use it
+  if (sectionName && sectionName.trim() && sectionName !== 'data yet to be provided') {
+    return sectionName;
+  }
+  
   if (state === 'OK' && str) {
     // For Oklahoma, use the S-T-R data as the section name
     return str;
-  } else if (state === 'TX') {
-    // For Texas, use placeholder text
-    return 'data yet to be provided';
+  } else if (str && str.trim() && str !== 'data yet to be provided') {
+    // If STR data is available, use it regardless of state
+    return str;
   } else {
     // For other states or missing data, use a default
-    return str || 'Section Name Not Available';
+    return 'Section Name Not Available';
   }
 };
 
@@ -1688,7 +1693,9 @@ app.get('/api/assignments', async (req, res) => {
         asset: {
           id: row.str || `unit_${index + 1}`,
           unitName: row.current_unit || row.new_unit || `Unit ${row.str}`,
-          sectionName: row.str || 'Unknown Section'
+          sectionName: row.str || 'Unknown Section',
+          currentUnit: row.current_unit || null,
+          newUnit: row.new_unit || null
         },
         assignedBuyer: {
           id: `buyer_${row.buyer_name?.replace(/\s+/g, '_').toLowerCase() || 'unknown'}`,
@@ -1796,7 +1803,9 @@ app.get('/api/assignments/:id', async (req, res) => {
       asset: {
         id: row.str || `unit_${assignmentIndex + 1}`,
         unitName: row.current_unit || row.new_unit || `Unit ${row.str}`,
-        sectionName: row.str || 'Unknown Section'
+        sectionName: row.str || 'Unknown Section',
+        currentUnit: row.current_unit || null,
+        newUnit: row.new_unit || null
       },
       assignedBuyer: {
         id: `buyer_${row.buyer_name?.replace(/\s+/g, '_').toLowerCase() || 'unknown'}`,
@@ -2170,19 +2179,20 @@ app.get('/api/contacts', async (req, res) => {
     console.log('GET /api/contacts requested');
     
     // Query the prod_acreage_schedule table for contact information
+    // Group by owner and sum NMA values
     const results = await executeQuery(`
-      SELECT DISTINCT
+      SELECT 
         OWNER as owner_name,
-        CONTACT as contact_info,
-        PHONE_EMAIL as phone_email,
-        NOTE as notes,
-        BUYER as assigned_buyer,
-        S_T_R as str,
-        COUNTY as county,
-        ST as state,
-        NMA as net_mineral_acres
+        MAX(CONTACT) as contact_info,
+        MAX(PHONE_EMAIL) as phone_email,
+        GROUP_CONCAT(DISTINCT NOTE SEPARATOR '; ') as notes,
+        MAX(BUYER) as assigned_buyer,
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        SUM(CAST(NMA AS DECIMAL(10,2))) as total_net_mineral_acres
       FROM prod_acreage_schedule 
-      WHERE (OWNER IS NOT NULL OR CONTACT IS NOT NULL)
+      WHERE (OWNER IS NOT NULL AND OWNER != '')
+      GROUP BY OWNER
       ORDER BY OWNER
     `);
     
@@ -2204,16 +2214,16 @@ app.get('/api/contacts', async (req, res) => {
       return {
         id: `c${index + 1}`,
         name: row.owner_name || 'Unknown Owner',
-        email: email,
-        phone: phone,
+        email: email || '',
+        phone: phone || '',
         address: '',
         city: row.county || 'Unknown',
         state: row.state || 'Unknown',
         contactType: 'Landowner',
-        notes: row.notes || '',
+        notes: (row.notes || '').toString(),
         assignedBuyer: row.assigned_buyer || null,
-        str: row.str,
-        netMineralAcres: parseFloat(row.net_mineral_acres) || 0,
+        netMineralAcres: parseFloat(row.total_net_mineral_acres) || 0,
+        totalNMA: parseFloat(row.total_net_mineral_acres) || 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -2226,33 +2236,181 @@ app.get('/api/contacts', async (req, res) => {
   }
 });
 
+// Contact sub-routes - MUST come before /api/contacts/:id to be matched first
+// Contact tract ownership endpoint
+app.get('/api/contacts/:id/tract-ownership', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/contacts/${id}/tract-ownership requested`);
+    
+    // Parse contact ID to get owner name
+    let offset;
+    if (id.startsWith('contact-')) {
+      // contact-0 format: contact-0 = index 0, contact-1 = index 1, etc.
+      offset = parseInt(id.replace('contact-', ''));
+    } else if (id.startsWith('c')) {
+      // c1 format: c1 = index 0, c2 = index 1, etc.
+      const contactNumber = parseInt(id.replace('c', ''));
+      offset = contactNumber - 1;
+    } else {
+      return res.status(404).json({ error: 'Invalid contact ID format' });
+    }
+    
+    if (isNaN(offset) || offset < 0) {
+      return res.status(404).json({ error: 'Invalid contact ID' });
+    }
+    
+    // Get all contacts to find the owner name
+    const allContacts = await executeQuery(`
+      SELECT DISTINCT OWNER as owner_name
+      FROM prod_acreage_schedule 
+      WHERE (OWNER IS NOT NULL AND OWNER != '')
+      ORDER BY OWNER
+    `);
+    
+    if (offset >= allContacts.length) {
+      return res.json([]);
+    }
+    
+    const ownerName = allContacts[offset].owner_name;
+    
+    // Get all sections/tracts for this owner
+    const results = await executeQuery(`
+      SELECT 
+        S_T_R as str,
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        SUM(CAST(NMA AS DECIMAL(10,2))) as net_mineral_acres,
+        AVG(CAST(ROY AS DECIMAL(5,2))) as royalty_percentage,
+        AVG(CAST(ALLO_ AS DECIMAL(5,2))) as ownership_percentage
+      FROM prod_acreage_schedule 
+      WHERE OWNER = ?
+      GROUP BY S_T_R
+      ORDER BY S_T_R
+    `, [ownerName]);
+    
+    const tractOwnership = results.map((row, index) => ({
+      id: `to${index + 1}`,
+      contactId: id,
+      sectionId: `s${index + 1}`,
+      section: {
+        id: `s${index + 1}`,
+        str: row.str,
+        county: row.county,
+        state: row.state,
+        sectionName: row.str
+      },
+      ownershipPercentage: (parseFloat(row.ownership_percentage) || 0) / 100,
+      royaltyPercentage: (parseFloat(row.royalty_percentage) || 0) / 100,
+      nma: parseFloat(row.net_mineral_acres) || 0,
+      nra: (parseFloat(row.net_mineral_acres) || 0) * ((parseFloat(row.royalty_percentage) || 0) / 100) / 0.125,
+      hasActiveLead: false
+    }));
+    
+    res.json(tractOwnership);
+  } catch (error) {
+    console.error('Error fetching contact tract ownership:', error);
+    res.status(500).json({ error: 'Failed to fetch contact tract ownership' });
+  }
+});
+
+// Contact units endpoint
+app.get('/api/contacts/:id/units', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/contacts/${id}/units requested`);
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching contact units:', error);
+    res.status(500).json({ error: 'Failed to fetch contact units' });
+  }
+});
+
+// Contact leads endpoint
+app.get('/api/contacts/:id/leads', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/contacts/${id}/leads requested`);
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching contact leads:', error);
+    res.status(500).json({ error: 'Failed to fetch contact leads' });
+  }
+});
+
+// Contact call logs endpoint
+app.get('/api/contacts/:id/call-logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/contacts/${id}/call-logs requested`);
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching contact call logs:', error);
+    res.status(500).json({ error: 'Failed to fetch contact call logs' });
+  }
+});
+
+// Contact documents endpoint
+app.get('/api/contacts/:id/documents', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/contacts/${id}/documents requested`);
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching contact documents:', error);
+    res.status(500).json({ error: 'Failed to fetch contact documents' });
+  }
+});
+
+// Contact distress signals endpoint
+app.get('/api/contacts/:id/distress-signals', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/contacts/${id}/distress-signals requested`);
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching contact distress signals:', error);
+    res.status(500).json({ error: 'Failed to fetch contact distress signals' });
+  }
+});
+
+// Contact detail endpoint - MUST come after all sub-routes
 app.get('/api/contacts/:id', async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`GET /api/contacts/${id} requested`);
     
-    // Parse the contact ID to get the offset
-    const contactNumber = parseInt(id.replace('c', ''));
-    if (isNaN(contactNumber) || contactNumber < 1) {
+    // Parse the contact ID to get the offset - handle both 'c1' and 'contact-0' formats
+    let offset;
+    if (id.startsWith('contact-')) {
+      // contact-0 format: contact-0 = index 0, contact-1 = index 1, etc.
+      offset = parseInt(id.replace('contact-', ''));
+    } else if (id.startsWith('c')) {
+      // c1 format: c1 = index 0, c2 = index 1, etc.
+      const contactNumber = parseInt(id.replace('c', ''));
+      offset = contactNumber - 1;
+    } else {
+      return res.status(404).json({ error: 'Invalid contact ID format' });
+    }
+    
+    if (isNaN(offset) || offset < 0) {
       return res.status(404).json({ error: 'Invalid contact ID' });
     }
     
-    const offset = contactNumber - 1;
-    
-    // Get all contacts and find the one with the matching ID
+    // Get all contacts grouped by owner with summed NMA
     const allResults = await executeQuery(`
-      SELECT DISTINCT
+      SELECT 
         OWNER as owner_name,
-        CONTACT as contact_info,
-        PHONE_EMAIL as phone_email,
-        NOTE as notes,
-        BUYER as assigned_buyer,
-        S_T_R as str,
-        COUNTY as county,
-        ST as state,
-        NMA as net_mineral_acres
+        MAX(CONTACT) as contact_info,
+        MAX(PHONE_EMAIL) as phone_email,
+        GROUP_CONCAT(DISTINCT NOTE SEPARATOR '; ') as notes,
+        MAX(BUYER) as assigned_buyer,
+        MAX(COUNTY) as county,
+        MAX(ST) as state,
+        SUM(CAST(NMA AS DECIMAL(10,2))) as total_net_mineral_acres
       FROM prod_acreage_schedule 
-      WHERE (OWNER IS NOT NULL OR CONTACT IS NOT NULL)
+      WHERE (OWNER IS NOT NULL AND OWNER != '')
+      GROUP BY OWNER
       ORDER BY OWNER
     `);
     
@@ -2280,16 +2438,16 @@ app.get('/api/contacts/:id', async (req, res) => {
     const contact = {
       id: id,
       name: row.owner_name || 'Unknown Owner',
-      email: email,
-      phone: phone,
+      email: email || '',
+      phone: phone || '',
       address: '',
       city: row.county || 'Unknown',
       state: row.state || 'Unknown',
       contactType: 'Landowner',
-      notes: row.notes || '',
+      notes: (row.notes || '').toString(),
       assignedBuyer: row.assigned_buyer || null,
-      str: row.str,
-      netMineralAcres: parseFloat(row.net_mineral_acres) || 0,
+      netMineralAcres: parseFloat(row.total_net_mineral_acres) || 0,
+      totalNMA: parseFloat(row.total_net_mineral_acres) || 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

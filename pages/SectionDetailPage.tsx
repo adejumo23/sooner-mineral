@@ -215,8 +215,8 @@ const SectionDetailPage: React.FC = () => {
             ← Back to Sections
           </button>
           <h1 className="text-3xl font-bold text-gray-900 mt-4">{section.sectionName}</h1>
-          <p className="text-gray-600 mt-2 whitespace-pre-line">
-            {section.state}, {section.county} • {section.titleStatus}
+          <p className="text-gray-600 mt-2">
+            {section.assignedBuyer || section.assignedBuyerId ? 'Assigned' : 'Unassigned'}
           </p>
         </div>
         <div className="flex space-x-3">

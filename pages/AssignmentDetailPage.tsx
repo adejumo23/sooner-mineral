@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { fetchAssignment, fetchAssignmentHistory, updateAssignment, deleteAssignment } from '../services/api';
+import { fetchAssignment, fetchAssignmentHistory, updateAssignment, deleteAssignment, fetchUnitSections, fetchUnitSectionsEnhanced } from '../services/api';
 import { Assignment, AssignmentHistory } from '../types';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -17,6 +17,9 @@ const AssignmentDetailPage: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editData, setEditData] = useState<Partial<Assignment>>({});
+  const [unitSections, setUnitSections] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -36,6 +39,45 @@ const AssignmentDetailPage: React.FC = () => {
       
       setAssignment(assignmentData);
       setHistory(historyData || []);
+      
+      // If it's a Unit asset, fetch the linked sections to get STRs
+      if (assignmentData && assignmentData.assetType === 'Unit') {
+        try {
+          const unitName = assignmentData.asset?.unitName;
+          
+          if (unitName) {
+            // Clean the unit name (remove extra whitespace, newlines)
+            const cleanUnitName = unitName.trim().replace(/\r\n/g, ' ').replace(/\n/g, ' ');
+            
+            console.log('Fetching sections for unit:', cleanUnitName);
+            
+            // Try fetching enhanced sections first (groups by STR)
+            let sections = await fetchUnitSectionsEnhanced(encodeURIComponent(cleanUnitName));
+            console.log('Fetched enhanced unit sections:', sections);
+            
+            // If enhanced returns nothing, try regular sections
+            if (!sections || sections.length === 0) {
+              sections = await fetchUnitSections(encodeURIComponent(cleanUnitName));
+              console.log('Fetched regular unit sections:', sections);
+            }
+            
+            if (sections && sections.length > 0) {
+              setUnitSections(sections);
+            } else {
+              console.log('No sections found for unit:', cleanUnitName);
+              setUnitSections([]);
+            }
+          } else {
+            console.log('No unit name available in asset');
+            setUnitSections([]);
+          }
+        } catch (error) {
+          console.error('Error loading unit sections:', error);
+          setUnitSections([]);
+        }
+      } else {
+        setUnitSections([]);
+      }
       
       if (assignmentData) {
         setEditData({
@@ -77,6 +119,40 @@ const AssignmentDetailPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting assignment:', error);
       alert('Failed to delete assignment');
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!id || !assignment || !newNote.trim()) return;
+    
+    try {
+      setIsAddingNote(true);
+      const date = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // Append new note with date to existing notes
+      const existingNotes = assignment.notes || '';
+      const updatedNotes = existingNotes 
+        ? `${existingNotes}\n\n[${date}] ${newNote.trim()}`
+        : `[${date}] ${newNote.trim()}`;
+      
+      // Update the assignment with new notes
+      const updatedAssignment = await updateAssignment(id, { notes: updatedNotes });
+      setAssignment(updatedAssignment);
+      setNewNote('');
+      
+      // Reload to get updated data
+      await loadAssignment();
+    } catch (error) {
+      console.error('Error adding note:', error);
+      alert('Failed to add note');
+    } finally {
+      setIsAddingNote(false);
     }
   };
 
@@ -225,6 +301,10 @@ const AssignmentDetailPage: React.FC = () => {
                         <p className="text-gray-900">{assignment.asset.county}, {assignment.asset.state}</p>
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">STR</label>
+                        <p className="text-gray-900">{assignment.asset.str || 'N/A'}</p>
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Gross Acres</label>
                         <p className="text-gray-900">{assignment.asset.grossAcres?.toLocaleString()}</p>
                       </div>
@@ -261,7 +341,78 @@ const AssignmentDetailPage: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-500 mb-1">Status</label>
-                        <p className="text-gray-900">{assignment.asset.status}</p>
+                        <p className="text-gray-900">
+                          {(() => {
+                            // Check if unit name comes from CURRENT_UNIT_NAME column
+                            const asset = assignment.asset as any;
+                            const unitName = asset?.unitName;
+                            const currentUnit = asset?.currentUnit;
+                            const newUnit = asset?.newUnit;
+                            
+                            // If currentUnit exists and matches unitName, it came from CURRENT_UNIT_NAME
+                            if (currentUnit && currentUnit.trim() && currentUnit.trim() === unitName?.trim()) {
+                              return 'Completed/Producing';
+                            }
+                            
+                            // Also check if we have unit sections with currentUnit matching
+                            if (unitSections && unitSections.length > 0) {
+                              const hasCurrentUnit = unitSections.some((section: any) => {
+                                const sectionCurrentUnit = section.currentUnit || section.current_unit;
+                                if (sectionCurrentUnit && unitName) {
+                                  return sectionCurrentUnit.trim() === unitName.trim();
+                                }
+                                return false;
+                              });
+                              if (hasCurrentUnit) {
+                                return 'Completed/Producing';
+                              }
+                            }
+                            
+                            // If newUnit exists and matches unitName, it came from NEW_UNIT_NAME (not producing yet)
+                            if (newUnit && newUnit.trim() && newUnit.trim() === unitName?.trim()) {
+                              return 'Permitted';
+                            }
+                            
+                            // Default fallback
+                            return 'Active';
+                          })()}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Linked STRs</label>
+                        {(() => {
+                          // Collect all unique STRs from unit sections
+                          const strs = new Set<string>();
+                          
+                          // From unit sections - extract str field directly
+                          if (unitSections && unitSections.length > 0) {
+                            unitSections.forEach((section: any) => {
+                              // The API returns sections with str field directly
+                              const str = section.str;
+                              // Validate it looks like an STR (contains dashes like "06-01S-03W")
+                              if (str && typeof str === 'string' && str.includes('-') && str !== 'N/A') {
+                                strs.add(str);
+                              }
+                            });
+                          }
+                          
+                          const uniqueStrs = Array.from(strs).sort();
+                          
+                          return uniqueStrs.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                              {uniqueStrs.map((str, index) => (
+                                <div
+                                  key={index}
+                                  className="text-sm font-medium text-gray-900"
+                                >
+                                  {str}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500">No STRs linked to this unit</p>
+                          );
+                        })()}
                       </div>
                     </>
                   )}
@@ -356,14 +507,41 @@ const AssignmentDetailPage: React.FC = () => {
           </Card>
 
           {/* Notes */}
-          {assignment.notes && (
-            <Card>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Notes</h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{assignment.notes}</p>
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Notes</h3>
+              
+              {/* Existing Notes */}
+              {assignment.notes && (
+                <div className="mb-4">
+                  <p className="text-gray-700 whitespace-pre-wrap">{assignment.notes}</p>
+                </div>
+              )}
+              
+              {/* Add New Note */}
+              <div className="border-t border-gray-200 pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Add Note
+                </label>
+                <textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter a new note..."
+                />
+                <div className="mt-2 flex justify-end">
+                  <Button
+                    onClick={handleAddNote}
+                    disabled={!newNote.trim() || isAddingNote}
+                    className="flex items-center space-x-2"
+                  >
+                    {isAddingNote ? 'Adding...' : 'Add Note'}
+                  </Button>
+                </div>
               </div>
-            </Card>
-          )}
+            </div>
+          </Card>
         </div>
       </div>
 

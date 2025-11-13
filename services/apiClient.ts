@@ -2,16 +2,21 @@
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 // Utility function to generate section name based on state and S-T-R data
-export const generateSectionName = (state: string, str?: string): string => {
+export const generateSectionName = (state: string, str?: string, sectionName?: string): string => {
+  // If sectionName is already provided and not empty, use it
+  if (sectionName && sectionName.trim() && sectionName !== 'data yet to be provided') {
+    return sectionName;
+  }
+  
   if (state === 'OK' && str) {
     // For Oklahoma, use the S-T-R data as the section name
     return str;
-  } else if (state === 'TX') {
-    // For Texas, use placeholder text
-    return 'data yet to be provided';
+  } else if (str && str.trim() && str !== 'data yet to be provided') {
+    // If STR data is available, use it regardless of state
+    return str;
   } else {
     // For other states or missing data, use a default
-    return str || 'Section Name Not Available';
+    return 'Section Name Not Available';
   }
 };
 
@@ -152,7 +157,7 @@ export const fetchSections = async (page = 1, limit = 50) => {
     // Generate section names based on state and S-T-R data
     const processedSections = sections.map((section: any) => ({
       ...section,
-      sectionName: generateSectionName(section.state, section.str),
+      sectionName: generateSectionName(section.state, section.str, section.sectionName || section.section_name),
       state: 'OK' // Hardcode state to 'OK' as requested
     }));
     
@@ -173,7 +178,7 @@ export const fetchSection = async (id: string) => {
     // Generate section name based on state and S-T-R data
     return {
       ...section,
-      sectionName: generateSectionName(section.state, section.str),
+      sectionName: generateSectionName(section.state, section.str, section.sectionName || section.section_name),
       state: 'OK' // Hardcode state to 'OK' as requested
     };
   } catch (error) {

@@ -113,29 +113,52 @@ const ContactDetailPage: React.FC = () => {
         fetchDistressSignals(id!)
       ]);
 
+      // Ensure arrays are defined
+      const safeTractsData = Array.isArray(tractsData) ? tractsData : [];
+      const safeUnitsData = Array.isArray(unitsData) ? unitsData : [];
+      const safeLeadsData = Array.isArray(leadsData) ? leadsData : [];
+      const safeSignalsData = Array.isArray(signalsData) ? signalsData : [];
+      const safeContactData = contactData || {};
+      
+      // Count unique sections from tractsData using section STR or ID
+      const uniqueSections = new Set(
+        safeTractsData
+          .map((t: any) => t?.section?.str || t?.section?.id || t?.tract?.str || t?.tract?.id || t?.sectionId || t?.tractId)
+          .filter(Boolean)
+      );
+      
+      // Get totalNMA from API response (prioritize totalNMA, then netMineralAcres, then calculate from tracts)
+      // Use nullish coalescing to only fall back if value is null/undefined (not if it's 0)
+      const apiTotalNMA = safeContactData.totalNMA ?? safeContactData.netMineralAcres;
+      const calculatedTotalNMA = safeTractsData.reduce((sum: number, t: any) => sum + (t?.nma || 0), 0);
+      // Ensure we use the API value if it exists (even if 0), otherwise use calculated value
+      const finalTotalNMA = (apiTotalNMA != null && apiTotalNMA !== undefined) 
+        ? Number(apiTotalNMA) || 0 
+        : calculatedTotalNMA;
+      
       // Enhance contact data
       const enhancedContact: ContactEnhanced = {
-        ...contactData,
-        role: 'Landowner' as const,
-        ownershipType: 'Mineral' as const,
-        preferredContactMethod: 'Call' as const,
-        source: 'Manual Entry',
-        origination: 'User Input',
-        totalNMA: tractsData.reduce((sum, t) => sum + (t.nma || 0), 0),
-        totalNRA: tractsData.reduce((sum, t) => sum + (t.nra || 0), 0),
-        distressSignals: signalsData,
-        linkedTractCount: tractsData.length,
-        linkedUnitCount: unitsData.length,
-        activeLeadCount: leadsData.filter((l: any) => l.status === 'Open' || l.status === 'In Progress').length
+        ...safeContactData,
+        role: (safeContactData.role as any) || 'Landowner' as const,
+        ownershipType: (safeContactData.ownershipType as any) || 'Mineral' as const,
+        preferredContactMethod: (safeContactData.preferredContactMethod as any) || 'Call' as const,
+        source: safeContactData.source || 'Manual Entry',
+        origination: safeContactData.origination || 'User Input',
+        totalNMA: finalTotalNMA,
+        totalNRA: safeTractsData.reduce((sum: number, t: any) => sum + (t?.nra || 0), 0),
+        distressSignals: safeSignalsData,
+        linkedTractCount: uniqueSections.size || safeTractsData.length,
+        linkedUnitCount: safeUnitsData.length,
+        activeLeadCount: safeLeadsData.filter((l: any) => l?.status === 'Open' || l?.status === 'In Progress').length
       };
 
       setContact(enhancedContact);
-      setTracts(tractsData);
-      setUnits(unitsData);
-      setLeads(leadsData);
-      setCallLogs(callLogsData);
-      setDocuments(documentsData);
-      setDistressSignals(signalsData);
+      setTracts(safeTractsData);
+      setUnits(safeUnitsData);
+      setLeads(safeLeadsData);
+      setCallLogs(Array.isArray(callLogsData) ? callLogsData : []);
+      setDocuments(Array.isArray(documentsData) ? documentsData : []);
+      setDistressSignals(safeSignalsData);
     } catch (error) {
       console.error('Failed to load contact data:', error);
     } finally {
@@ -226,7 +249,7 @@ const ContactDetailPage: React.FC = () => {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: UserIcon },
-    { id: 'tracts', name: 'Linked Tracts', icon: MapIcon },
+    { id: 'tracts', name: 'Linked Sections', icon: MapIcon },
     { id: 'units', name: 'Linked Units', icon: ClipboardDocumentListIcon },
     { id: 'map', name: 'Map', icon: MapIcon },
     { id: 'communication', name: 'Communication', icon: EnvelopeIcon },
@@ -376,7 +399,7 @@ const ContactDetailPage: React.FC = () => {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-sc-blue">{contact.linkedTractCount}</div>
-                    <div className="text-sm text-gray-500">Linked Tracts</div>
+                    <div className="text-sm text-gray-500">Linked Sections</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-sc-blue">{contact.activeLeadCount}</div>
@@ -429,7 +452,7 @@ const ContactDetailPage: React.FC = () => {
             <div className="p-6">
               {/* Header with View Map button */}
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Linked Tracts</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Linked Sections</h3>
                 <Button 
                   variant="outline" 
                   onClick={() => setActiveTab('map')}
@@ -440,13 +463,13 @@ const ContactDetailPage: React.FC = () => {
                 </Button>
               </div>
               {tracts.length === 0 ? (
-                <p className="text-gray-500">No tracts linked to this contact</p>
+                <p className="text-gray-500">No sections linked to this contact</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tract</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STR</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ownership %</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Royalty %</th>
@@ -456,14 +479,23 @@ const ContactDetailPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {tracts.map((tract) => (
+                      {tracts.map((tract) => {
+                        // Handle both section and tract data structures
+                        const sectionData = tract.section || tract.tract || {};
+                        const sectionName = sectionData.sectionName || sectionData.tractName || sectionData.str || 'Unknown Section';
+                        const county = sectionData.county || '';
+                        const state = sectionData.state || '';
+                        const str = sectionData.str || 'N/A';
+                        const tractId = tract.sectionId || tract.tractId || tract.id;
+                        
+                        return (
                         <tr key={tract.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{tract.tract.tractName}</div>
-                            <div className="text-sm text-gray-500">{tract.tract.county}, {tract.tract.state}</div>
+                            <div className="text-sm font-medium text-gray-900">{sectionName}</div>
+                            <div className="text-sm text-gray-500">{county}{county && state ? ', ' : ''}{state}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
-                            {tract.tract.str || 'N/A'}
+                            {str}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {(tract.ownershipPercentage * 100).toFixed(1)}%
@@ -479,8 +511,8 @@ const ContactDetailPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
-                              <Link to={`/tracts/${tract.tractId}`}>
-                                <Button variant="outline" size="sm">View Tract</Button>
+                              <Link to={`/sections/${tractId}`}>
+                                <Button variant="outline" size="sm">View Section</Button>
                               </Link>
                               {tract.hasActiveLead && (
                                 <Button variant="outline" size="sm">View Lead</Button>
@@ -488,7 +520,8 @@ const ContactDetailPage: React.FC = () => {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -572,7 +605,7 @@ const ContactDetailPage: React.FC = () => {
                           Total NRA
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          View Tracts
+                          View Sections
                         </th>
                       </tr>
                     </thead>
@@ -602,7 +635,11 @@ const ContactDetailPage: React.FC = () => {
                               <div className="text-sm text-gray-900">{unit.formation || 'N/A'}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{unit.assignedBuyer || 'Unassigned'}</div>
+                              <div className="text-sm text-gray-900">
+                                {unit.assignedBuyer 
+                                  ? (typeof unit.assignedBuyer === 'string' ? unit.assignedBuyer : unit.assignedBuyer.name)
+                                  : 'Unassigned'}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
@@ -631,7 +668,7 @@ const ContactDetailPage: React.FC = () => {
                                 }}
                                 className="flex items-center space-x-1"
                               >
-                                <span>View Tracts</span>
+                                <span>View Sections</span>
                                 <svg className="w-4 h-4 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
@@ -644,13 +681,13 @@ const ContactDetailPage: React.FC = () => {
                             <td colSpan={8} className="px-0 py-0">
                               <div className="bg-gray-50 border-t border-gray-200">
                                 <div className="px-6 py-4">
-                                  <h5 className="text-sm font-medium text-gray-700 mb-3">Linked Tracts in {unit.unitName}</h5>
+                                  <h5 className="text-sm font-medium text-gray-700 mb-3">Linked Sections in {unit.unitName}</h5>
                                   <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
                                       <thead className="bg-gray-100">
                                         <tr>
                                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tract Name
+                                            Section Name
                                           </th>
                                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             STR / ANUM
@@ -673,31 +710,37 @@ const ContactDetailPage: React.FC = () => {
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-gray-200">
-                                        {unit.tracts.map((tract) => {
+                                        {(unit.sections || unit.tracts || []).map((section) => {
+                                          // Handle both section and tract data structures
+                                          const sectionData = section.section || section.tract || {};
+                                          const sectionName = sectionData.sectionName || sectionData.tractName || sectionData.str || 'Unknown Section';
+                                          const str = sectionData.str || 'N/A';
+                                          const sectionId = section.sectionId || section.tractId || section.id;
+                                          
                                           // Calculate NRA (1/8th normalized)
-                                          const nra = tract.nma && tract.royaltyPercentage ? 
-                                            (tract.nma * tract.royaltyPercentage / 0.125) : 0;
+                                          const nra = section.nra || (section.nma && section.royaltyPercentage ? 
+                                            (section.nma * section.royaltyPercentage / 0.125) : 0);
                                           
                                           return (
-                                            <tr key={tract.id} className="hover:bg-gray-50">
+                                            <tr key={section.id} className="hover:bg-gray-50">
                                               <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900">
-                                                  {tract.tract.tractName}
+                                                  {sectionName}
                                                 </div>
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900 font-mono">
-                                                  {tract.tract.str || 'N/A'}
+                                                  {str}
                                                 </div>
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900">
-                                                  {tract.nma?.toLocaleString() || '0'}
+                                                  {section.nma?.toLocaleString() || '0'}
                                                 </div>
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900">
-                                                  {tract.royaltyPercentage ? (tract.royaltyPercentage * 100).toFixed(4) : '0'}%
+                                                  {section.royaltyPercentage ? (section.royaltyPercentage * 100).toFixed(4) : '0'}%
                                                 </div>
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
@@ -707,21 +750,21 @@ const ContactDetailPage: React.FC = () => {
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
                                                 <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                                  tract.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
-                                                  tract.status === 'Unassigned' ? 'bg-gray-100 text-gray-800' :
-                                                  tract.status === 'Assigned' ? 'bg-green-100 text-green-800' :
+                                                  section.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                                                  section.status === 'Unassigned' ? 'bg-gray-100 text-gray-800' :
+                                                  section.status === 'Assigned' ? 'bg-green-100 text-green-800' :
                                                   'bg-gray-100 text-gray-800'
                                                 }`}>
-                                                  {tract.status || 'Unassigned'}
+                                                  {section.status || 'Unassigned'}
                                                 </span>
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
-                                                {tract.assignedBuyer ? (
+                                                {section.assignedBuyer ? (
                                                   <Link 
-                                                    to={`/leads?buyer=${tract.assignedBuyer}&tract=${tract.tractId}`}
+                                                    to={`/leads?buyer=${typeof section.assignedBuyer === 'string' ? section.assignedBuyer : section.assignedBuyer.name}&section=${sectionId}`}
                                                     className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                                                   >
-                                                    {tract.assignedBuyer}
+                                                    {typeof section.assignedBuyer === 'string' ? section.assignedBuyer : section.assignedBuyer.name}
                                                   </Link>
                                                 ) : (
                                                   <span className="text-sm text-gray-400">—</span>
@@ -833,7 +876,7 @@ const ContactDetailPage: React.FC = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tract Name / ID
+                          Section Name / ID
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           STR
@@ -863,23 +906,31 @@ const ContactDetailPage: React.FC = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {leads.map((lead) => {
-                        // Find associated tract information
-                        const associatedTract = tracts.find(t => t.tractId === lead.tractId);
+                        // Find associated section information
+                        const associatedSection = tracts.find(t => 
+                          (t.sectionId || t.tractId) === (lead.sectionId || lead.tractId)
+                        );
                         // Check for distress signals
                         const hasDistressSignals = distressSignals.length > 0;
+                        
+                        // Handle both section and tract data structures
+                        const sectionData = associatedSection?.section || associatedSection?.tract || {};
+                        const sectionName = sectionData.sectionName || sectionData.tractName || sectionData.str || 'N/A';
+                        const sectionId = associatedSection?.sectionId || associatedSection?.tractId || lead.sectionId || lead.tractId;
+                        const str = sectionData.str || 'N/A';
                         
                         return (
                           <tr key={lead.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
-                                {associatedTract ? associatedTract.tract.tractName : 'N/A'}
+                                {sectionName}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {associatedTract ? `ID: ${associatedTract.tractId}` : 'No tract linked'}
+                                {sectionId ? `ID: ${sectionId}` : 'No section linked'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
-                              {associatedTract ? associatedTract.tract.str || 'N/A' : 'N/A'}
+                              {str}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -895,7 +946,9 @@ const ContactDetailPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {lead.assignedBuyer || 'Unassigned'}
+                                {lead.assignedBuyer 
+                                  ? (typeof lead.assignedBuyer === 'string' ? lead.assignedBuyer : lead.assignedBuyer.name)
+                                  : 'Unassigned'}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -1316,7 +1369,7 @@ const ContactDetailPage: React.FC = () => {
                           Notes
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Linked Tracts
+                          Linked Sections
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
