@@ -20,14 +20,21 @@ export const generateSectionName = (state: string, str?: string, sectionName?: s
   }
 };
 
-// Helper function to make API requests
+// Helper function to make API requests with cache-busting
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // Add cache-busting parameter to prevent stale data
+  const separator = endpoint.includes('?') ? '&' : '?';
+  const cacheBuster = `_t=${Date.now()}`;
+  const url = `${API_BASE_URL}${endpoint}${separator}${cacheBuster}`;
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       ...options.headers,
     },
+    cache: 'no-store',
     ...options,
   });
 
@@ -797,9 +804,13 @@ export const fetchMapLayerPreferences = async () => {
   }
 };
 
-export const fetchNearbyWells = async (lat: number, lng: number, radius: number) => {
+export const fetchNearbyWells = async (lat: number, lng: number, radius: number, county?: string) => {
   try {
-    return await apiRequest(`/map/nearby/wells?lat=${lat}&lng=${lng}&radius=${radius}`);
+    let url = `/map/nearby/wells?lat=${lat}&lng=${lng}&radius=${radius}`;
+    if (county) {
+      url += `&county=${encodeURIComponent(county)}`;
+    }
+    return await apiRequest(url);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];

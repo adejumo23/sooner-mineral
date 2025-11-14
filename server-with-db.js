@@ -4740,10 +4740,11 @@ app.get('/api/map/nearby/wells', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Database pool not initialized' });
     }
 
-    const { lat, lng, radius } = req.query;
+    const { lat, lng, radius, county } = req.query;
     
     // Return mock wells data for now
-    const wells = [
+    // If county is provided, we'll filter or note it in the response
+    const baseWells = [
       {
         id: 'well-1',
         name: 'Sample Well 1',
@@ -4752,7 +4753,8 @@ app.get('/api/map/nearby/wells', async (req, res) => {
         status: 'Producing',
         operator: 'Sample Operator',
         depth: 8500,
-        formation: 'Woodford'
+        formation: 'Woodford',
+        county: county || 'Unknown'
       },
       {
         id: 'well-2',
@@ -4762,9 +4764,25 @@ app.get('/api/map/nearby/wells', async (req, res) => {
         status: 'Drilling',
         operator: 'Another Operator',
         depth: 9200,
-        formation: 'Mississippian'
+        formation: 'Mississippian',
+        county: county || 'Unknown'
       }
     ];
+    
+    // Filter by county if provided (normalize for comparison)
+    const normalizedCounty = county ? county.trim().toLowerCase() : null;
+    const wells = normalizedCounty 
+      ? baseWells.filter(well => {
+          const wellCounty = well.county ? well.county.trim().toLowerCase() : '';
+          const matches = wellCounty === normalizedCounty;
+          if (!matches) {
+            console.log(`County mismatch: well county="${well.county}" (normalized: "${wellCounty}") vs requested="${county}" (normalized: "${normalizedCounty}")`);
+          }
+          return matches;
+        })
+      : baseWells;
+    
+    console.log(`Fetching wells: lat=${lat}, lng=${lng}, radius=${radius}, county="${county || 'none'}" (normalized: "${normalizedCounty || 'none'}"), found ${wells.length} wells`);
     
     res.json(wells);
   } catch (error) {

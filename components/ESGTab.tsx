@@ -98,6 +98,18 @@ const ESGTab: React.FC<ESGTabProps> = ({
     }
   };
 
+  // Helper function to safely format dates
+  const formatDate = (date: Date | string | undefined | null): string => {
+    if (!date) return 'N/A';
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (isNaN(dateObj.getTime())) return 'N/A';
+      return dateObj.toLocaleDateString();
+    } catch (error) {
+      return 'N/A';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -220,7 +232,7 @@ const ESGTab: React.FC<ESGTabProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Last Updated</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {esgProfile.lastDataUpdate.toLocaleDateString()}
+                      {formatDate(esgProfile.lastDataUpdate)}
                     </span>
                   </div>
                 </div>
@@ -228,7 +240,7 @@ const ESGTab: React.FC<ESGTabProps> = ({
             </div>
 
             {/* Risk Factors */}
-            {esgProfile.riskFactors.length > 0 && (
+            {esgProfile.riskFactors && esgProfile.riskFactors.length > 0 && (
               <div className="mt-6">
                 <h5 className="text-sm font-medium text-gray-500 mb-3">Risk Factors</h5>
                 <div className="flex flex-wrap gap-2">
@@ -346,7 +358,7 @@ const ESGTab: React.FC<ESGTabProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Last Update</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {esgProfile.lastDataUpdate.toLocaleDateString()}
+                      {formatDate(esgProfile.lastDataUpdate)}
                     </span>
                   </div>
                 </div>
@@ -361,13 +373,13 @@ const ESGTab: React.FC<ESGTabProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Created Date</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {esgProfile.createdAt.toLocaleDateString()}
+                      {formatDate(esgProfile.createdAt)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Last Modified</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {esgProfile.lastModifiedAt.toLocaleDateString()}
+                      {formatDate(esgProfile.lastModifiedAt)}
                     </span>
                   </div>
                 </div>

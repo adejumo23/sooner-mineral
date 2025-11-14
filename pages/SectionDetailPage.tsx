@@ -53,7 +53,16 @@ const SectionDetailPage: React.FC = () => {
       
       const foundSection = sectionsData.find(s => s.id === sectionId);
       if (foundSection) {
-        setSection(foundSection);
+        // Normalize section data to ensure consistent field names
+        const normalizedSection = {
+          ...foundSection,
+          sectionName: foundSection.sectionName || (foundSection as any).section_name,
+          county: foundSection.county || (foundSection as any).COUNTY,
+          state: foundSection.state || (foundSection as any).ST || (foundSection as any).state
+        };
+        console.log('Section data loaded:', normalizedSection);
+        console.log('County value:', normalizedSection.county);
+        setSection(normalizedSection);
       } else {
         navigate('/sections');
         return;
@@ -559,7 +568,7 @@ const SectionDetailPage: React.FC = () => {
         {activeTab === 'mapping' && (
           <ArcGISMappingTab 
             sectionId={section.id} 
-            sectionName={section.sectionName}
+            sectionName={section.sectionName || (section as any).section_name}
             section={{
               sectionNumber: section.sectionNumber,
               township: section.township,
