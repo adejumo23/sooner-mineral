@@ -19,8 +19,174 @@ interface ArcGISMappingTabProps {
   };
 }
 
+// Helper function to get county center coordinates
+const getCountyCenter = (county?: string, state?: string): [number, number] | null => {
+  if (!county || !state) {
+    console.log(`getCountyCenter: Missing county (${county}) or state (${state})`);
+    return null;
+  }
+  
+  // Normalize county name for lookup (remove "County" suffix, trim, lowercase, handle multi-word names)
+  let normalizedCounty = county.trim().toLowerCase().replace(/\s+county\s*$/i, '');
+  // Handle multi-word county names (e.g., "Roger Mills" -> "roger mills")
+  normalizedCounty = normalizedCounty.replace(/\s+/g, ' ').trim();
+  const stateCode = state.toUpperCase();
+  
+  console.log(`getCountyCenter: Looking up county="${county}" (normalized: "${normalizedCounty}"), state="${state}" (code: "${stateCode}")`);
+  
+  // County coordinates by state and county name
+  // Oklahoma - All 77 counties
+  const countyCenters: { [key: string]: { [key: string]: [number, number] } } = {
+    'OK': {
+      'adair': [-94.6339, 35.8844], // Stilwell
+      'alfalfa': [-98.5806, 36.7550], // Cherokee
+      'atoka': [-96.1281, 34.3858], // Atoka
+      'beaver': [-100.5331, 36.8125], // Beaver
+      'beckham': [-99.3350, 35.2681], // Sayre
+      'blaine': [-98.4331, 35.8750], // Watonga
+      'bryan': [-96.3881, 33.9931], // Durant
+      'caddo': [-98.3706, 35.3881], // Anadarko
+      'canadian': [-97.9767, 35.4676], // El Reno
+      'carter': [-97.1431, 34.2231], // Ardmore
+      'cherokee': [-94.9700, 35.9100], // Tahlequah
+      'choctaw': [-95.3700, 34.0200], // Hugo
+      'cimarron': [-102.5100, 36.7500], // Boise City
+      'cleveland': [-97.4867, 35.3278], // Norman
+      'coal': [-96.2200, 34.5900], // Coalgate
+      'comanche': [-98.3856, 34.6037], // Lawton
+      'cotton': [-98.3800, 34.2900], // Walters
+      'craig': [-95.2100, 36.7900], // Vinita
+      'creek': [-96.0081, 35.9981], // Sapulpa
+      'custer': [-99.0000, 35.5400], // Arapaho
+      'delaware': [-94.6500, 36.4100], // Jay
+      'dewey': [-99.2700, 35.9800], // Taloga
+      'ellis': [-99.7500, 36.2200], // Arnett
+      'garfield': [-97.8800, 36.4000], // Enid
+      'garvin': [-97.5900, 34.7300], // Pauls Valley
+      'grady': [-97.9600, 35.0200], // Chickasha
+      'grant': [-97.6700, 36.8000], // Medford
+      'greer': [-99.5600, 34.9400], // Mangum
+      'harmon': [-99.8500, 34.7400], // Hollis
+      'harper': [-99.6800, 36.8400], // Buffalo
+      'haskell': [-95.6700, 35.2200], // Stigler
+      'hughes': [-96.2500, 35.0500], // Holdenville
+      'jackson': [-99.3300, 34.6200], // Altus
+      'jefferson': [-97.7800, 34.1100], // Waurika
+      'johnston': [-96.6800, 34.3200], // Tishomingo
+      'kay': [-97.0000, 36.7000], // Newkirk
+      'kingfisher': [-97.9300, 35.8600], // Kingfisher
+      'kiowa': [-98.9800, 34.7300], // Hobart
+      'latimer': [-95.3100, 34.9200], // Wilburton
+      'le flore': [-94.6300, 34.9000], // Poteau
+      'leflore': [-94.6300, 34.9000], // Poteau (alternative spelling)
+      'lincoln': [-96.9200, 35.7000], // Chandler
+      'logan': [-97.6000, 35.8500], // Guthrie
+      'love': [-97.3200, 33.9600], // Marietta
+      'mcclain': [-97.3300, 35.0100], // Purcell
+      'mccurtain': [-94.6200, 34.0300], // Idabel
+      'mcintosh': [-95.7700, 35.3800], // Eufaula
+      'major': [-98.3000, 36.3100], // Fairview
+      'marshall': [-96.7700, 34.0200], // Madill
+      'mayes': [-95.3100, 36.3000], // Pryor Creek
+      'murray': [-97.0100, 34.4800], // Sulphur
+      'muskogee': [-95.3700, 35.7500], // Muskogee
+      'noble': [-97.4000, 36.3900], // Perry
+      'nowata': [-95.6400, 36.7000], // Nowata
+      'okfuskee': [-96.3200, 35.4600], // Okemah
+      'oklahoma': [-97.5164, 35.4676], // Oklahoma City
+      'okmulgee': [-95.9700, 35.6200], // Okmulgee
+      'osage': [-96.0000, 36.6300], // Pawhuska
+      'ottawa': [-94.8100, 36.8400], // Miami
+      'pawnee': [-96.8000, 36.3400], // Pawnee
+      'payne': [-97.0920, 36.1263], // Stillwater
+      'pittsburg': [-95.7700, 35.0200], // McAlester
+      'pontotoc': [-96.6800, 34.6500], // Ada
+      'pottawatomie': [-97.0017, 35.3278], // Shawnee
+      'pushmataha': [-95.3200, 34.4200], // Antlers
+      'roger mills': [-99.6900, 35.6800], // Cheyenne
+      'rogers': [-95.7694, 36.3120], // Claremore
+      'seminole': [-96.6700, 35.2200], // Wewoka
+      'sequoyah': [-94.6300, 35.5000], // Sallisaw
+      'stephens': [-97.9600, 34.4800], // Duncan
+      'texas': [-101.7800, 36.7500], // Guymon
+      'tillman': [-98.9200, 34.3800], // Frederick
+      'tulsa': [-95.9928, 36.1540], // Tulsa
+      'wagoner': [-95.3800, 35.9600], // Wagoner
+      'washington': [-95.9900, 36.7600], // Bartlesville
+      'washita': [-98.9200, 35.2900], // Cordell
+      'woods': [-98.8700, 36.7500], // Alva
+      'woodward': [-99.3900, 36.4300], // Woodward
+    },
+    'TX': {
+      'andrews': [-102.5456, 32.3189], // Andrews
+      'borden': [-101.4300, 32.7400], // Gail
+      'coke': [-100.5300, 31.8900], // Robert Lee
+      'concho': [-99.8600, 31.3300], // Paint Rock
+      'crane': [-102.3500, 31.4000], // Crane
+      'crosby': [-101.2400, 33.6200], // Crosbyton
+      'dawson': [-101.7200, 32.7400], // Lamesa
+      'ector': [-102.3676, 31.8486], // Odessa
+      'glasscock': [-101.5203, 31.8693], // Garden City
+      'howard': [-101.4353, 32.3060], // Big Spring
+      'irion': [-100.9800, 31.3000], // Mertzon
+      'loving': [-103.5500, 31.8500], // Mentone
+      'martin': [-101.9500, 32.3100], // Stanton
+      'midland': [-102.0776, 31.9686], // Midland
+      'pecos': [-103.0500, 30.7800], // Fort Stockton
+      'reagan': [-101.5231, 31.3669], // Big Lake
+      'reeves': [-103.6800, 31.3200], // Pecos
+      'sterling': [-101.0000, 31.8400], // Sterling City
+      'terry': [-102.3300, 33.1800], // Brownfield
+      'upton': [-102.5439, 31.2126], // Rankin
+      'ward': [-102.7600, 31.5100], // Monahans
+      'winkler': [-103.0400, 31.8500], // Kermit
+      'yoakum': [-102.8300, 33.1800], // Plains
+    },
+  };
+  
+  const stateCounties = countyCenters[stateCode];
+  if (!stateCounties) {
+    console.log(`getCountyCenter: No counties found for state code "${stateCode}"`);
+    return null;
+  }
+  
+  const coordinates = stateCounties[normalizedCounty];
+  if (coordinates) {
+    console.log(`getCountyCenter: Found coordinates for "${normalizedCounty}":`, coordinates);
+    return coordinates;
+  }
+  
+  console.log(`getCountyCenter: County "${normalizedCounty}" not found in state "${stateCode}". Available counties:`, Object.keys(stateCounties));
+  return null;
+};
+
+// Helper function to get state center coordinates (fallback)
+const getStateCenter = (state?: string): [number, number] => {
+  const stateCenters: { [key: string]: [number, number] } = {
+    'OK': [-97.5164, 35.4676], // Oklahoma City, OK
+    'TX': [-102.0776, 31.9686], // Midland, TX
+    'NM': [-106.2485, 34.5199], // Santa Fe, NM
+    'CO': [-105.3111, 39.7392], // Denver, CO
+    'KS': [-98.4842, 39.0119], // Topeka, KS
+    'AR': [-92.3731, 34.7465], // Little Rock, AR
+    'LA': [-91.1869, 30.4515], // Baton Rouge, LA
+  };
+  
+  if (state && stateCenters[state.toUpperCase()]) {
+    return stateCenters[state.toUpperCase()];
+  }
+  
+  // Default to Oklahoma if state not found
+  return [-97.5164, 35.4676];
+};
+
 const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionName, section }) => {
   console.log('ArcGISMappingTab component rendered with sectionId:', sectionId, 'sectionName:', sectionName);
+  console.log('Section prop received:', section);
+  if (section?.county) {
+    const countyCenter = getCountyCenter(section.county, section.state);
+    console.log(`County lookup for "${section.county}", "${section.state}":`, countyCenter);
+  }
   
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapView, setMapView] = useState<any>(null);
@@ -56,6 +222,18 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
     }
   }, [sectionId, arcgisLoaded, useFallbackMap]);
 
+  // Update map center when section data changes (especially county)
+  useEffect(() => {
+    if (mapView && !useFallbackMap && section?.county && section?.state) {
+      const countyCenter = getCountyCenter(section.county, section.state);
+      if (countyCenter) {
+        console.log(`Updating map center based on section county change: ${section.county}, ${section.state}`);
+        mapView.center = [countyCenter[0], countyCenter[1]];
+        mapView.zoom = 12;
+      }
+    }
+  }, [mapView, section?.county, section?.state, useFallbackMap]);
+
   // Add section graphics when tract spatial data is available
   useEffect(() => {
     if (arcgisLoaded && sectionSpatial && !useFallbackMap) {
@@ -89,16 +267,19 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
       // Create map
       console.log('Creating ArcGIS Map...');
       const map = new Map({
-        basemap: "satellite"
+        basemap: "streets-vector"
       });
       console.log('Map created successfully');
 
-      // Create map view
+      // Create map view with county or state-based center
       console.log('Creating MapView...');
+      // Try county first, then fall back to state
+      const initialCenter = getCountyCenter(section?.county, section?.state) || getStateCenter(section?.state);
+      console.log(`Using initial center for ${section?.county || 'no county'}, ${section?.state || 'default'}:`, initialCenter);
       const view = new MapView({
         container: container as HTMLDivElement,
         map: map,
-        center: [-102.0776, 31.9686],
+        center: initialCenter,
         zoom: 12
       });
       console.log('MapView created successfully');
@@ -159,29 +340,63 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
       setSectionSpatial(spatial);
       setLayerPreferences(Array.isArray(preferences) ? preferences : []);
 
-      if (spatial?.latitude && spatial?.longitude) {
-        // Update map center to tract location
-        if (mapView && !useFallbackMap) {
-          mapView.center = [spatial.longitude, spatial.latitude];
-        }
-        
-        // Fetch nearby data
-        const [wellsData, permitsData, rigsData, unitsData] = await Promise.all([
-          api.fetchNearbyWells(spatial.latitude, spatial.longitude, 10),
-          api.fetchNearbyPermits(spatial.latitude, spatial.longitude, 10),
-          api.fetchNearbyRigs(spatial.latitude, spatial.longitude, 10),
-          api.fetchNearbyUnits(spatial.latitude, spatial.longitude, 10)
-        ]);
-        
-        setWells(wellsData);
-        setPermits(permitsData);
-        setRigs(rigsData);
-        setUnits(unitsData);
+      // Determine center coordinates: prioritize county (if available), then spatial data, then state
+      // NOTE: We prioritize county over spatial data because spatial data might have default/incorrect coordinates
+      let centerLat: number;
+      let centerLon: number;
+      
+      // First, try county-specific coordinates (most reliable for correct location)
+      const countyCenter = getCountyCenter(section?.county, section?.state);
+      if (countyCenter) {
+        centerLon = countyCenter[0];
+        centerLat = countyCenter[1];
+        console.log(`Using county coordinates for ${section?.county}, ${section?.state}: [${centerLon}, ${centerLat}]`);
+      } else if (spatial?.latitude && spatial?.longitude) {
+        // Use spatial data if county not found
+        centerLat = spatial.latitude;
+        centerLon = spatial.longitude;
+        console.log(`Using spatial data coordinates: [${centerLon}, ${centerLat}]`);
+      } else {
+        // Fall back to state-based center
+        const stateCenter = getStateCenter(section?.state);
+        centerLon = stateCenter[0];
+        centerLat = stateCenter[1];
+        console.log(`Using state center for ${section?.state}: [${centerLon}, ${centerLat}]`);
+      }
 
-        // Add features to map
-        if (arcgisLoaded && !useFallbackMap) {
-          addFeaturesToMap(spatial, wellsData, permitsData, rigsData, unitsData);
-        }
+      // Update map center
+      if (mapView && !useFallbackMap) {
+        mapView.center = [centerLon, centerLat];
+        console.log(`Map center updated to: [${centerLon}, ${centerLat}]`);
+        // Also update zoom to ensure we can see the area
+        mapView.zoom = 12;
+      }
+      
+      // Fetch nearby data (include county for filtering)
+      // Normalize county name (trim whitespace, handle case variations)
+      const normalizedCounty = section?.county?.trim() || null;
+      console.log(`Fetching wells for section:`, {
+        county: section?.county,
+        normalizedCounty: normalizedCounty,
+        state: section?.state,
+        center: [centerLat, centerLon],
+        sectionData: section
+      });
+      const [wellsData, permitsData, rigsData, unitsData] = await Promise.all([
+        api.fetchNearbyWells(centerLat, centerLon, 10, normalizedCounty),
+        api.fetchNearbyPermits(centerLat, centerLon, 10),
+        api.fetchNearbyRigs(centerLat, centerLon, 10),
+        api.fetchNearbyUnits(centerLat, centerLon, 10)
+      ]);
+      
+      setWells(wellsData);
+      setPermits(permitsData);
+      setRigs(rigsData);
+      setUnits(unitsData);
+
+      // Add features to map
+      if (arcgisLoaded && !useFallbackMap && spatial) {
+        addFeaturesToMap(spatial, wellsData, permitsData, rigsData, unitsData);
       }
     } catch (error) {
       console.error('Failed to fetch map data:', error);
@@ -335,8 +550,10 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
       
       // Create a 6x6 grid of sections
       const sectionSize = 0.01; // Approximate size in degrees
-      const centerLat = sectionSpatial.centroid_lat || sectionSpatial.latitude || 35.8617;
-      const centerLon = sectionSpatial.centroid_lon || sectionSpatial.longitude || -97.9365;
+      // Use spatial data if available, otherwise try county, then fall back to state-based center
+      const fallbackCenter = getCountyCenter(section?.county, section?.state) || getStateCenter(section?.state);
+      const centerLat = sectionSpatial.centroid_lat || sectionSpatial.latitude || fallbackCenter[1];
+      const centerLon = sectionSpatial.centroid_lon || sectionSpatial.longitude || fallbackCenter[0];
 
       // Calculate the starting position (top-left corner of the 6x6 grid)
       const startLat = centerLat + (sectionSize * 2.5); // Start from top
@@ -415,6 +632,29 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
 
           layers.sections.add(sectionGraphic);
           layers.sections.add(textGraphic);
+
+          // Add STR label overlay for current section
+          if (isCurrentSection && sectionSpatial.str) {
+            const strLabelGraphic = {
+              geometry: {
+                type: "point",
+                longitude: sectionLon + (sectionSize / 2),
+                latitude: sectionLat - (sectionSize / 2) - 0.002 // Position below section number
+              },
+              symbol: {
+                type: "text",
+                text: `STR: ${sectionSpatial.str}`,
+                color: [59, 130, 246], // Blue color
+                font: {
+                  size: 14,
+                  weight: "bold"
+                },
+                haloColor: "white",
+                haloSize: 2
+              }
+            };
+            layers.sections.add(strLabelGraphic);
+          }
         }
       }
 
@@ -461,7 +701,9 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
             {useFallbackMap ? 'Simple Spatial View' : 'ArcGIS Spatial View'}
           </h3>
           <p className="text-sc-slate text-sm">
-            {sectionName} • {sectionSpatial?.geometryType === 'STR' ? sectionSpatial.geometryData?.str : 'Point Location'}
+            {sectionName} {section?.county && section?.state && `• ${section.county}, ${section.state}`}
+            {sectionSpatial?.geometryType === 'STR' && ` • ${sectionSpatial.geometryData?.str}`}
+            {!sectionSpatial?.geometryType && ' • Point Location'}
           </p>
           {useFallbackMap && (
             <p className="text-yellow-400 text-xs">Simple map mode - ArcGIS not available</p>
@@ -497,6 +739,39 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
           className="arcgis-map-container w-full h-96 rounded-lg border border-gray-600"
           style={{ backgroundColor: '#1a202c' }}
         />
+        {/* STR Overlay - Top Right Corner */}
+        {(sectionSpatial?.str || section?.str) && !useFallbackMap && (
+          <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg border-2 border-blue-400 z-10">
+            <div className="text-xs font-semibold text-blue-100 mb-1">STR</div>
+            <div className="text-lg font-bold">{sectionSpatial?.str || section?.str}</div>
+            {section?.county && section?.state ? (
+              <div className="text-xs text-blue-100 mt-1 font-semibold">
+                📍 {section.county}, {section.state}
+                {(() => {
+                  const countyCenter = getCountyCenter(section.county, section.state);
+                  return countyCenter ? (
+                    <span className="text-green-300 ml-1">✓</span>
+                  ) : (
+                    <span className="text-yellow-300 ml-1">⚠</span>
+                  );
+                })()}
+              </div>
+            ) : section?.county ? (
+              <div className="text-xs text-yellow-300 mt-1 font-semibold">
+                ⚠️ County: {section.county} (State missing)
+              </div>
+            ) : (
+              <div className="text-xs text-yellow-300 mt-1 font-semibold">
+                ⚠️ County data not available
+              </div>
+            )}
+            {(sectionSpatial?.township && sectionSpatial?.range) || (section?.township && section?.range) ? (
+              <div className="text-xs text-blue-100 mt-1">
+                T{sectionSpatial?.township || section?.township} R{sectionSpatial?.range || section?.range}
+              </div>
+            ) : null}
+          </div>
+        )}
         {(isLoading || !arcgisLoaded) && !useFallbackMap && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 rounded-lg">
             <div className="text-center text-gray-300">
@@ -509,12 +784,31 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
         {/* Fallback Map Display */}
         {useFallbackMap && !isLoading && (
           <div className="absolute inset-0 bg-gray-100 rounded-lg overflow-hidden">
+            {/* STR Overlay - Top Right Corner for Fallback Map */}
+            {(sectionSpatial?.str || section?.str) && (
+              <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg border-2 border-blue-400 z-10">
+                <div className="text-xs font-semibold text-blue-100 mb-1">STR</div>
+                <div className="text-lg font-bold">{sectionSpatial?.str || section?.str}</div>
+                {section?.county && section?.state && (
+                  <div className="text-xs text-blue-100 mt-1">
+                    {section.county}, {section.state}
+                  </div>
+                )}
+                {(sectionSpatial?.township && sectionSpatial?.range) || (section?.township && section?.range) ? (
+                  <div className="text-xs text-blue-100 mt-1">
+                    T{sectionSpatial?.township || section?.township} R{sectionSpatial?.range || section?.range}
+                  </div>
+                ) : null}
+              </div>
+            )}
             <div className="h-full flex flex-col">
               {/* Header */}
               <div className="bg-blue-600 text-white p-4">
                 <h3 className="text-lg font-semibold">Tract Section Map</h3>
                 <p className="text-sm text-blue-100">
-                  {sectionSpatial?.township && sectionSpatial?.range 
+                  {section?.county && section?.state 
+                    ? `${section.county}, ${section.state}`
+                    : sectionSpatial?.township && sectionSpatial?.range 
                     ? `Township ${sectionSpatial.township}, Range ${sectionSpatial.range}`
                     : 'Section Information'
                   }
@@ -557,6 +851,12 @@ const ArcGISMappingTab: React.FC<ArcGISMappingTabProps> = ({ sectionId, sectionN
                 <div className="bg-white p-4 rounded shadow">
                   <h4 className="font-semibold text-gray-800 mb-2">Tract Details</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
+                    {section?.state && (
+                      <div><span className="text-gray-600">State:</span> <span className="font-semibold">{section.state}</span></div>
+                    )}
+                    {section?.county && (
+                      <div><span className="text-gray-600">County:</span> <span className="font-semibold">{section.county}</span></div>
+                    )}
                     <div><span className="text-gray-600">Section:</span> <span className="font-semibold">{sectionSpatial?.section_number || 'N/A'}</span></div>
                     <div><span className="text-gray-600">Township:</span> <span className="font-semibold">{sectionSpatial?.township || 'N/A'}</span></div>
                     <div><span className="text-gray-600">Range:</span> <span className="font-semibold">{sectionSpatial?.range || 'N/A'}</span></div>

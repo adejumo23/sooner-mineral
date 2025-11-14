@@ -241,10 +241,10 @@ const AssignmentsPage: React.FC = () => {
       accessor: 'priceCapUsd',
       cell: (assignment: Assignment) => (
         <div>
-          <div className="font-medium text-white">
+          <div className="font-medium text-gray-900">
             ${assignment.priceCapUsd ? assignment.priceCapUsd.toLocaleString() : 'N/A'}
           </div>
-          <div className="text-sm text-sc-slate">
+          <div className="text-sm text-gray-600">
             {assignment.priceCapType}
           </div>
         </div>

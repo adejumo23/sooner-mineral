@@ -53,7 +53,16 @@ const SectionDetailPage: React.FC = () => {
       
       const foundSection = sectionsData.find(s => s.id === sectionId);
       if (foundSection) {
-        setSection(foundSection);
+        // Normalize section data to ensure consistent field names
+        const normalizedSection = {
+          ...foundSection,
+          sectionName: foundSection.sectionName || (foundSection as any).section_name,
+          county: foundSection.county || (foundSection as any).COUNTY,
+          state: foundSection.state || (foundSection as any).ST || (foundSection as any).state
+        };
+        console.log('Section data loaded:', normalizedSection);
+        console.log('County value:', normalizedSection.county);
+        setSection(normalizedSection);
       } else {
         navigate('/sections');
         return;
@@ -215,8 +224,8 @@ const SectionDetailPage: React.FC = () => {
             ← Back to Sections
           </button>
           <h1 className="text-3xl font-bold text-gray-900 mt-4">{section.sectionName}</h1>
-          <p className="text-gray-600 mt-2 whitespace-pre-line">
-            {section.state}, {section.county} • {section.titleStatus}
+          <p className="text-gray-600 mt-2">
+            {section.assignedBuyer || section.assignedBuyerId ? 'Assigned' : 'Unassigned'}
           </p>
         </div>
         <div className="flex space-x-3">
@@ -559,7 +568,7 @@ const SectionDetailPage: React.FC = () => {
         {activeTab === 'mapping' && (
           <ArcGISMappingTab 
             sectionId={section.id} 
-            sectionName={section.sectionName}
+            sectionName={section.sectionName || (section as any).section_name}
             section={{
               sectionNumber: section.sectionNumber,
               township: section.township,

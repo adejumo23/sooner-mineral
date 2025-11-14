@@ -63,7 +63,7 @@ const ContactsPage: React.FC = () => {
         preferredContactMethod: 'Call' as const,
         source: 'Manual Entry',
         origination: 'User Input',
-        totalNMA: 0, // Would be calculated from linked tracts
+        totalNMA: contact.totalNMA || contact.netMineralAcres || 0, // Use NMA sum from API
         totalNRA: 0, // Would be calculated from linked tracts
         distressSignals: [], // Would be fetched separately
         linkedTractCount: 0,

@@ -2,27 +2,39 @@
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 // Utility function to generate section name based on state and S-T-R data
-export const generateSectionName = (state: string, str?: string): string => {
+export const generateSectionName = (state: string, str?: string, sectionName?: string): string => {
+  // If sectionName is already provided and not empty, use it
+  if (sectionName && sectionName.trim() && sectionName !== 'data yet to be provided') {
+    return sectionName;
+  }
+  
   if (state === 'OK' && str) {
     // For Oklahoma, use the S-T-R data as the section name
     return str;
-  } else if (state === 'TX') {
-    // For Texas, use placeholder text
-    return 'data yet to be provided';
+  } else if (str && str.trim() && str !== 'data yet to be provided') {
+    // If STR data is available, use it regardless of state
+    return str;
   } else {
     // For other states or missing data, use a default
-    return str || 'Section Name Not Available';
+    return 'Section Name Not Available';
   }
 };
 
-// Helper function to make API requests
+// Helper function to make API requests with cache-busting
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // Add cache-busting parameter to prevent stale data
+  const separator = endpoint.includes('?') ? '&' : '?';
+  const cacheBuster = `_t=${Date.now()}`;
+  const url = `${API_BASE_URL}${endpoint}${separator}${cacheBuster}`;
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       ...options.headers,
     },
+    cache: 'no-store',
     ...options,
   });
 
@@ -152,7 +164,7 @@ export const fetchSections = async (page = 1, limit = 50) => {
     // Generate section names based on state and S-T-R data
     const processedSections = sections.map((section: any) => ({
       ...section,
-      sectionName: generateSectionName(section.state, section.str),
+      sectionName: generateSectionName(section.state, section.str, section.sectionName || section.section_name),
       state: 'OK' // Hardcode state to 'OK' as requested
     }));
     
@@ -173,7 +185,7 @@ export const fetchSection = async (id: string) => {
     // Generate section name based on state and S-T-R data
     return {
       ...section,
-      sectionName: generateSectionName(section.state, section.str),
+      sectionName: generateSectionName(section.state, section.str, section.sectionName || section.section_name),
       state: 'OK' // Hardcode state to 'OK' as requested
     };
   } catch (error) {
@@ -792,9 +804,13 @@ export const fetchMapLayerPreferences = async () => {
   }
 };
 
-export const fetchNearbyWells = async (lat: number, lng: number, radius: number) => {
+export const fetchNearbyWells = async (lat: number, lng: number, radius: number, county?: string) => {
   try {
-    return await apiRequest(`/map/nearby/wells?lat=${lat}&lng=${lng}&radius=${radius}`);
+    let url = `/map/nearby/wells?lat=${lat}&lng=${lng}&radius=${radius}`;
+    if (county) {
+      url += `&county=${encodeURIComponent(county)}`;
+    }
+    return await apiRequest(url);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return [];
