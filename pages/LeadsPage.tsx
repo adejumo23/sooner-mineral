@@ -104,28 +104,33 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Assets',
       accessor: 'assets',
-      cell: (lead: LeadEnhanced) => (
-        <div>
-          {lead.linkedSections?.map(section => (
-            <div key={section.id} className="text-sm text-gray-600">
-              Section: {section.sectionName}
+      cell: (lead: LeadEnhanced) => {
+        // Sections are already deduplicated on the server
+        const sections = lead.linkedSections || [];
+        // Units are already deduplicated on the server
+        const units = lead.linkedUnits || [];
+        
+        return (
+          <div>
+            {sections.map(section => (
+              <div key={section.id || section.str} className="text-sm text-gray-600">
+                Section: {section.sectionName || section.str || 'Unknown Section'}
+              </div>
+            ))}
+            {units.map(unit => (
+              <div key={unit.id || unit.unitName} className="text-sm text-gray-600">
+                Unit: {unit.unitName}
+              </div>
+            ))}
+            {sections.length === 0 && units.length === 0 && (
+              <div className="text-sm text-gray-400 italic">No assets</div>
+            )}
+            <div className="text-xs text-gray-500 mt-1">
+              {lead.grossAcres ? `${lead.grossAcres.toFixed(2)} acres` : 'No acreage data'}
             </div>
-          ))}
-          {lead.linkedUnits?.map(unit => (
-            <div key={unit.id} className="text-sm text-gray-600">
-              Unit: {unit.unitName}
-            </div>
-          ))}
-          {lead.unitName && (
-            <div className="text-sm text-gray-600">
-              Unit: {lead.unitName}
-            </div>
-          )}
-          <div className="text-xs text-gray-500">
-            {lead.grossAcres ? `${lead.grossAcres.toFixed(2)} acres` : 'No acreage data'}
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       header: 'Buyer',

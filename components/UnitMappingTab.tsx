@@ -15,6 +15,7 @@ import {
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+import { getCountyCenter, getStateCenter } from '../utils/countyCoordinates';
 
 interface UnitMappingTabProps {
   unitId: string;
@@ -88,16 +89,19 @@ const UnitMappingTab: React.FC<UnitMappingTabProps> = ({
       // Create map
       console.log('Creating ArcGIS Map...');
       const map = new Map({
-        basemap: "satellite"
+        basemap: "streets-vector"
       });
       console.log('Map created successfully');
 
-      // Create map view
+      // Create map view with county or state-based center
       console.log('Creating MapView...');
+      // Try county first, then fall back to state
+      const initialCenter = getCountyCenter(unit?.county, unit?.state) || getStateCenter(unit?.state);
+      console.log(`Using initial center for unit: county=${unit?.county || 'none'}, state=${unit?.state || 'default'}:`, initialCenter);
       const view = new MapView({
         container: container as HTMLDivElement,
         map: map,
-        center: [-102.0776, 31.9686], // Default to Midland, TX
+        center: initialCenter,
         zoom: 12
       });
       console.log('MapView created successfully');
@@ -147,13 +151,39 @@ const UnitMappingTab: React.FC<UnitMappingTabProps> = ({
         return;
       }
 
-      // Fetch nearby data based on unit location or linked tracts
-      const centerLat = (unit as any).latitude || 31.9686;
-      const centerLon = (unit as any).longitude || -102.0776;
+      // Determine center coordinates: prioritize county, then unit location, then state
+      let centerLat: number;
+      let centerLon: number;
       
-      // Fetch overlay data
+      // First, try county-specific coordinates (most reliable)
+      const countyCenter = getCountyCenter(unit?.county, unit?.state);
+      if (countyCenter) {
+        centerLon = countyCenter[0];
+        centerLat = countyCenter[1];
+        console.log(`Using county coordinates for unit: ${unit?.county}, ${unit?.state}: [${centerLon}, ${centerLat}]`);
+      } else if ((unit as any).latitude && (unit as any).longitude) {
+        // Use unit location if available
+        centerLat = (unit as any).latitude;
+        centerLon = (unit as any).longitude;
+        console.log(`Using unit location coordinates: [${centerLon}, ${centerLat}]`);
+      } else {
+        // Fall back to state-based center
+        const stateCenter = getStateCenter(unit?.state);
+        centerLon = stateCenter[0];
+        centerLat = stateCenter[1];
+        console.log(`Using state center for unit: ${unit?.state}: [${centerLon}, ${centerLat}]`);
+      }
+
+      // Update map center
+      if (mapView && !useFallbackMap) {
+        mapView.center = [centerLon, centerLat];
+        mapView.zoom = 12;
+      }
+      
+      // Fetch overlay data (include county for filtering)
+      const normalizedCounty = unit?.county?.trim() || null;
       const [wellsData, permitsData, rigsData] = await Promise.all([
-        api.fetchNearbyWells(centerLat, centerLon, 10),
+        api.fetchNearbyWells(centerLat, centerLon, 10, normalizedCounty),
         api.fetchNearbyPermits(centerLat, centerLon, 10),
         api.fetchNearbyRigs(centerLat, centerLon, 10)
       ]);

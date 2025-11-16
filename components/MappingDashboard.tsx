@@ -76,10 +76,13 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
 
       // Create map view
       console.log('Creating MapView...');
+      // Default to Oklahoma center (most data appears to be in OK)
+      const { getStateCenter } = await import('../utils/countyCoordinates');
+      const defaultCenter = getStateCenter('OK');
       const view = new MapView({
         container: container as HTMLDivElement,
         map: map,
-        center: [-102.0776, 31.9686], // Default to Midland, TX
+        center: defaultCenter,
         zoom: 10
       });
       console.log('MapView created successfully');

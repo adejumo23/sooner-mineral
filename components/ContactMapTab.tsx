@@ -23,6 +23,7 @@ import {
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+import { getCountyCenter, getStateCenter } from '../utils/countyCoordinates';
 
 interface ContactMapTabProps {
   contactId: string;
@@ -100,16 +101,22 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
       // Create map
       console.log('Creating ArcGIS Map...');
       const map = new Map({
-        basemap: "satellite"
+        basemap: "streets-vector"
       });
       console.log('Map created successfully');
 
-      // Create map view
+      // Create map view with county or state-based center
+      // Try to get county from first tract, or use contact state
+      const firstTract = tracts && tracts.length > 0 ? tracts[0] : null;
+      const county = firstTract?.section?.county || contact?.county;
+      const state = firstTract?.section?.state || contact?.state;
+      const initialCenter = getCountyCenter(county, state) || getStateCenter(state);
+      console.log(`Using initial center for contact: county=${county || 'none'}, state=${state || 'default'}:`, initialCenter);
       console.log('Creating MapView...');
       const view = new MapView({
         container: container as HTMLDivElement,
         map: map,
-        center: [-102.0776, 31.9686], // Default to Midland, TX
+        center: initialCenter,
         zoom: 12
       });
       console.log('MapView created successfully');
@@ -160,11 +167,40 @@ const ContactMapTab: React.FC<ContactMapTabProps> = ({
         return;
       }
 
-      // Fetch overlay data
+      // Determine center coordinates from tracts or contact
+      const firstTract = tracts && tracts.length > 0 ? tracts[0] : null;
+      const county = firstTract?.section?.county || (contact as any)?.county;
+      const state = firstTract?.section?.state || contact?.state;
+      
+      let centerLat: number;
+      let centerLon: number;
+      
+      // First, try county-specific coordinates
+      const countyCenter = getCountyCenter(county, state);
+      if (countyCenter) {
+        centerLon = countyCenter[0];
+        centerLat = countyCenter[1];
+        console.log(`Using county coordinates for contact: ${county}, ${state}: [${centerLon}, ${centerLat}]`);
+      } else {
+        // Fall back to state-based center
+        const stateCenter = getStateCenter(state);
+        centerLon = stateCenter[0];
+        centerLat = stateCenter[1];
+        console.log(`Using state center for contact: ${state}: [${centerLon}, ${centerLat}]`);
+      }
+
+      // Update map center
+      if (mapView && !useFallbackMap) {
+        mapView.center = [centerLon, centerLat];
+        mapView.zoom = 12;
+      }
+
+      // Fetch overlay data (include county for filtering)
+      const normalizedCounty = county?.trim() || null;
       const [wellsData, permitsData, rigsData] = await Promise.all([
-        api.fetchProducingWells(),
-        api.fetchPermits(),
-        api.fetchRigs()
+        api.fetchNearbyWells(centerLat, centerLon, 10, normalizedCounty),
+        api.fetchNearbyPermits(centerLat, centerLon, 10),
+        api.fetchNearbyRigs(centerLat, centerLon, 10)
       ]);
 
       setWells(wellsData);

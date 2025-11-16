@@ -3455,8 +3455,38 @@ app.get('/api/leads', async (req, res) => {
     const countResult = await executeQuery(countQuery);
     const totalCount = countResult[0].total;
 
+    // First, get all rows for pagination (grouped by owner)
+    const ownerQuery = `
+      SELECT DISTINCT OWNER as name
+      FROM prod_acreage_schedule
+      WHERE OWNER IS NOT NULL AND OWNER != ''
+      ${searchConditions}
+      ORDER BY OWNER
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+    const ownerRows = await executeQuery(ownerQuery);
+    const ownerNames = ownerRows.map(r => r.name);
+    
+    if (ownerNames.length === 0) {
+      return res.json({
+        data: [],
+        pagination: {
+          page: page,
+          limit: limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          hasNextPage: false,
+          hasPrevPage: false,
+          nextPage: null,
+          prevPage: null
+        }
+      });
+    }
+    
+    // Now get all data for these owners (including all sections and units)
+    const placeholders = ownerNames.map(() => '?').join(',');
     const query = `
-      SELECT DISTINCT
+      SELECT 
         OWNER as name,
         CONTACT as contact,
         STREET as street,
@@ -3465,6 +3495,8 @@ app.get('/api/leads', async (req, res) => {
         ZIP as zip,
         PHONE_EMAIL as phoneEmail,
         CURRENT_UNIT_NAME as unitName,
+        S_T_R as str,
+        COUNTY as county,
         NMA as grossAcres,
         NMA as netMineralAcres,
         ROY as royalty,
@@ -3473,16 +3505,43 @@ app.get('/api/leads', async (req, res) => {
         created_at,
         updated_at
       FROM prod_acreage_schedule
-      WHERE OWNER IS NOT NULL AND OWNER != ''
-      ${searchConditions}
-      ORDER BY OWNER
-      LIMIT ${limit} OFFSET ${offset}
+      WHERE OWNER IN (${placeholders})
+      ORDER BY OWNER, S_T_R, CURRENT_UNIT_NAME
     `;
 
-    const rows = await executeQuery(query);
+    const rows = await executeQuery(query, ownerNames);
+    
+    // Group rows by owner and aggregate sections/units
+    const ownerDataMap = new Map();
+    
+    rows.forEach(row => {
+      const ownerName = row.name;
+      if (!ownerDataMap.has(ownerName)) {
+        ownerDataMap.set(ownerName, {
+          owner: row,
+          sections: new Set(),
+          units: new Set(),
+          grossAcres: 0,
+          netMineralAcres: 0,
+          royalty: 0
+        });
+      }
+      
+      const ownerData = ownerDataMap.get(ownerName);
+      if (row.str) {
+        ownerData.sections.add(row.str);
+      }
+      if (row.unitName) {
+        ownerData.units.add(row.unitName);
+      }
+      ownerData.grossAcres = Math.max(ownerData.grossAcres, parseFloat(row.grossAcres) || 0);
+      ownerData.netMineralAcres = Math.max(ownerData.netMineralAcres, parseFloat(row.netMineralAcres) || 0);
+      ownerData.royalty = Math.max(ownerData.royalty, parseFloat(row.royalty) || 0);
+    });
     
     // Transform leads data to match LeadEnhanced interface
-    const leads = rows.map((row, index) => {
+    const leads = Array.from(ownerDataMap.entries()).map(([ownerName, ownerData], index) => {
+      const row = ownerData.owner;
       // Determine status based on database status
       let leadStatus = 'Uncontacted';
       if (row.status === 'DROPPED') leadStatus = 'Dead';
@@ -3491,15 +3550,22 @@ app.get('/api/leads', async (req, res) => {
       else if (row.status === 'WTL') leadStatus = 'Interested';
       
       // Calculate priority score based on acreage and royalty
-      const grossAcres = parseFloat(row.grossAcres) || 0;
-      const royalty = parseFloat(row.royalty) || 0;
+      const grossAcres = ownerData.grossAcres;
+      const royalty = ownerData.royalty;
       const priorityScore = Math.min(100, Math.max(10, (grossAcres * 2) + (royalty * 2)));
+      
+      // Convert sets to arrays for sections and units
+      const uniqueSections = Array.from(ownerData.sections);
+      const uniqueUnits = Array.from(ownerData.units);
+      
+      // Get first unit name for backward compatibility
+      const firstUnitName = uniqueUnits.length > 0 ? uniqueUnits[0] : null;
       
       return {
         id: `lead-${offset + index}`,
         linkedContactId: `contact-${offset + index}`,
-        linkedSectionIds: row.unitName ? [`section-${row.unitName}`] : [],
-        linkedUnitIds: row.unitName ? [`unit-${row.unitName}`] : [],
+        linkedSectionIds: uniqueSections.map(str => `section-${str}`),
+        linkedUnitIds: uniqueUnits.map(unitName => `unit-${unitName}`),
         buyerId: row.buyer?.toLowerCase() || 'unassigned',
         sourceChannel: 'Broker',
         status: leadStatus,
@@ -3519,9 +3585,9 @@ app.get('/api/leads', async (req, res) => {
         state: row.state,
         zip: row.zip,
         phoneEmail: row.phoneEmail,
-        unitName: row.unitName,
+        unitName: firstUnitName, // Keep for backward compatibility
         grossAcres: grossAcres,
-        netMineralAcres: parseFloat(row.netMineralAcres) || 0,
+        netMineralAcres: ownerData.netMineralAcres,
         royalty: royalty,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -3536,15 +3602,21 @@ app.get('/api/leads', async (req, res) => {
           zip: row.zip,
           phoneEmail: row.phoneEmail
         },
-        linkedSections: row.unitName ? [{
-          id: `section-${row.unitName}`,
-          sectionName: row.unitName,
-          unitName: row.unitName
-        }] : [],
-        linkedUnits: row.unitName ? [{
-          id: `unit-${row.unitName}`,
-          unitName: row.unitName
-        }] : [],
+        // Get unique sections for this lead (from S_T_R)
+        linkedSections: uniqueSections.map(str => ({
+          id: `section-${str}`,
+          sectionName: str || 'Unknown Section',
+          str: str,
+          county: row.county || 'Unknown',
+          state: row.state || 'OK'
+        })),
+        // Get unique units for this lead (deduplicated)
+        linkedUnits: uniqueUnits.map(unitName => ({
+          id: `unit-${unitName}`,
+          unitName: unitName,
+          county: row.county || 'Unknown',
+          state: row.state || 'OK'
+        })),
         buyer: {
           id: row.buyer?.toLowerCase() || 'unassigned',
           name: row.buyer || 'Unassigned',
@@ -4390,6 +4462,8 @@ app.get('/api/leads/:id', async (req, res) => {
         ZIP as zip,
         PHONE_EMAIL as phoneEmail,
         CURRENT_UNIT_NAME as unitName,
+        S_T_R as str,
+        COUNTY as county,
         NMA as grossAcres,
         NMA as netMineralAcres,
         ROY as royalty,
@@ -4467,14 +4541,20 @@ app.get('/api/leads/:id', async (req, res) => {
         zip: row.zip,
         phoneEmail: row.phoneEmail
       },
-      linkedSections: row.unitName ? [{
-        id: `section-${row.unitName}`,
-        sectionName: row.unitName,
-        unitName: row.unitName
+      // Get unique sections for this lead (grouped by S_T_R)
+      linkedSections: row.str ? [{
+        id: `section-${row.str}`,
+        sectionName: row.str || 'Unknown Section',
+        str: row.str,
+        county: row.county || 'Unknown',
+        state: row.state || 'OK'
       }] : [],
+      // Get unique units for this lead (deduplicated)
       linkedUnits: row.unitName ? [{
         id: `unit-${row.unitName}`,
-        unitName: row.unitName
+        unitName: row.unitName,
+        county: row.county || 'Unknown',
+        state: row.state || 'OK'
       }] : [],
       buyer: {
         id: row.buyer?.toLowerCase() || 'unassigned',

@@ -19,7 +19,7 @@ const MappingTab: React.FC<MappingTabProps> = ({ tractId, tractName }) => {
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>([31.9686, -102.0776]);
   const [zoom, setZoom] = useState(12);
-  const [basemapType, setBasemapType] = useState<'satellite' | 'streets'>('satellite');
+  const [basemapType, setBasemapType] = useState<'satellite' | 'streets'>('streets');
   const mapRef = useRef<HTMLDivElement>(null);
 
   // Define map layers

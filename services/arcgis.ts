@@ -20,7 +20,7 @@ let SpatialReference: any;
 export const ARCGIS_CONFIG = {
   // API key from environment variable
   apiKey: process.env.REACT_APP_ARCGIS_API_KEY || "",
-  basemapId: "satellite",
+  basemapId: "streets-vector", // Default to map view instead of satellite
   center: [-102.0776, 31.9686], // Default center (Midland, TX)
   zoom: 12,
   spatialReference: null // Will be set after modules are loaded
