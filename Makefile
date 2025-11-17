@@ -94,7 +94,7 @@ dev: install ## Start development server (frontend + backend)
 	@echo ""
 	@echo "Press Ctrl+C to stop"
 	@echo "Starting backend server..."
-	node server-with-db.js &
+	npx tsx server.ts &
 	@echo "Starting frontend server..."
 	npm run dev
 
@@ -110,7 +110,7 @@ start: install db-up ## Start development server with health checks
 	$(call check-port,3360)
 	@echo ""
 	@echo "Starting backend server..."
-	node server-with-db.js &
+	npx tsx server.ts &
 	@echo "⏳ Waiting for backend to start..."
 	$(call check-port,3051)
 	@echo ""
