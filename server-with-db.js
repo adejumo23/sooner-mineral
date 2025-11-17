@@ -350,35 +350,86 @@ app.get('/api/debug/tables', async (req, res) => {
 });
 
 // Authentication endpoints
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
     const { email, password } = req.body;
     
-    // Simple mock authentication for development
-    if (email === 'admin@sooner.cap' && password === 'password') {
-      res.json({
-        success: true,
-        user: {
-          id: 'mock-user',
-          name: 'Mock User',
-          email: email,
-          role: {
-            name: 'Administrator',
-            id: 'admin-role'
-          }
-        }
-      });
-    } else {
-      res.status(401).json({
+    if (!email || !password) {
+      return res.status(400).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Email and password are required'
       });
     }
+
+    // Query the database for the user
+    const query = `
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.password_hash,
+        u.role_id,
+        r.name as role_name
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.email = ?
+    `;
+    
+    const users = await executeQuery(query, [email]);
+    
+    console.log('Login attempt for email:', email);
+    console.log('Users found:', users.length);
+    
+    if (users.length === 0) {
+      console.log('No user found with email:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    const user = users[0];
+    console.log('User found:', { id: user.id, email: user.email, password_hash_length: user.password_hash?.length, password_length: password?.length });
+    
+    // TODO: Implement proper password hashing comparison (bcrypt.compare)
+    // For now, simple comparison (NOT SECURE FOR PRODUCTION)
+    if (user.password_hash !== password) {
+      console.log('Password mismatch:', { 
+        stored: user.password_hash, 
+        provided: password,
+        match: user.password_hash === password
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    console.log('Login successful for user:', user.email);
+
+    // Return user data (without password)
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: {
+          id: user.role_id,
+          name: user.role_name || 'User'
+        }
+      }
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Login failed'
+      message: 'Login failed',
+      error: error.message
     });
   }
 });
@@ -1957,6 +2008,137 @@ app.get('/api/users', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch users',
+      error: error.message
+    });
+  }
+});
+
+// Create a new user
+app.post('/api/users', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const { name, email, password, roleId } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password || !roleId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: name, email, password, and roleId are required'
+      });
+    }
+
+    // Check if user with email already exists
+    const checkQuery = `SELECT id FROM users WHERE email = ?`;
+    const existingUser = await executeQuery(checkQuery, [email]);
+    
+    if (existingUser.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // Generate a unique ID for the user
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Hash password (in production, use bcrypt or similar)
+    // For now, we'll store it as-is (NOT RECOMMENDED FOR PRODUCTION)
+    const hashedPassword = password; // TODO: Implement proper password hashing
+
+    // Insert the new user
+    const insertQuery = `
+      INSERT INTO users (id, name, email, password_hash, role_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+    
+    await executeQuery(insertQuery, [userId, name, email, hashedPassword, roleId]);
+
+    // Fetch the created user with role information
+    const fetchQuery = `
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.created_at,
+        u.updated_at,
+        r.name as role_name,
+        r.id as role_id
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = ?
+    `;
+    
+    const newUser = await executeQuery(fetchQuery, [userId]);
+    
+    if (newUser.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'User created but failed to retrieve'
+      });
+    }
+
+    const user = newUser[0];
+    const response = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: null,
+      role: {
+        id: user.role_id,
+        name: user.role_name || 'User'
+      },
+      createdAt: user.created_at,
+      updatedAt: user.updated_at
+    };
+
+    res.status(201).json(response);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create user',
+      error: error.message
+    });
+  }
+});
+
+// Get all roles
+app.get('/api/roles', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const query = `
+      SELECT 
+        id,
+        name,
+        description,
+        created_at,
+        updated_at
+      FROM roles
+      ORDER BY name
+    `;
+
+    const rows = await executeQuery(query);
+    
+    const roles = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+
+    res.json(roles);
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch roles',
       error: error.message
     });
   }

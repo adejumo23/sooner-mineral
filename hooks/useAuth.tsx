@@ -17,52 +17,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Auto-login for development (remove in production)
+  // Load user from localStorage on mount
   useEffect(() => {
-    let isMounted = true;
-    
-    const autoLogin = async () => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
       try {
-        console.log('Attempting auto-login...');
-        
-        // For development, set user directly to avoid API timeout issues
-        if (isMounted) {
-          const mockUser = {
-            id: 'mock-user',
-            name: 'Mock User',
-            email: 'admin@sooner.cap',
-            role: {
-              name: 'Administrator',
-              id: 'admin-role'
-            }
-          };
-          console.log('Auto-login successful (mock):', mockUser);
-          setUser(mockUser);
-        }
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        console.log('Loaded user from localStorage:', parsedUser);
       } catch (error) {
-        if (isMounted) {
-          console.error('Auto-login failed:', error);
-          console.log('User will need to login manually');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        console.error('Failed to parse saved user:', error);
+        localStorage.removeItem('user');
       }
-    };
-    
-    autoLogin();
-    
-    return () => {
-      isMounted = false;
-    };
+    }
+    // No user in localStorage - user will need to login
+    // This ensures the login screen is shown
+    setLoading(false);
   }, []);
 
   const login = async (email: string, password?: string) => {
     setLoading(true);
     try {
       const response = await api.login({ email, password });
-      setUser(response.user);
+      if (response.user) {
+        setUser(response.user);
+        // Save user to localStorage
+        localStorage.setItem('user', JSON.stringify(response.user));
+        console.log('Login successful, user saved:', response.user);
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -70,6 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('user');
     setLoading(false);
   };
 

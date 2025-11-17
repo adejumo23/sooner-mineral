@@ -707,24 +707,19 @@ export const fetchDistressSignals = async (contactId: string) => {
 // Authentication functions
 export const login = async (credentials: any) => {
   try {
-    return await apiRequest('/auth/login', {
+    const response = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
-  } catch (error) {
-    console.warn('Server not available, using mock login:', error);
-    return { 
-      success: true, 
-      user: { 
-        id: 'mock-user', 
-        name: 'Mock User', 
-        email: credentials.email,
-        role: {
-          name: 'Administrator',
-          id: 'admin-role'
-        }
-      } 
-    };
+    return response;
+  } catch (error: any) {
+    // Don't return mock user on authentication errors - let the error propagate
+    // so the UI can show the error message
+    if (error.message && error.message.includes('401')) {
+      throw new Error('Invalid email or password');
+    }
+    console.error('Login error:', error);
+    throw error;
   }
 };
 
