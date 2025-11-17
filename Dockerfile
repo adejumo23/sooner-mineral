@@ -50,4 +50,4 @@ RUN mkdir -p uploads/imports
 EXPOSE 3050 3051
 
 # Start both frontend and backend
-CMD ["sh", "-c", "serve -s dist -l 3050 & tsx server.ts"] 
+CMD ["sh", "-c", "serve -s dist -l 3050 & npx tsx server.ts"] 
