@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
+  refreshUser: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,12 +60,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(false);
   };
 
+  const refreshUser = (updatedUser: User) => {
+    // Ensure role object is complete
+    const userWithCompleteRole = {
+      ...updatedUser,
+      role: {
+        id: updatedUser.role.id,
+        name: updatedUser.role.name,
+        description: updatedUser.role.description || ''
+      }
+    };
+    setUser(userWithCompleteRole);
+    localStorage.setItem('user', JSON.stringify(userWithCompleteRole));
+    console.log('User refreshed in auth context:', userWithCompleteRole);
+  };
+
   const value = useMemo(() => ({
     user,
     isAuthenticated: !!user,
     loading,
     login,
     logout,
+    refreshUser,
   }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
