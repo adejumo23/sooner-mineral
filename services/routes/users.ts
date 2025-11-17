@@ -249,7 +249,8 @@ export const createUsersRoutes = (dbPool: Pool | null) => {
           u.created_at,
           u.updated_at,
           r.name as role_name,
-          r.id as role_id
+          r.id as role_id,
+          r.description as role_description
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         WHERE u.id = ?
@@ -272,7 +273,8 @@ export const createUsersRoutes = (dbPool: Pool | null) => {
         phone: null,
         role: {
           id: user.role_id,
-          name: user.role_name || 'User'
+          name: user.role_name || 'User',
+          description: user.role_description || ''
         },
         createdAt: user.created_at,
         updatedAt: user.updated_at

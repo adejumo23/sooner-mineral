@@ -30,7 +30,8 @@ export const createAuthRoutes = (dbPool: Pool | null) => {
           u.email,
           u.password_hash,
           u.role_id,
-          r.name as role_name
+          r.name as role_name,
+          r.description as role_description
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         WHERE u.email = ?
@@ -79,9 +80,14 @@ export const createAuthRoutes = (dbPool: Pool | null) => {
       }
       
       console.log('Login successful for user:', user.email);
+      console.log('User role from database:', {
+        role_id: user.role_id,
+        role_name: user.role_name,
+        role_description: user.role_description
+      });
 
       // Return user data (without password)
-      res.json({
+      const userResponse = {
         success: true,
         user: {
           id: user.id,
@@ -89,10 +95,14 @@ export const createAuthRoutes = (dbPool: Pool | null) => {
           email: user.email,
           role: {
             id: user.role_id,
-            name: user.role_name || 'User'
+            name: user.role_name || 'User',
+            description: user.role_description || ''
           }
         }
-      });
+      };
+      
+      console.log('Sending user response:', JSON.stringify(userResponse, null, 2));
+      res.json(userResponse);
     } catch (error: any) {
       console.error('Login error:', error);
       res.status(500).json({

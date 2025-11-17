@@ -40,11 +40,25 @@ interface ModuleButton {
   color: string;
   gradient: string;
   status: 'active' | 'beta' | 'planned' | 'coming-soon';
+  roles?: string[]; // Roles that can access this module
 }
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  const userRole = user?.role?.name || 'Viewer';
+  
+  // Normalize role name (handle "Administrator" vs "Admin", etc.)
+  const normalizeRole = (role: string): string => {
+    const normalized = role.trim();
+    // Map common variations
+    if (normalized.toLowerCase() === 'administrator') return 'Admin';
+    if (normalized.toLowerCase() === 'read-only') return 'Viewer';
+    return normalized;
+  };
+  
+  const normalizedUserRole = normalizeRole(userRole);
 
   const modules: ModuleButton[] = [
     // Core Land Management Modules
@@ -56,7 +70,8 @@ const DashboardPage: React.FC = () => {
       category: 'core',
       color: 'from-green-500 to-emerald-600',
       gradient: 'bg-gradient-to-br from-green-500 to-emerald-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Units',
@@ -66,7 +81,8 @@ const DashboardPage: React.FC = () => {
       category: 'core',
       color: 'from-blue-500 to-indigo-600',
       gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Buyer',
@@ -76,7 +92,8 @@ const DashboardPage: React.FC = () => {
       category: 'core',
       color: 'from-purple-500 to-violet-600',
       gradient: 'bg-gradient-to-br from-purple-500 to-violet-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Leads',
@@ -86,7 +103,8 @@ const DashboardPage: React.FC = () => {
       category: 'core',
       color: 'from-orange-500 to-red-500',
       gradient: 'bg-gradient-to-br from-orange-500 to-red-500',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Owners',
@@ -96,7 +114,8 @@ const DashboardPage: React.FC = () => {
       category: 'core',
       color: 'from-teal-500 to-cyan-600',
       gradient: 'bg-gradient-to-br from-teal-500 to-cyan-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
 
     // Communication & Outreach Modules
@@ -108,7 +127,8 @@ const DashboardPage: React.FC = () => {
       category: 'communication',
       color: 'from-pink-500 to-rose-600',
       gradient: 'bg-gradient-to-br from-pink-500 to-rose-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Calendar & Tasks',
@@ -118,7 +138,8 @@ const DashboardPage: React.FC = () => {
       category: 'communication',
       color: 'from-yellow-500 to-amber-600',
       gradient: 'bg-gradient-to-br from-yellow-500 to-amber-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Document Generation',
@@ -128,7 +149,8 @@ const DashboardPage: React.FC = () => {
       category: 'communication',
       color: 'from-indigo-500 to-purple-600',
       gradient: 'bg-gradient-to-br from-indigo-500 to-purple-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
 
     // Analytics & Reporting Modules
@@ -140,7 +162,8 @@ const DashboardPage: React.FC = () => {
       category: 'analytics',
       color: 'from-emerald-500 to-green-600',
       gradient: 'bg-gradient-to-br from-emerald-500 to-green-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'Reporting',
@@ -150,7 +173,8 @@ const DashboardPage: React.FC = () => {
       category: 'analytics',
       color: 'from-cyan-500 to-blue-600',
       gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Analyst']
     },
     {
       name: 'ESG Tracking',
@@ -160,7 +184,8 @@ const DashboardPage: React.FC = () => {
       category: 'analytics',
       color: 'from-lime-500 to-green-500',
       gradient: 'bg-gradient-to-br from-lime-500 to-green-500',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
 
     // Administration Modules
@@ -172,7 +197,8 @@ const DashboardPage: React.FC = () => {
       category: 'administration',
       color: 'from-gray-500 to-slate-600',
       gradient: 'bg-gradient-to-br from-gray-500 to-slate-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin']
     },
     {
       name: 'Roles',
@@ -182,7 +208,8 @@ const DashboardPage: React.FC = () => {
       category: 'administration',
       color: 'from-slate-500 to-gray-600',
       gradient: 'bg-gradient-to-br from-slate-500 to-gray-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin']
     },
     {
       name: 'Privileges',
@@ -192,7 +219,8 @@ const DashboardPage: React.FC = () => {
       category: 'administration',
       color: 'from-amber-500 to-orange-600',
       gradient: 'bg-gradient-to-br from-amber-500 to-orange-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin']
     },
 
     // Future/Planned Modules
@@ -204,7 +232,8 @@ const DashboardPage: React.FC = () => {
       category: 'management',
       color: 'from-green-500 to-emerald-600',
       gradient: 'bg-gradient-to-br from-green-500 to-emerald-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'LP Portal',
@@ -214,7 +243,8 @@ const DashboardPage: React.FC = () => {
       category: 'future',
       color: 'from-purple-400 to-violet-500',
       gradient: 'bg-gradient-to-br from-purple-400 to-violet-500',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
     {
       name: 'Data Import',
@@ -224,7 +254,8 @@ const DashboardPage: React.FC = () => {
       category: 'core',
       color: 'from-emerald-400 to-teal-500',
       gradient: 'bg-gradient-to-br from-emerald-400 to-teal-500',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
     {
       name: 'Production Monitoring',
@@ -234,7 +265,8 @@ const DashboardPage: React.FC = () => {
       category: 'analytics',
       color: 'from-blue-500 to-indigo-600',
       gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
     {
       name: 'Regulatory Compliance',
@@ -244,7 +276,8 @@ const DashboardPage: React.FC = () => {
       category: 'management',
       color: 'from-red-500 to-pink-600',
       gradient: 'bg-gradient-to-br from-red-500 to-pink-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
     {
       name: 'Financial Management',
@@ -254,7 +287,8 @@ const DashboardPage: React.FC = () => {
       category: 'analytics',
       color: 'from-emerald-500 to-teal-600',
       gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
     {
       name: 'Mobile App',
@@ -264,7 +298,8 @@ const DashboardPage: React.FC = () => {
       category: 'communication',
       color: 'from-cyan-500 to-blue-600',
       gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager', 'Buyer']
     },
     {
       name: 'AI Insights',
@@ -274,7 +309,8 @@ const DashboardPage: React.FC = () => {
       category: 'analytics',
       color: 'from-violet-500 to-purple-600',
       gradient: 'bg-gradient-to-br from-violet-500 to-purple-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin', 'Manager']
     },
     {
       name: 'Integration Hub',
@@ -284,9 +320,24 @@ const DashboardPage: React.FC = () => {
       category: 'administration',
       color: 'from-orange-500 to-red-600',
       gradient: 'bg-gradient-to-br from-orange-500 to-red-600',
-      status: 'active'
+      status: 'active',
+      roles: ['Admin']
     }
   ];
+  
+  // Filter modules based on user role
+  const filteredModules = modules.filter(module => {
+    // If no roles specified, allow all (backward compatibility)
+    if (!module.roles || module.roles.length === 0) {
+      return true;
+    }
+    // Check if user's role (normalized) is in the allowed roles list
+    const normalizedModuleRoles = module.roles.map(normalizeRole);
+    return normalizedModuleRoles.includes(normalizedUserRole);
+  });
+  
+  console.log('Dashboard filtering modules for role:', userRole, '(normalized:', normalizedUserRole + ')');
+  console.log('Filtered modules:', filteredModules.length, 'out of', modules.length);
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -343,25 +394,40 @@ const DashboardPage: React.FC = () => {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="text-center">
-          <div className="text-2xl font-bold text-green-600">15</div>
+          <div className="text-2xl font-bold text-green-600">
+            {filteredModules.filter(m => m.status === 'active').length}
+          </div>
           <div className="text-sm text-gray-600">Active Modules</div>
         </Card>
         <Card className="text-center">
-          <div className="text-2xl font-bold text-blue-600">3</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {filteredModules.filter(m => m.status === 'beta').length}
+          </div>
+          <div className="text-sm text-gray-600">Beta Modules</div>
+        </Card>
+        <Card className="text-center">
+          <div className="text-2xl font-bold text-purple-600">
+            {filteredModules.filter(m => m.status === 'planned' || m.status === 'coming-soon').length}
+          </div>
           <div className="text-sm text-gray-600">Planned Modules</div>
         </Card>
         <Card className="text-center">
-          <div className="text-2xl font-bold text-purple-600">5</div>
-          <div className="text-sm text-gray-600">Coming Soon</div>
-        </Card>
-        <Card className="text-center">
-          <div className="text-2xl font-bold text-orange-600">23</div>
-          <div className="text-sm text-gray-600">Total Modules</div>
+          <div className="text-2xl font-bold text-orange-600">
+            {filteredModules.length}
+          </div>
+          <div className="text-sm text-gray-600">Total Accessible</div>
         </Card>
       </div>
 
       {/* Module Grid by Category */}
-      {categories.map((category) => (
+      {categories.map((category) => {
+        const categoryModules = filteredModules.filter(module => module.category === category.key);
+        // Don't render empty categories
+        if (categoryModules.length === 0) {
+          return null;
+        }
+        
+        return (
         <div key={category.key} className="space-y-4">
           <div className="flex items-center space-x-3">
             <div className={`w-1 h-8 rounded-full bg-gradient-to-b ${category.color}`}></div>
@@ -369,9 +435,7 @@ const DashboardPage: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {modules
-              .filter(module => module.category === category.key)
-              .map((module) => (
+            {categoryModules.map((module) => (
                 <div
                   key={module.name}
                   onClick={() => handleModuleClick(module.href, module.status)}
@@ -414,7 +478,8 @@ const DashboardPage: React.FC = () => {
               ))}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Footer Info */}
       <div className="text-center py-8 border-t border-gray-200">
@@ -422,7 +487,7 @@ const DashboardPage: React.FC = () => {
           Sooner Capital CRM • Built for modern land management • Version 2.0
         </p>
         <p className="text-gray-400 text-xs mt-2">
-          {new Date().toLocaleDateString()} • {modules.filter(m => m.status === 'active').length} active modules
+          {new Date().toLocaleDateString()} • {filteredModules.filter(m => m.status === 'active').length} accessible modules
         </p>
       </div>
     </div>

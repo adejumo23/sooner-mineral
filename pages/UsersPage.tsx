@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { User, Role } from '../types';
 import * as api from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 import Table from '../components/ui/Table';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -9,6 +10,7 @@ import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 
 const UsersPage: React.FC = () => {
+  const { user: currentUser, refreshUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,16 +63,74 @@ const UsersPage: React.FC = () => {
     const email = formData.get('email') as string;
     const roleId = formData.get('roleId') as string;
     
-    if (editingUser) {
-      // update
-      await api.updateUser(editingUser.id, { name, roleId });
-    } else {
-      // create
-      const password = formData.get('password') as string;
-      await api.createUser({ name, email, password, roleId });
+    try {
+      if (editingUser) {
+        // Get the old role name for comparison
+        const oldRoleName = editingUser.role?.name || 'Unknown';
+        
+        // update
+        const updatedUser = await api.updateUser(editingUser.id, { name, roleId });
+        
+        // Ensure the role object is complete by fetching role description if missing
+        let completeUser = updatedUser;
+        if (updatedUser && updatedUser.role && !updatedUser.role.description) {
+          const fullRole = roles.find(r => r.id === updatedUser.role.id);
+          if (fullRole) {
+            completeUser = {
+              ...updatedUser,
+              role: {
+                ...updatedUser.role,
+                description: fullRole.description || ''
+              }
+            };
+          }
+        }
+        
+        const newRoleName = completeUser?.role?.name || 'Unknown';
+        
+        // Show success message for any user update
+        if (oldRoleName !== newRoleName) {
+          console.log(`User role updated: ${editingUser.name} from "${oldRoleName}" to "${newRoleName}"`);
+        }
+        
+        // If the updated user is the currently logged-in user, refresh their session
+        if (currentUser && completeUser) {
+          const isCurrentUser = completeUser.id === currentUser.id || completeUser.email === currentUser.email;
+          if (isCurrentUser) {
+            console.log('Current user role updated. Refreshing session...', {
+              oldRole: currentUser.role,
+              newRole: completeUser.role
+            });
+            refreshUser(completeUser);
+            // Show a message to the user
+            setTimeout(() => {
+              alert(`Your role has been updated from "${oldRoleName}" to "${newRoleName}". The changes should be reflected immediately.`);
+            }, 100);
+          } else {
+            // Show message that another user's role was updated
+            setTimeout(() => {
+              alert(`User "${editingUser.name}" role has been updated from "${oldRoleName}" to "${newRoleName}". They will see the new role on their next login.`);
+            }, 100);
+          }
+        } else {
+          // Show message when updating another user (currentUser might be null in some cases)
+          if (oldRoleName !== newRoleName) {
+            setTimeout(() => {
+              alert(`User "${editingUser.name}" role has been updated from "${oldRoleName}" to "${newRoleName}". They will see the new role on their next login.`);
+            }, 100);
+          }
+        }
+      } else {
+        // create
+        const password = formData.get('password') as string;
+        await api.createUser({ name, email, password, roleId });
+      }
+      fetchUsersAndRoles();
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving user:', error);
+      alert('Failed to save user. Please try again.');
     }
-    fetchUsersAndRoles();
-    handleCloseModal();
   };
 
   const filteredUsers = users.filter(user => {
