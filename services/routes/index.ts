@@ -16,6 +16,7 @@ import { createContactsRoutes } from './contacts.js';
 import { createMappingRoutes } from './mapping.js';
 import { createPricingRoutes } from './pricing.js';
 import { createDataImportRoutes } from './dataImport.js';
+import { createReportsRoutes } from './reports.js';
 
 /**
  * Create and register all API routes
@@ -41,6 +42,7 @@ export const createAllRoutes = (
   router.use(createMappingRoutes(dbPool));
   router.use(createPricingRoutes(dbPool));
   router.use(createDataImportRoutes(dbPool, dataImportService, upload));
+  router.use(createReportsRoutes(dbPool));
 
   return router;
 };

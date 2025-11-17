@@ -35,7 +35,7 @@ const BarChart: React.FC<BarChartProps> = ({ data, title, height = 300, horizont
             const color = item.color || `hsl(${200 + index * 40}, 70%, 60%)`;
             
             return (
-              <div key={item.label} className="flex items-center space-x-3">
+              <div key={`${item.label}-${index}`} className="flex items-center space-x-3">
                 <div className="w-24 text-sm text-gray-700 truncate">{item.label}</div>
                 <div className="flex-1 bg-gray-200 rounded-full h-6">
                   <div 
@@ -67,7 +67,7 @@ const BarChart: React.FC<BarChartProps> = ({ data, title, height = 300, horizont
           const color = item.color || `hsl(${200 + index * 40}, 70%, 60%)`;
           
           return (
-            <div key={item.label} className="flex flex-col items-center space-y-2">
+            <div key={`${item.label}-${index}`} className="flex flex-col items-center space-y-2">
               <div 
                 className="w-12 rounded-t transition-all duration-300 ease-in-out"
                 style={{ 

@@ -52,9 +52,13 @@ const UnitFormPage: React.FC = () => {
           fetchSections().then(response => response.data || response),
           fetchContacts()
         ]);
-        setUsers(usersData);
+        // Handle paginated response from fetchUsers
+        const usersArray = usersData?.data || usersData || [];
+        setUsers(Array.isArray(usersArray) ? usersArray : []);
         setSections(sectionsData);
-        setContacts(contactsData);
+        // Handle contacts - ensure it's an array
+        const contactsArray = Array.isArray(contactsData) ? contactsData : (contactsData?.data || []);
+        setContacts(contactsArray);
 
         if (isEditing && id) {
           const unitData = await fetchUnit(id);
@@ -440,7 +444,7 @@ const UnitFormPage: React.FC = () => {
                     const contact = contacts.find(c => c.id === contactId);
                     return contact ? (
                       <div key={contactId} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                        <span className="text-sm">{contact.firstName} {contact.lastName} - {contact.county}, {contact.state}</span>
+                        <span className="text-sm">{contact.name} - {contact.city || contact.state || 'N/A'}, {contact.state || 'N/A'}</span>
                         <button
                           type="button"
                           onClick={() => removeContact(contactId)}
@@ -467,9 +471,9 @@ const UnitFormPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a buyer</option>
-                {users.filter(user => user.role === 'Buyer').map(user => (
+                {Array.isArray(users) && users.filter(user => user.role?.name === 'Buyer').map(user => (
                   <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName}
+                    {user.name}
                   </option>
                 ))}
               </select>
@@ -583,8 +587,8 @@ const UnitFormPage: React.FC = () => {
               className="flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50"
             >
               <div>
-                <div className="font-medium">{contact.firstName} {contact.lastName}</div>
-                <div className="text-sm text-gray-600">{contact.county}, {contact.state}</div>
+                <div className="font-medium">{contact.name}</div>
+                <div className="text-sm text-gray-600">{contact.city || contact.state || 'N/A'}, {contact.state || 'N/A'}</div>
               </div>
               <Button
                 onClick={() => addContact(contact.id)}

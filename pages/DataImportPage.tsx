@@ -15,7 +15,7 @@ const DataImportPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Data Import</h1>
             <p className="text-gray-600 mt-1">
-              Upload CSV or Excel files to import data into the database. Files will be validated and staged before production import.
+              Upload CSV or Excel files to import data into the database. The system will automatically detect your columns and help you validate your data before import.
             </p>
           </div>
         </div>
