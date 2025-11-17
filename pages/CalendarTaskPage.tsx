@@ -1,34 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import CalendarTaskDashboard from '../components/CalendarTaskDashboard';
-import { fetchUsers } from '../services/api';
-import type { User } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 const CalendarTaskPage: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: currentUser, loading } = useAuth();
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const users = await fetchUsers();
-        // In a real app, this would come from authentication context
-        setCurrentUser(users[0]);
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  if (isLoading || !currentUser) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Please log in to access calendar and tasks.</p>
         </div>
       </div>
     );

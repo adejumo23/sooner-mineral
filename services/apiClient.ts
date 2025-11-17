@@ -1177,8 +1177,13 @@ export const fetchLeadConversionFunnel = async () => {
   try {
     const response = await apiRequest('/reports/lead-conversion-funnel');
     return response;
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+  } catch (error: any) {
+    // Silently fall back to mock data for reporting endpoints that don't exist yet
+    if (error?.message?.includes('404')) {
+      // Endpoint not implemented yet, using mock data
+    } else {
+      console.warn('Error fetching lead conversion funnel:', error);
+    }
     return {
       stages: [
         { stage: 'Leads Generated', value: 1000, percentage: 100, color: '#3B82F6' },
@@ -1196,8 +1201,11 @@ export const fetchLeadConversionFunnel = async () => {
 export const fetchOutreachActivitySummary = async () => {
   try {
     return await apiRequest('/reports/outreach-activity-summary');
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+  } catch (error: any) {
+    // Silently fall back to mock data for reporting endpoints that don't exist yet
+    if (!error?.message?.includes('404')) {
+      console.warn('Error fetching outreach activity summary:', error);
+    }
     return {
       totalOutreach: 2500,
       successfulContacts: 1800,
@@ -1215,8 +1223,11 @@ export const fetchOutreachActivitySummary = async () => {
 export const fetchAssignmentPerformanceMetrics = async () => {
   try {
     return await apiRequest('/reports/assignment-performance-metrics');
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+  } catch (error: any) {
+    // Silently fall back to mock data for reporting endpoints that don't exist yet
+    if (!error?.message?.includes('404')) {
+      console.warn('Error fetching assignment performance metrics:', error);
+    }
     return {
       totalAssignments: 450,
       completedAssignments: 380,
@@ -1234,8 +1245,11 @@ export const fetchAssignmentPerformanceMetrics = async () => {
 export const fetchDealVelocityMetrics = async () => {
   try {
     return await apiRequest('/reports/deal-velocity-metrics');
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+  } catch (error: any) {
+    // Silently fall back to mock data for reporting endpoints that don't exist yet
+    if (!error?.message?.includes('404')) {
+      console.warn('Error fetching deal velocity metrics:', error);
+    }
     return {
       averageDealTime: 45,
       fastestDeal: 12,
@@ -1255,8 +1269,11 @@ export const fetchDealVelocityMetrics = async () => {
 export const fetchESGComplianceSummary = async () => {
   try {
     return await apiRequest('/reports/esg-compliance-summary');
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+  } catch (error: any) {
+    // Silently fall back to mock data for reporting endpoints that don't exist yet
+    if (!error?.message?.includes('404')) {
+      console.warn('Error fetching ESG compliance summary:', error);
+    }
     return {
       complianceScore: 85,
       environmentalScore: 90,
@@ -1272,8 +1289,11 @@ export const fetchESGComplianceSummary = async () => {
 export const getFilterOptions = async () => {
   try {
     return await apiRequest('/reports/filter-options');
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+  } catch (error: any) {
+    // Silently fall back to mock data for reporting endpoints that don't exist yet
+    if (!error?.message?.includes('404')) {
+      console.warn('Error fetching filter options:', error);
+    }
     return {};
   }
 };

@@ -48,19 +48,24 @@ const ReportingDashboard: React.FC<ReportingDashboardProps> = ({ currentUser }) 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [
-        leadData,
-        outreachData,
-        assignmentData,
-        dealData,
-        esgData
-      ] = await Promise.all([
+      // Use Promise.allSettled to handle individual failures gracefully
+      const results = await Promise.allSettled([
         api.fetchLeadConversionFunnel(filters),
         api.fetchOutreachActivitySummary(filters),
         api.fetchAssignmentPerformanceMetrics(filters),
         api.fetchDealVelocityMetrics(filters),
         api.fetchESGComplianceSummary(filters)
       ]);
+      
+      const [leadData, outreachData, assignmentData, dealData, esgData] = results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          // Individual request failed, will use fallback data below
+          console.debug(`Report data fetch ${index} failed, using fallback`);
+          return null;
+        }
+      });
 
       // Provide fallback data if API calls return empty objects/arrays
       setLeadConversionData(leadData || {
@@ -132,9 +137,13 @@ const ReportingDashboard: React.FC<ReportingDashboardProps> = ({ currentUser }) 
   const fetchFilterOptions = async () => {
     try {
       const options = await api.getFilterOptions();
-      setFilterOptions(options);
-    } catch (error) {
-      console.error('Failed to fetch filter options:', error);
+      setFilterOptions(options || {});
+    } catch (error: any) {
+      // Silently handle missing filter options endpoint
+      if (!error?.message?.includes('404')) {
+        console.error('Failed to fetch filter options:', error);
+      }
+      setFilterOptions({});
     }
   };
 

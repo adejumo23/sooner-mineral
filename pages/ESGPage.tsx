@@ -1,31 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ESGDashboard from '../components/ESGDashboard';
-import { fetchUsers } from '../services/api';
-import type { User } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 const ESGPage: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: currentUser, loading } = useAuth();
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const users = await fetchUsers();
-        setCurrentUser(users[0]); // Use first user as current user for demo
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  if (isLoading || !currentUser) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Please log in to access ESG tracking.</div>
       </div>
     );
   }

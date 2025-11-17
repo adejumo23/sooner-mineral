@@ -57,6 +57,19 @@ const DataImportComponent: React.FC = () => {
   const [acreageSummary, setAcreageSummary] = useState<any[]>([]);
   const [unitSummary, setUnitSummary] = useState<any[]>([]);
   
+  // Column validation state
+  const [columnWarnings, setColumnWarnings] = useState<{
+    emptyColumns: string[];
+    duplicateHeaders: string[];
+    specialChars: string[];
+    longNames: string[];
+  }>({
+    emptyColumns: [],
+    duplicateHeaders: [],
+    specialChars: [],
+    longNames: []
+  });
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +104,13 @@ const DataImportComponent: React.FC = () => {
         setFile(droppedFile);
         setImportResult(null);
         setShowPreview(true);
+        // Reset warnings
+        setColumnWarnings({
+          emptyColumns: [],
+          duplicateHeaders: [],
+          specialChars: [],
+          longNames: []
+        });
         handleFilePreview(droppedFile);
       } else {
         alert('Please upload a CSV or Excel file');
@@ -104,8 +124,64 @@ const DataImportComponent: React.FC = () => {
       setFile(selectedFile);
       setImportResult(null);
       setShowPreview(true);
+      // Reset warnings
+      setColumnWarnings({
+        emptyColumns: [],
+        duplicateHeaders: [],
+        specialChars: [],
+        longNames: []
+      });
       handleFilePreview(selectedFile);
     }
+  };
+
+  const analyzeColumns = (headers: string[], rows: any[]) => {
+    const warnings = {
+      emptyColumns: [] as string[],
+      duplicateHeaders: [] as string[],
+      specialChars: [] as string[],
+      longNames: [] as string[]
+    };
+    
+    // Check for empty columns
+    headers.forEach((header, index) => {
+      const isEmpty = rows.every(row => {
+        const value = Object.values(row)[index];
+        return !value || String(value).trim() === '';
+      });
+      if (isEmpty && rows.length > 0) {
+        warnings.emptyColumns.push(header.trim());
+      }
+    });
+    
+    // Check for duplicate headers
+    const headerCounts: { [key: string]: number } = {};
+    headers.forEach(header => {
+      const trimmed = header.trim();
+      headerCounts[trimmed] = (headerCounts[trimmed] || 0) + 1;
+    });
+    Object.entries(headerCounts).forEach(([header, count]) => {
+      if (count > 1) {
+        warnings.duplicateHeaders.push(header);
+      }
+    });
+    
+    // Check for special characters in headers
+    headers.forEach(header => {
+      const trimmed = header.trim();
+      if (/[^a-zA-Z0-9_\s-]/.test(trimmed)) {
+        warnings.specialChars.push(trimmed);
+      }
+    });
+    
+    // Check for very long column names
+    headers.forEach(header => {
+      if (header.trim().length > 50) {
+        warnings.longNames.push(header.trim());
+      }
+    });
+    
+    setColumnWarnings(warnings);
   };
 
   const handleFilePreview = (file: File) => {
@@ -113,17 +189,22 @@ const DataImportComponent: React.FC = () => {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       if (file.name.endsWith('.csv')) {
-        const lines = text.split('\n');
-        const headers = lines[0].split(',');
+        const lines = text.split('\n').filter(line => line.trim());
+        if (lines.length === 0) {
+          setPreviewData([]);
+          return;
+        }
+        const headers = lines[0].split(',').map(h => h.trim());
         const rows = lines.slice(1, 6).map(line => {
           const values = line.split(',');
           const row: any = {};
           headers.forEach((header, index) => {
-            row[header.trim()] = values[index]?.trim() || '';
+            row[header] = values[index]?.trim() || '';
           });
           return row;
         });
         setPreviewData(rows);
+        analyzeColumns(headers, rows);
       }
     };
     reader.readAsText(file);
@@ -564,6 +645,46 @@ const DataImportComponent: React.FC = () => {
       {/* Upload Tab */}
       {activeTab === 'upload' && (
         <div className="tab-content">
+          {/* Help Guide Section */}
+          <div className="help-guide-section" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '12px',
+            padding: '24px',
+            marginBottom: '24px',
+            color: 'white'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'start', gap: '16px' }}>
+              <div style={{ fontSize: '32px' }}>💡</div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '20px', fontWeight: 'bold' }}>
+                  How Data Import Works
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>1️⃣ Upload Your File</div>
+                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Upload a CSV or Excel file. The system will automatically detect your columns.</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>2️⃣ Preview & Validate</div>
+                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Review your data preview. Check for empty columns, formatting issues, or missing data.</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>3️⃣ Import to Staging</div>
+                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Your data goes to a staging area where you can review and edit before final import.</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>4️⃣ Move to Production</div>
+                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Once verified, move your data to production where it's ready to use.</div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '14px' }}>
+                  <strong>💡 Tip:</strong> Column names in your file will be automatically cleaned (spaces → underscores, special characters removed). 
+                  Make sure your first row contains clear column headers. Empty columns will be preserved but may cause issues later.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="upload-section">
             <div className="section-title">
               <h3>📤 File Upload</h3>
@@ -651,26 +772,131 @@ const DataImportComponent: React.FC = () => {
             {/* File Preview */}
             {showPreview && previewData.length > 0 && (
               <div className="file-preview">
-                <h4>📋 Data Preview (First 5 rows)</h4>
-                <div className="preview-table">
-                  <table>
-                    <thead>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4>📋 Data Preview (First 5 rows)</h4>
+                  <div style={{ fontSize: '14px', color: '#666' }}>
+                    {Object.keys(previewData[0] || {}).length} columns detected
+                  </div>
+                </div>
+                
+                {/* Column Validation Warnings */}
+                {(columnWarnings.emptyColumns.length > 0 || 
+                  columnWarnings.duplicateHeaders.length > 0 || 
+                  columnWarnings.specialChars.length > 0 ||
+                  columnWarnings.longNames.length > 0) && (
+                  <div style={{
+                    background: '#fff3cd',
+                    border: '1px solid #ffc107',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '12px', color: '#856404' }}>
+                      ⚠️ Column Validation Warnings
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#856404' }}>
+                      {columnWarnings.emptyColumns.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Empty Columns:</strong> {columnWarnings.emptyColumns.join(', ')}
+                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
+                            These columns appear to have no data. Consider removing them or checking your file.
+                          </div>
+                        </div>
+                      )}
+                      {columnWarnings.duplicateHeaders.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Duplicate Headers:</strong> {columnWarnings.duplicateHeaders.join(', ')}
+                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
+                            Duplicate column names will be renamed automatically (e.g., "Column_1", "Column_2").
+                          </div>
+                        </div>
+                      )}
+                      {columnWarnings.specialChars.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Special Characters:</strong> {columnWarnings.specialChars.join(', ')}
+                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
+                            Special characters in column names will be replaced with underscores automatically.
+                          </div>
+                        </div>
+                      )}
+                      {columnWarnings.longNames.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Long Column Names:</strong> {columnWarnings.longNames.length} column(s) exceed 50 characters
+                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
+                            Very long column names may be truncated. Consider using shorter names.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Success message if no warnings */}
+                {columnWarnings.emptyColumns.length === 0 && 
+                 columnWarnings.duplicateHeaders.length === 0 && 
+                 columnWarnings.specialChars.length === 0 &&
+                 columnWarnings.longNames.length === 0 && (
+                  <div style={{
+                    background: '#d4edda',
+                    border: '1px solid #28a745',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    marginBottom: '16px',
+                    color: '#155724'
+                  }}>
+                    ✅ Your file looks good! All columns have data and headers are properly formatted.
+                  </div>
+                )}
+                
+                <div className="preview-table" style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead style={{ position: 'sticky', top: 0, background: '#f8f9fa', zIndex: 10 }}>
                       <tr>
-                        {Object.keys(previewData[0] || {}).map(header => (
-                          <th key={header}>{header}</th>
-                        ))}
+                        {Object.keys(previewData[0] || {}).map((header, idx) => {
+                          const isEmpty = columnWarnings.emptyColumns.includes(header);
+                          return (
+                            <th 
+                              key={header} 
+                              style={{
+                                padding: '8px',
+                                border: '1px solid #dee2e6',
+                                background: isEmpty ? '#fff3cd' : '#f8f9fa',
+                                fontWeight: 'bold',
+                                textAlign: 'left'
+                              }}
+                            >
+                              {header}
+                              {isEmpty && <span style={{ fontSize: '10px', color: '#856404', marginLeft: '4px' }}>⚠️</span>}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
                       {previewData.map((row, index) => (
                         <tr key={index}>
-                          {Object.values(row).map((value, cellIndex) => (
-                            <td key={cellIndex}>{String(value)}</td>
-                          ))}
+                          {Object.entries(row).map(([key, value], cellIndex) => {
+                            const isEmpty = columnWarnings.emptyColumns.includes(key);
+                            return (
+                              <td 
+                                key={cellIndex}
+                                style={{
+                                  padding: '8px',
+                                  border: '1px solid #dee2e6',
+                                  background: isEmpty ? '#fff3cd' : 'white'
+                                }}
+                              >
+                                {String(value) || <span style={{ color: '#999', fontStyle: 'italic' }}>empty</span>}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div style={{ marginTop: '12px', fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
+                  💡 Tip: Review the preview carefully. You can edit data after import in the Staging Tables tab.
                 </div>
               </div>
             )}
@@ -687,9 +913,60 @@ const DataImportComponent: React.FC = () => {
                   {importResult.recordCount && (
                     <p>Records imported: {importResult.recordCount}</p>
                   )}
+                  
+                  {/* Show missing/extra columns if validation failed */}
+                  {!importResult.success && (
+                    <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(255,0,0,0.1)', borderRadius: '8px' }}>
+                      {importResult.missingColumns && importResult.missingColumns.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Missing Required Columns:</strong>
+                          <ul style={{ marginTop: '4px', paddingLeft: '20px' }}>
+                            {importResult.missingColumns.map((col, idx) => (
+                              <li key={idx}>{col}</li>
+                            ))}
+                          </ul>
+                          <div style={{ fontSize: '12px', marginTop: '4px', color: '#666' }}>
+                            Your file must include these columns. Please add them to your file and try again.
+                          </div>
+                        </div>
+                      )}
+                      {importResult.extraColumns && importResult.extraColumns.length > 0 && (
+                        <div>
+                          <strong>Unexpected Columns:</strong>
+                          <ul style={{ marginTop: '4px', paddingLeft: '20px' }}>
+                            {importResult.extraColumns.map((col, idx) => (
+                              <li key={idx}>{col}</li>
+                            ))}
+                          </ul>
+                          <div style={{ fontSize: '12px', marginTop: '4px', color: '#666' }}>
+                            These columns are not expected. You can remove them or they will be ignored during import.
+                          </div>
+                        </div>
+                      )}
+                      <div style={{ marginTop: '12px', padding: '8px', background: 'rgba(255,255,255,0.5)', borderRadius: '4px' }}>
+                        <strong>How to Fix:</strong>
+                        <ol style={{ marginTop: '4px', paddingLeft: '20px', fontSize: '12px' }}>
+                          <li>Check your file's first row - it should contain column headers</li>
+                          <li>Make sure column names match exactly (case-sensitive)</li>
+                          <li>Remove any extra columns you don't need</li>
+                          <li>Add any missing required columns</li>
+                          <li>Save your file and try uploading again</li>
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+                  
                   {importResult.success && (
                     <div className="result-actions">
                       <p className="next-step">✅ File uploaded successfully! Data is now displayed in the Staging Tables tab below.</p>
+                      <div style={{ marginTop: '12px', padding: '12px', background: '#e7f3ff', borderRadius: '8px', fontSize: '14px' }}>
+                        <strong>Next Steps:</strong>
+                        <ol style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                          <li>Go to the "Staging Tables" tab to review your data</li>
+                          <li>Edit any records that need correction</li>
+                          <li>Click "Move to Production" when you're ready</li>
+                        </ol>
+                      </div>
                     </div>
                   )}
                 </div>
