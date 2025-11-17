@@ -8,6 +8,7 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import csv from 'csv-parser';
 import * as fs from 'fs';
+import crypto from 'crypto';
 import { DataImportService } from './services/dataImportService.js';
 
 // Load environment variables
@@ -62,6 +63,16 @@ const createDatabasePool = () => {
 
 // Initialize database connection pool
 createDatabasePool();
+
+// Password hashing utilities using MD5
+const hashPassword = (password) => {
+  return crypto.createHash('md5').update(password).digest('hex');
+};
+
+const verifyPassword = (password, hashedPassword) => {
+  const passwordHash = hashPassword(password);
+  return passwordHash === hashedPassword;
+};
 
 // Function to load all assignments into cache
 const loadAssignmentCache = async () => {
@@ -393,16 +404,28 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const user = users[0];
-    console.log('User found:', { id: user.id, email: user.email, password_hash_length: user.password_hash?.length, password_length: password?.length });
+    console.log('User found:', { id: user.id, email: user.email });
     
-    // TODO: Implement proper password hashing comparison (bcrypt.compare)
-    // For now, simple comparison (NOT SECURE FOR PRODUCTION)
-    if (user.password_hash !== password) {
-      console.log('Password mismatch:', { 
-        stored: user.password_hash, 
-        provided: password,
-        match: user.password_hash === password
-      });
+    // Check if stored password is already MD5 hashed (32 hex characters) or plaintext
+    const isMD5Hash = /^[a-f0-9]{32}$/i.test(user.password_hash);
+    
+    let passwordValid = false;
+    if (isMD5Hash) {
+      // Password is already hashed, verify using MD5 comparison
+      passwordValid = verifyPassword(password, user.password_hash);
+    } else {
+      // Password is plaintext (legacy), compare directly and upgrade to MD5
+      if (user.password_hash === password) {
+        passwordValid = true;
+        // Upgrade plaintext password to MD5 hash
+        const hashedPassword = hashPassword(password);
+        await executeQuery('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, user.id]);
+        console.log('Upgraded plaintext password to MD5 hash for user:', user.email);
+      }
+    }
+    
+    if (!passwordValid) {
+      console.log('Password verification failed for user:', user.email);
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password'
@@ -2044,9 +2067,8 @@ app.post('/api/users', async (req, res) => {
     // Generate a unique ID for the user
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Hash password (in production, use bcrypt or similar)
-    // For now, we'll store it as-is (NOT RECOMMENDED FOR PRODUCTION)
-    const hashedPassword = password; // TODO: Implement proper password hashing
+    // Hash password using MD5
+    const hashedPassword = hashPassword(password);
 
     // Insert the new user
     const insertQuery = `
@@ -2100,6 +2122,170 @@ app.post('/api/users', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create user',
+      error: error.message
+    });
+  }
+});
+
+// Update an existing user
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const userId = req.params.id;
+    const { name, email, roleId, password } = req.body;
+
+    // Check if user exists
+    const checkUserQuery = `SELECT id FROM users WHERE id = ?`;
+    const existingUser = await executeQuery(checkUserQuery, [userId]);
+    
+    if (existingUser.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Build update query dynamically based on provided fields
+    const updates = [];
+    const values = [];
+
+    if (name !== undefined) {
+      updates.push('name = ?');
+      values.push(name);
+    }
+
+    if (email !== undefined) {
+      // Check if email is already taken by another user
+      const emailCheckQuery = `SELECT id FROM users WHERE email = ? AND id != ?`;
+      const emailCheck = await executeQuery(emailCheckQuery, [email, userId]);
+      
+      if (emailCheck.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email is already taken by another user'
+        });
+      }
+      
+      updates.push('email = ?');
+      values.push(email);
+    }
+
+    if (roleId !== undefined) {
+      updates.push('role_id = ?');
+      values.push(roleId);
+    }
+
+    if (password !== undefined && password !== '') {
+      // Hash password using MD5
+      const hashedPassword = hashPassword(password);
+      updates.push('password_hash = ?');
+      values.push(hashedPassword);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields to update'
+      });
+    }
+
+    // Add updated_at timestamp
+    updates.push('updated_at = NOW()');
+    values.push(userId);
+
+    const updateQuery = `
+      UPDATE users 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `;
+    
+    await executeQuery(updateQuery, values);
+
+    // Fetch the updated user with role information
+    const fetchQuery = `
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.created_at,
+        u.updated_at,
+        r.name as role_name,
+        r.id as role_id
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = ?
+    `;
+    
+    const updatedUser = await executeQuery(fetchQuery, [userId]);
+    
+    if (updatedUser.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'User updated but failed to retrieve'
+      });
+    }
+
+    const user = updatedUser[0];
+    const response = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: null,
+      role: {
+        id: user.role_id,
+        name: user.role_name || 'User'
+      },
+      createdAt: user.created_at,
+      updatedAt: user.updated_at
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user',
+      error: error.message
+    });
+  }
+});
+
+// Delete a user
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    if (!dbPool) {
+      return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+    }
+
+    const userId = req.params.id;
+
+    // Check if user exists
+    const checkUserQuery = `SELECT id FROM users WHERE id = ?`;
+    const existingUser = await executeQuery(checkUserQuery, [userId]);
+    
+    if (existingUser.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Delete the user
+    const deleteQuery = `DELETE FROM users WHERE id = ?`;
+    await executeQuery(deleteQuery, [userId]);
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
       error: error.message
     });
   }
