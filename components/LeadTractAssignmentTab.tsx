@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { LeadEnhanced, User } from '../types';
 import Button from './ui/Button';
 import { UserIcon, MapIcon, EyeIcon, PencilIcon, CheckIcon, XCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from './icons/Icons';
+import { formatNMA } from '../utils/formatting';
 
 // Mock tracts data (same as before, with statusChangeLog and avatar)
 const mockTracts = [
@@ -223,7 +224,7 @@ const LeadTractAssignmentTab: React.FC<{
                   <td className="px-3 py-2">{tract.county}, {tract.state}</td>
                   <td className="px-3 py-2" title="Legal locator (PLSS or abstract)">{tract.str}</td>
                   <td className="px-3 py-2">{tract.grossAcres}</td>
-                  <td className="px-3 py-2" title="Net mineral acres">{tract.nma}</td>
+                  <td className="px-3 py-2" title="Net mineral acres">{formatNMA(tract.nma)}</td>
                   <td className="px-3 py-2" title="Royalty rate">{(tract.royalty * 100).toFixed(2)}%</td>
                   <td className="px-3 py-2" title="NRA = NMA × Royalty % ÷ 0.125">{tract.nra}</td>
                   <td className="px-3 py-2">

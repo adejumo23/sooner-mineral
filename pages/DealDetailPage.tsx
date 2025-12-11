@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import { formatNMA } from '../utils/formatting';
 import { 
   CurrencyDollarIcon, 
   ArrowLeftIcon,
@@ -226,7 +227,7 @@ const DealDetailPage: React.FC = () => {
             <DocumentIcon className="w-6 h-6 text-blue-500" />
             <div>
               <div className="text-sm text-gray-500">Net Mineral Acres</div>
-              <div className="text-lg font-semibold text-gray-900">{deal.nma.toFixed(1)}</div>
+              <div className="text-lg font-semibold text-gray-900">{formatNMA(deal.nma)}</div>
             </div>
           </div>
         </Card>

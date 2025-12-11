@@ -15,7 +15,11 @@ import {
   unassignUnit,
   updateUnitLock,
   createUnitNote,
-  deleteUnit
+  deleteUnit,
+  fetchUnitAcreageSchedule,
+  updateAcreageScheduleRecord,
+  fetchUnitTracker,
+  updateUnitTrackerRecord
 } from '../services/api';
 import { Unit, UnitSection, UnitSectionEnhanced, UnitContact, UnitContactAggregated, UnitNote, UnitAssignment, User, TitleStatus } from '../types';
 import Card from '../components/ui/Card';
@@ -23,6 +27,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import UnitMappingTab from '../components/UnitMappingTab';
+import { formatNMA } from '../utils/formatting';
 import { 
   ArrowLeftIcon, 
   PencilIcon, 
@@ -64,6 +69,13 @@ const UnitDetailPage: React.FC = () => {
   const [sectionSearchTerm, setSectionSearchTerm] = useState('');
   const [sectionSortBy, setSectionSortBy] = useState('sectionName');
   const [sectionFilterStatus, setSectionFilterStatus] = useState('');
+  const [showAcreageScheduleModal, setShowAcreageScheduleModal] = useState(false);
+  const [acreageScheduleRecords, setAcreageScheduleRecords] = useState<any[]>([]);
+  const [unitTrackerRecords, setUnitTrackerRecords] = useState<any[]>([]);
+  const [isLoadingAcreageSchedule, setIsLoadingAcreageSchedule] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
+  const [editingTrackerRecordId, setEditingTrackerRecordId] = useState<string | null>(null);
+  const [activeSourceTab, setActiveSourceTab] = useState<'acreage' | 'tracker'>('acreage');
 
   useEffect(() => {
     if (id) {
@@ -71,21 +83,31 @@ const UnitDetailPage: React.FC = () => {
     }
   }, [id]);
 
+  // Reload data when returning from edit page
+  useEffect(() => {
+    const handleFocus = () => {
+      if (id && document.visibilityState === 'visible') {
+        loadUnitData();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [id]);
+
   const loadUnitData = async () => {
     if (!id) return;
     
     try {
       setLoading(true);
-      const [
-        unitData, 
-        sectionsData, 
-        contactsData, 
-        contactsAggregatedData,
-        notesData, 
-        assignmentsData,
-        unitNamesData,
-        usersData
-      ] = await Promise.all([
+      
+      // Fetch all data, handling individual errors gracefully
+      const results = await Promise.allSettled([
         fetchUnit(id),
         fetchUnitSections(id),
         fetchUnitContacts(id),
@@ -96,15 +118,48 @@ const UnitDetailPage: React.FC = () => {
         fetchUsers()
       ]);
       
+      // Extract results, using empty defaults for failed requests
+      const unitData = results[0].status === 'fulfilled' ? results[0].value : null;
+      const sectionsData = results[1].status === 'fulfilled' ? results[1].value : [];
+      const contactsData = results[2].status === 'fulfilled' ? results[2].value : [];
+      const contactsAggregatedData = results[3].status === 'fulfilled' ? results[3].value : [];
+      const notesData = results[4].status === 'fulfilled' ? results[4].value : [];
+      const assignmentsData = results[5].status === 'fulfilled' ? results[5].value : [];
+      const unitNamesData = results[6].status === 'fulfilled' ? results[6].value : { currentUnitNames: [], newUnitNames: [], totalRecords: 0 };
+      const usersData = results[7].status === 'fulfilled' ? results[7].value : { data: [] };
+      
+      // Log any errors
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const endpointNames = ['unit', 'sections', 'contacts', 'contactsAggregated', 'notes', 'assignments', 'unitNames', 'users'];
+          console.error(`Error loading ${endpointNames[index]}:`, result.reason);
+        }
+      });
+      
+      if (!unitData) {
+        console.error('Failed to load unit data');
+        return;
+      }
+      
       setUnit(unitData);
       setUnitSections(sectionsData);
-      setUnitSectionsEnhanced(await fetchUnitSectionsEnhanced(id)); // Fetch enhanced sections
+      
+      // Fetch enhanced sections separately
+      try {
+        const enhancedSections = await fetchUnitSectionsEnhanced(id);
+        setUnitSectionsEnhanced(enhancedSections);
+      } catch (error) {
+        console.error('Error loading enhanced sections:', error);
+        setUnitSectionsEnhanced([]);
+      }
+      
       setUnitContacts(contactsData);
       setUnitContactsAggregated(contactsAggregatedData);
-      setUnitNotes(notesData);
-      setUnitAssignments(assignmentsData);
+      // Ensure unitNotes is always an array
+      setUnitNotes(Array.isArray(notesData) ? notesData : []);
+      setUnitAssignments(Array.isArray(assignmentsData) ? assignmentsData : []);
       setUnitNames(unitNamesData);
-      setUsers(usersData.data || usersData); // Fix: Access data property from paginated response
+      setUsers(usersData.data || usersData);
     } catch (error) {
       console.error('Error loading unit data:', error);
     } finally {
@@ -175,6 +230,86 @@ const UnitDetailPage: React.FC = () => {
       navigate('/units');
     } catch (error) {
       console.error('Error deleting unit:', error);
+    }
+  };
+
+  const handleLoadAcreageSchedule = async () => {
+    if (!id) return;
+    
+    setIsLoadingAcreageSchedule(true);
+    try {
+      const [acreageRecords, trackerRecords] = await Promise.all([
+        fetchUnitAcreageSchedule(id).catch(err => {
+          console.error('Failed to fetch acreage schedule records:', err);
+          return [];
+        }),
+        fetchUnitTracker(id).catch(err => {
+          console.error('Failed to fetch unit tracker records:', err);
+          return [];
+        })
+      ]);
+      setAcreageScheduleRecords(acreageRecords || []);
+      setUnitTrackerRecords(trackerRecords || []);
+    } catch (error) {
+      console.error('Failed to fetch source records:', error);
+      setAcreageScheduleRecords([]);
+      setUnitTrackerRecords([]);
+    } finally {
+      setIsLoadingAcreageSchedule(false);
+    }
+  };
+
+  const handleEditRecord = (recordId: number) => {
+    setEditingRecordId(recordId);
+  };
+
+  const handleCancelEditRecord = () => {
+    setEditingRecordId(null);
+  };
+
+  const handleSaveRecord = async (recordId: number, recordData: any) => {
+    try {
+      await updateAcreageScheduleRecord(recordId, recordData);
+      
+      // Update local state
+      setAcreageScheduleRecords(prev => 
+        prev.map(record => 
+          record.id === recordId ? { ...record, ...recordData } : record
+        )
+      );
+      
+      setEditingRecordId(null);
+      alert('Record updated successfully!');
+    } catch (error) {
+      console.error('Failed to update record:', error);
+      alert('Failed to update record. Please try again.');
+    }
+  };
+
+  const handleEditTrackerRecord = (recordId: string) => {
+    setEditingTrackerRecordId(recordId);
+  };
+
+  const handleCancelEditTrackerRecord = () => {
+    setEditingTrackerRecordId(null);
+  };
+
+  const handleSaveTrackerRecord = async (recordId: string, recordData: any) => {
+    try {
+      await updateUnitTrackerRecord(recordId, recordData);
+      
+      // Update local state
+      setUnitTrackerRecords(prev => 
+        prev.map(record => 
+          record.id === recordId ? { ...record, ...recordData } : record
+        )
+      );
+      
+      setEditingTrackerRecordId(null);
+      alert('Unit tracker record updated successfully!');
+    } catch (error) {
+      console.error('Failed to update unit tracker record:', error);
+      alert('Failed to update unit tracker record. Please try again.');
     }
   };
 
@@ -364,6 +499,18 @@ const UnitDetailPage: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowAcreageScheduleModal(true);
+              handleLoadAcreageSchedule();
+            }}
+            className="flex items-center space-x-2"
+          >
+            <ClipboardDocumentListIcon className="h-4 w-4" />
+            <span>Edit Source Records</span>
+          </Button>
+          
           {unit.isLocked ? (
             <Button
               variant="outline"
@@ -678,7 +825,24 @@ const UnitDetailPage: React.FC = () => {
                           const sectionName = section.section?.sectionName || section.sectionName || 'N/A';
                           const county = section.section?.county || '';
                           const state = section.section?.state || '';
-                          const str = section.str || section.section?.str || 'N/A';
+                          
+                          // Clean STR value: remove all commas, newlines, and extra whitespace
+                          let strValue = section.str || section.section?.str || 'N/A';
+                          
+                          // Handle arrays (in case STR is accidentally an array)
+                          if (Array.isArray(strValue)) {
+                            strValue = strValue.join(' ').replace(/,/g, '');
+                          }
+                          // Convert to string and clean
+                          let str = String(strValue)
+                            .replace(/,/g, '') // Remove all commas first
+                            .replace(/\r\n/g, ' ') // Replace Windows line breaks
+                            .replace(/\n/g, ' ') // Replace Unix line breaks
+                            .replace(/\r/g, ' ') // Replace old Mac line breaks
+                            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+                            .trim();
+                          // Final pass: remove any commas that might have been reintroduced
+                          str = str.replace(/,/g, '').trim();
                           const grossAcres = section.grossAcres || section.section?.grossAcres || 0;
                           const netAcres = section.netMineralAcres || section.section?.netMineralAcres || 0;
                           const titleStatus = section.titleStatus || section.section?.titleStatus || 'Unknown';
@@ -690,11 +854,11 @@ const UnitDetailPage: React.FC = () => {
                               title={`${sectionName} - ${county}, ${state}`}
                             >
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 font-mono">
+                                <div className="text-sm text-gray-900 font-mono whitespace-nowrap">
                                   {str}
                                 </div>
                                 <div className="text-sm text-gray-500">
-                                  {county}, {state}
+                                  {county && state ? `${county}, ${state}` : county || state || ''}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -704,7 +868,7 @@ const UnitDetailPage: React.FC = () => {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
-                                  {netAcres ? netAcres.toLocaleString() : 'N/A'}
+                                  {formatNMA(netAcres)}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -865,7 +1029,7 @@ const UnitDetailPage: React.FC = () => {
                               {(contact.royaltyPercentageWeighted * 100).toFixed(1)}%
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {contact.totalNMA ? contact.totalNMA.toLocaleString() : 'N/A'}
+                              {formatNMA(contact.totalNMA)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {contact.totalNRA ? contact.totalNRA.toLocaleString() : 'N/A'}
@@ -946,7 +1110,7 @@ const UnitDetailPage: React.FC = () => {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {unitContactsAggregated.reduce((sum, c) => sum + (c.totalNMA || 0), 0).toLocaleString()}
+                      {formatNMA(unitContactsAggregated.reduce((sum, c) => sum + (c.totalNMA || 0), 0))}
                     </div>
                     <div className="text-sm text-gray-500">Total NMA</div>
                   </div>
@@ -979,7 +1143,7 @@ const UnitDetailPage: React.FC = () => {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Current Buyer Assignment</h3>
-                  {!unit.assignedBuyer ? (
+                  {!unit?.assignedBuyer ? (
                     <Button onClick={() => setShowAssignmentModal(true)}>
                       Assign Unit
                     </Button>
@@ -990,7 +1154,7 @@ const UnitDetailPage: React.FC = () => {
                   )}
                 </div>
                 
-                {unit.assignedBuyer ? (
+                {unit?.assignedBuyer ? (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -998,15 +1162,15 @@ const UnitDetailPage: React.FC = () => {
                         <dl className="space-y-2">
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Assigned Buyer</dt>
-                            <dd className="text-sm text-gray-900">{unit.assignedBuyer.name}</dd>
+                            <dd className="text-sm text-gray-900">{unit.assignedBuyer?.name || 'N/A'}</dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Email</dt>
-                            <dd className="text-sm text-gray-600">{unit.assignedBuyer.email}</dd>
+                            <dd className="text-sm text-gray-600">{unit.assignedBuyer?.email || 'N/A'}</dd>
                           </div>
                           <div>
                             <dt className="text-sm font-medium text-gray-500">Role</dt>
-                            <dd className="text-sm text-gray-600">{unit.assignedBuyer.role.name}</dd>
+                            <dd className="text-sm text-gray-600">{unit.assignedBuyer?.role?.name || 'N/A'}</dd>
                           </div>
                         </dl>
                       </div>
@@ -1085,25 +1249,25 @@ const UnitDetailPage: React.FC = () => {
             <Card>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Buyer Assignments</h3>
-                {unitAssignments.length === 0 ? (
+                {!Array.isArray(unitAssignments) || unitAssignments.length === 0 ? (
                   <p className="text-gray-500">No current buyer assignments</p>
                 ) : (
                   <div className="space-y-3">
                     {unitAssignments
-                      .filter(assignment => assignment.assignmentStatus === 'In Progress' || !assignment.removedAt)
+                      .filter(assignment => assignment?.assignmentStatus === 'In Progress' || !assignment?.removedAt)
                       .reduce((unique, assignment) => {
                         // Only add if we haven't seen this buyer before
-                        if (!unique.find(item => item.buyer?.name === assignment.buyer?.name)) {
+                        if (!unique.find(item => item?.buyer?.name === assignment?.buyer?.name)) {
                           unique.push(assignment);
                         }
                         return unique;
                       }, [] as typeof unitAssignments)
                       .map((assignment) => (
-                      <div key={assignment.id} className="border-l-4 border-blue-200 pl-4 py-2">
+                      <div key={assignment?.id || Math.random()} className="border-l-4 border-blue-200 pl-4 py-2">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-sm text-gray-900">
-                              <span className="font-medium">Assigned to:</span> {assignment.buyer?.name || 'Unknown'}
+                              <span className="font-medium">Assigned to:</span> {assignment?.buyer?.name || 'Unknown'}
                             </p>
                           </div>
                         </div>
@@ -1170,26 +1334,26 @@ const UnitDetailPage: React.FC = () => {
                   </Button>
                 </div>
                 
-                {unitNotes.length === 0 ? (
+                {!Array.isArray(unitNotes) || unitNotes.length === 0 ? (
                   <p className="text-gray-500">No notes available</p>
                 ) : (
                   <div className="space-y-3">
                     {unitNotes.map((note) => (
-                      <div key={note.id} className="border-l-4 border-gray-200 pl-4 py-2">
+                      <div key={note?.id || Math.random()} className="border-l-4 border-gray-200 pl-4 py-2">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-sm text-gray-900">{note.noteText}</p>
+                            <p className="text-sm text-gray-900">{note?.noteText || 'N/A'}</p>
                             <p className="text-xs text-gray-500 mt-1">
-                              {note.createdByUser?.name} • {new Date(note.createdAt).toLocaleDateString()}
+                              {note?.createdByUser?.name || 'Unknown'} • {note?.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'N/A'}
                             </p>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            note.noteType === 'Assignment' ? 'bg-blue-100 text-blue-800' :
-                            note.noteType === 'Status Change' ? 'bg-yellow-100 text-yellow-800' :
-                            note.noteType === 'Lock/Unlock' ? 'bg-red-100 text-red-800' :
+                            note?.noteType === 'Assignment' ? 'bg-blue-100 text-blue-800' :
+                            note?.noteType === 'Status Change' ? 'bg-yellow-100 text-yellow-800' :
+                            note?.noteType === 'Lock/Unlock' ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {note.noteType}
+                            {note?.noteType || 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -1206,7 +1370,7 @@ const UnitDetailPage: React.FC = () => {
       <Modal
         isOpen={showAssignmentModal}
         onClose={() => setShowAssignmentModal(false)}
-        title={unit.assignedBuyer ? "Reassign Unit to Buyer" : "Assign Unit to Buyer"}
+        title={unit?.assignedBuyer ? "Reassign Unit to Buyer" : "Assign Unit to Buyer"}
       >
         <div className="space-y-4">
           <div>
@@ -1412,7 +1576,464 @@ const UnitDetailPage: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Edit Source Records Modal */}
+      <Modal
+        isOpen={showAcreageScheduleModal}
+        onClose={() => {
+          setShowAcreageScheduleModal(false);
+          setAcreageScheduleRecords([]);
+          setUnitTrackerRecords([]);
+          setEditingRecordId(null);
+          setEditingTrackerRecordId(null);
+          setActiveSourceTab('acreage');
+        }}
+        title="Edit Source Records"
+        size="3xl"
+      >
+        <div className="space-y-4">
+          {/* Tabs for switching between acreage schedule and unit tracker */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveSourceTab('acreage')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeSourceTab === 'acreage'
+                    ? 'border-sc-blue text-sc-blue'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                prod_acreage_schedule ({acreageScheduleRecords.length})
+              </button>
+              <button
+                onClick={() => setActiveSourceTab('tracker')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeSourceTab === 'tracker'
+                    ? 'border-sc-blue text-sc-blue'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                prod_unit_tracker ({unitTrackerRecords.length})
+              </button>
+            </nav>
+          </div>
+
+          {isLoadingAcreageSchedule ? (
+            <div className="text-center py-8">
+              <div className="text-gray-500">Loading records...</div>
+            </div>
+          ) : activeSourceTab === 'acreage' ? (
+            acreageScheduleRecords.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">No acreage schedule records found for this unit</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border border-gray-300">
+                  <thead className="bg-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">S-T-R</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Owner</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">NMA</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Royalty</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Buyer</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Legal Description</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Note</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {acreageScheduleRecords.map((record) => (
+                      <RecordRow
+                        key={record.id}
+                        record={record}
+                        isEditing={editingRecordId === record.id}
+                        onEdit={() => handleEditRecord(record.id)}
+                        onCancel={handleCancelEditRecord}
+                        onSave={(data) => handleSaveRecord(record.id, data)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : (
+            unitTrackerRecords.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">No unit tracker records found for this unit</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border border-gray-300">
+                  <thead className="bg-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Unit</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Well Name</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Operator</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">API Number</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">S</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">T</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">R</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">County</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Target Formation</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Allocation</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Notes</th>
+                      <th className="px-3 py-2 border border-gray-300 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unitTrackerRecords.map((record) => (
+                      <UnitTrackerRow
+                        key={record.id}
+                        record={record}
+                        isEditing={editingTrackerRecordId === record.id}
+                        onEdit={() => handleEditTrackerRecord(record.id)}
+                        onCancel={handleCancelEditTrackerRecord}
+                        onSave={(data) => handleSaveTrackerRecord(record.id, data)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+        </div>
+      </Modal>
     </div>
+  );
+};
+
+// RecordRow component for editing individual records
+interface RecordRowProps {
+  record: any;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (data: any) => void;
+}
+
+const RecordRow: React.FC<RecordRowProps> = ({ record, isEditing, onEdit, onCancel, onSave }) => {
+  const [formData, setFormData] = useState({
+    OWNER: record.OWNER || '',
+    NMA: record.NMA || '',
+    ROY: record.ROY || '',
+    STATUS: record.STATUS || '',
+    BUYER: record.BUYER || '',
+    LEGAL_DESCRIPTION: record.LEGAL_DESCRIPTION || '',
+    NOTE: record.NOTE || '',
+    COUNTY: record.COUNTY || '',
+    STREET: record.STREET || '',
+    CITY: record.CITY || '',
+    ST: record.ST || '',
+    ZIP: record.ZIP || '',
+    PHONE_EMAIL: record.PHONE_EMAIL || '',
+    CONTACT: record.CONTACT || '',
+    CURRENT_UNIT_NAME: record.CURRENT_UNIT_NAME || '',
+    NEW_UNIT_NAME: record.NEW_UNIT_NAME || '',
+    TITLE_SOURCE: record.TITLE_SOURCE || '',
+    CALCULATED_ACREAGE: record.CALCULATED_ACREAGE || '',
+  });
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = () => {
+    onSave(formData);
+  };
+
+  if (isEditing) {
+    return (
+      <tr className="bg-yellow-50">
+        <td className="px-3 py-2 border border-gray-300 text-sm">{record.S_T_R || 'N/A'}</td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.OWNER}
+            onChange={(e) => handleChange('OWNER', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="number"
+            step="0.000001"
+            value={formData.NMA}
+            onChange={(e) => handleChange('NMA', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="number"
+            step="0.01"
+            value={formData.ROY}
+            onChange={(e) => handleChange('ROY', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.STATUS}
+            onChange={(e) => handleChange('STATUS', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.BUYER}
+            onChange={(e) => handleChange('BUYER', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <textarea
+            value={formData.LEGAL_DESCRIPTION}
+            onChange={(e) => handleChange('LEGAL_DESCRIPTION', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+            rows={2}
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <textarea
+            value={formData.NOTE}
+            onChange={(e) => handleChange('NOTE', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+            rows={2}
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <div className="flex space-x-1">
+            <button
+              onClick={handleSave}
+              className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded"
+            >
+              Save
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="hover:bg-gray-50">
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.S_T_R || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.OWNER || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{formatNMA(record.NMA)}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.ROY || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.STATUS || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.BUYER || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm max-w-xs truncate" title={record.LEGAL_DESCRIPTION || ''}>
+        {record.LEGAL_DESCRIPTION || 'N/A'}
+      </td>
+      <td className="px-3 py-2 border border-gray-300 text-sm max-w-xs truncate" title={record.NOTE || ''}>
+        {record.NOTE || 'N/A'}
+      </td>
+      <td className="px-3 py-2 border border-gray-300">
+        <button
+          onClick={onEdit}
+          className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+        >
+          Edit
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// UnitTrackerRow component for editing prod_unit_tracker records
+interface UnitTrackerRowProps {
+  record: any;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (data: any) => void;
+}
+
+const UnitTrackerRow: React.FC<UnitTrackerRowProps> = ({ record, isEditing, onEdit, onCancel, onSave }) => {
+  const [formData, setFormData] = useState({
+    Unit: record.Unit || '',
+    Well_Name: record.Well_Name || '',
+    Operator: record.Operator || '',
+    API_NEW_: record.API_NEW_ || '',
+    S: record.S || '',
+    T: record.T || '',
+    R: record.R || '',
+    County: record.County || '',
+    Status: record.Status || '',
+    Target_Formation: record.Target_Formation || '',
+    Allo_: record.Allo_ || '',
+    Allo_Status: record.Allo_Status || '',
+    Notes: record.Notes || '',
+    Spud: record.Spud || '',
+    Comp: record.Comp || '',
+    '1st_Prod': record['1st_Prod'] || '',
+    Tops_NRA: record.Tops_NRA || ''
+  });
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = () => {
+    onSave(formData);
+  };
+
+  if (isEditing) {
+    return (
+      <tr className="bg-yellow-50">
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.Unit}
+            onChange={(e) => handleChange('Unit', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.Well_Name}
+            onChange={(e) => handleChange('Well_Name', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.Operator}
+            onChange={(e) => handleChange('Operator', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.API_NEW_}
+            onChange={(e) => handleChange('API_NEW_', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.S}
+            onChange={(e) => handleChange('S', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.T}
+            onChange={(e) => handleChange('T', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.R}
+            onChange={(e) => handleChange('R', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.County}
+            onChange={(e) => handleChange('County', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.Status}
+            onChange={(e) => handleChange('Status', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.Target_Formation}
+            onChange={(e) => handleChange('Target_Formation', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.Allo_}
+            onChange={(e) => handleChange('Allo_', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <textarea
+            value={formData.Notes}
+            onChange={(e) => handleChange('Notes', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+            rows={2}
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <div className="flex space-x-1">
+            <button
+              onClick={handleSave}
+              className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded"
+            >
+              Save
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="hover:bg-gray-50">
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.Unit || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.Well_Name || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.Operator || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.API_NEW_ || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.S || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.T || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.R || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.County || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.Status || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.Target_Formation || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.Allo_ || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm max-w-xs truncate" title={record.Notes || ''}>
+        {record.Notes || 'N/A'}
+      </td>
+      <td className="px-3 py-2 border border-gray-300">
+        <button
+          onClick={onEdit}
+          className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+        >
+          Edit
+        </button>
+      </td>
+    </tr>
   );
 };
 

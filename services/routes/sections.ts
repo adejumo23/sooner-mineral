@@ -337,6 +337,154 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
     }
   });
 
+  // Get all acreage schedule records for a section by STR
+  router.get('/api/sections/:id/acreage-schedule', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { id } = req.params;
+      const str = req.query.str as string | undefined;
+      
+      let sectionStr: string | null = null;
+      
+      // If STR is provided as query parameter, use it directly
+      if (str) {
+        sectionStr = str;
+      } else {
+        // Otherwise, look it up by section ID
+        const sectionsResponse = await executeQuery(dbPool, `
+          SELECT DISTINCT S_T_R as str
+          FROM prod_acreage_schedule 
+          WHERE S_T_R IS NOT NULL 
+          ORDER BY S_T_R
+        `);
+        
+        const sectionNumber = parseInt(id.replace('s', ''));
+        if (isNaN(sectionNumber) || sectionNumber < 1 || sectionNumber > sectionsResponse.length) {
+          return res.status(404).json({ success: false, message: 'Section not found' });
+        }
+        
+        sectionStr = sectionsResponse[sectionNumber - 1].str;
+      }
+      
+      if (!sectionStr) {
+        return res.status(404).json({ success: false, message: 'Section STR not found' });
+      }
+      
+      // Get all acreage schedule records for this STR
+      const query = `
+        SELECT 
+          id,
+          COUNTY,
+          S_T_R,
+          LEGAL_DESCRIPTION,
+          NMA,
+          OWNER,
+          STREET,
+          CITY,
+          ST,
+          ZIP,
+          PHONE_EMAIL,
+          ROY,
+          STATUS,
+          BUYER,
+          NOTE,
+          CURRENT_UNIT_NAME,
+          NEW_UNIT_NAME,
+          DATE,
+          TITLE_SOURCE,
+          CALCULATED_ACREAGE,
+          CONTACT,
+          INTEREST_TYPE,
+          PAYSTUB_NRI,
+          ALLO_,
+          TOTAL_,
+          LAST_OGL,
+          NEW_OCC_TYPE,
+          created_at,
+          updated_at
+        FROM prod_acreage_schedule
+        WHERE S_T_R = ?
+        ORDER BY OWNER, id
+      `;
+
+      const rows = await executeQuery(dbPool, query, [sectionStr]);
+      
+      res.json(rows);
+    } catch (error: any) {
+      console.error('Error fetching section acreage schedule:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching section acreage schedule', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Update an individual acreage schedule record
+  router.put('/api/acreage-schedule/:id', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { id } = req.params;
+      const updateData = req.body;
+
+      // Build the update query dynamically based on provided fields
+      const allowedFields = [
+        'COUNTY', 'S_T_R', 'LEGAL_DESCRIPTION', 'NMA', 'OWNER', 'STREET', 'CITY', 'ST', 'ZIP',
+        'PHONE_EMAIL', 'ROY', 'STATUS', 'BUYER', 'NOTE', 'CURRENT_UNIT_NAME', 'NEW_UNIT_NAME',
+        'DATE', 'TITLE_SOURCE', 'CALCULATED_ACREAGE', 'CONTACT', 'INTEREST_TYPE', 'PAYSTUB_NRI',
+        'ALLO_', 'TOTAL_', 'LAST_OGL', 'NEW_OCC_TYPE'
+      ];
+
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+
+      for (const field of allowedFields) {
+        if (updateData.hasOwnProperty(field)) {
+          updateFields.push(`${field} = ?`);
+          updateValues.push(updateData[field]);
+        }
+      }
+
+      if (updateFields.length === 0) {
+        return res.status(400).json({ success: false, message: 'No valid fields to update' });
+      }
+
+      // Add updated_at timestamp
+      updateFields.push('updated_at = NOW()');
+      
+      // Add id to the end for WHERE clause
+      updateValues.push(parseInt(id));
+
+      const query = `
+        UPDATE prod_acreage_schedule
+        SET ${updateFields.join(', ')}
+        WHERE id = ?
+      `;
+
+      await executeQuery(dbPool, query, updateValues);
+
+      // Fetch and return the updated record
+      const updatedRecord = await executeQuery(dbPool, `
+        SELECT * FROM prod_acreage_schedule WHERE id = ?
+      `, [id]);
+
+      res.json({ success: true, data: updatedRecord[0] });
+    } catch (error: any) {
+      console.error('Error updating acreage schedule record:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error updating acreage schedule record', 
+        error: error.message 
+      });
+    }
+  });
+
   return router;
 };
 

@@ -25,7 +25,11 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
       }
 
       let searchConditions = '';
+      let searchParams: string[] = [];
+      
       if (search) {
+        // Add wildcards for LIKE query
+        const searchPattern = `%${search}%`;
         searchConditions = `
           AND (
             OWNER LIKE ? OR
@@ -36,6 +40,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
             STATUS LIKE ?
           )
         `;
+        searchParams = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern];
       }
 
       const countQuery = `
@@ -44,8 +49,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         WHERE OWNER IS NOT NULL AND OWNER != ''
         ${searchConditions}
       `;
-      const countParams = search ? [search, search, search, search, search, search] : [];
-      const countResult = await executeQuery(dbPool, countQuery, countParams);
+      const countResult = await executeQuery(dbPool, countQuery, searchParams);
       const totalCount = countResult[0].total;
 
       const ownerQuery = `
@@ -56,8 +60,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         ORDER BY OWNER
         LIMIT ${limit} OFFSET ${offset}
       `;
-      const ownerParams = search ? countParams : [];
-      const ownerRows = await executeQuery(dbPool, ownerQuery, ownerParams);
+      const ownerRows = await executeQuery(dbPool, ownerQuery, searchParams);
       const ownerNames = ownerRows.map((r: any) => r.name);
       
       if (ownerNames.length === 0) {

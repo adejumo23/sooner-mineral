@@ -107,13 +107,32 @@ const UnitFormPage: React.FC = () => {
     setSaving(true);
     try {
       if (isEditing && id) {
-        await updateUnit(id, formData);
+        console.log('Updating unit with ID:', id);
+        console.log('Form data:', formData);
+        const result = await updateUnit(id, formData);
+        console.log('Unit update result:', result);
+        
+        // Handle response format - it might be { success: true, data: ... } or just the unit
+        if (result && result.data) {
+          console.log('Update successful, navigating to unit detail page');
+        } else if (result) {
+          console.log('Update successful (direct response), navigating to unit detail page');
+        }
+        
+        // Navigate back to unit detail page to see the changes
+        navigate(`/units/${id}`);
       } else {
-        await createUnit(formData as Omit<Unit, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>);
+        const result = await createUnit(formData as Omit<Unit, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>);
+        // If we have a result with an ID, navigate to that unit's detail page
+        if (result && result.id) {
+          navigate(`/units/${result.id}`);
+        } else {
+          navigate('/units');
+        }
       }
-      navigate('/units');
     } catch (error) {
       console.error('Error saving unit:', error);
+      alert('Failed to save unit. Please try again.');
     } finally {
       setSaving(false);
     }

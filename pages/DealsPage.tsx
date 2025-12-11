@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import { formatNMA } from '../utils/formatting';
 import { 
   CurrencyDollarIcon, 
   PlusIcon, 
@@ -311,7 +312,7 @@ const DealsPage: React.FC = () => {
                   </td>
                   <td className="py-4 px-4 text-gray-900">{deal.sellerName}</td>
                   <td className="py-4 px-4 font-medium text-gray-900">{formatCurrency(deal.totalValue)}</td>
-                  <td className="py-4 px-4 text-gray-900">{deal.nma.toFixed(1)}</td>
+                  <td className="py-4 px-4 text-gray-900">{formatNMA(deal.nma)}</td>
                   <td className="py-4 px-4 text-gray-900">{formatCurrency(deal.pricePerAcre)}</td>
                   <td className="py-4 px-4 text-gray-900">{formatDate(deal.effectiveDate)}</td>
                   <td className="py-4 px-4">

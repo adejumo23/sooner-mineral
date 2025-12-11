@@ -4,6 +4,7 @@ import Button from './ui/Button';
 import Modal from './ui/Modal';
 import { useAuth } from '../hooks/useAuth';
 import { CheckCircleIcon, XCircleIcon, CogIcon, ExclamationTriangleIcon, PencilIcon, PhoneIcon, EnvelopeIcon } from './icons/Icons';
+import { formatNMA } from '../utils/formatting';
 
 interface ContactInfoTabProps {
   lead: LeadEnhanced;
@@ -182,6 +183,14 @@ const ContactInfoTab: React.FC<ContactInfoTabProps> = ({ lead, users, onContactU
           <div>
             <label className="block text-sm font-medium text-gray-500">Royalty %</label>
             <p className="text-gray-900">{contactForm.royaltyPercent}%</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-500">Net Acreage (NMA)</label>
+            <p className="text-gray-900">
+              {(lead as any).netMineralAcres 
+                ? `${formatNMA((lead as any).netMineralAcres)} acres`
+                : 'Not provided'}
+            </p>
           </div>
         </div>
       </div>
