@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { formatNMA } from '../utils/formatting';
 import { 
   fetchContact, 
   fetchContactTractOwnership, 
@@ -390,7 +391,7 @@ const ContactDetailPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-sc-blue">{contact.totalNMA ? contact.totalNMA.toLocaleString() : '0'}</div>
+                    <div className="text-2xl font-bold text-sc-blue">{formatNMA(contact.totalNMA)}</div>
                     <div className="text-sm text-gray-500">Total NMA</div>
                   </div>
                   <div className="text-center">
@@ -504,7 +505,7 @@ const ContactDetailPage: React.FC = () => {
                             {(tract.royaltyPercentage * 100).toFixed(1)}%
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {tract.nma?.toLocaleString() || 'N/A'}
+                            {formatNMA(tract.nma)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {tract.nra?.toLocaleString() || 'N/A'}
@@ -566,7 +567,7 @@ const ContactDetailPage: React.FC = () => {
                 </div>
                 <div className="bg-purple-50 p-4 rounded-lg">
                   <div className="text-2xl font-bold text-purple-600">
-                    {units.reduce((sum, unit) => sum + (unit.totalNMA || 0), 0).toLocaleString()}
+                    {formatNMA(units.reduce((sum, unit) => sum + (unit.totalNMA || 0), 0))}
                   </div>
                   <div className="text-sm text-purple-800">Total NMA</div>
                 </div>
@@ -643,7 +644,7 @@ const ContactDetailPage: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
-                                {unit.totalNMA?.toLocaleString() || '0'}
+                                {formatNMA(unit.totalNMA)}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -735,7 +736,7 @@ const ContactDetailPage: React.FC = () => {
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900">
-                                                  {section.nma?.toLocaleString() || '0'}
+                                                  {formatNMA(section.nma)}
                                                 </div>
                                               </td>
                                               <td className="px-4 py-3 whitespace-nowrap">

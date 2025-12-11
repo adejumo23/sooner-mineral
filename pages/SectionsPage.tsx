@@ -7,8 +7,12 @@ import Table from '../components/ui/Table';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
+import { formatNMA } from '../utils/formatting';
 
 const titleStatuses: TitleStatus[] = ['In Progress', 'Verified', 'Verified with Curative Requirements', 'Failed', 'Unmapped'];
+
+type SortField = 'sectionName' | 'state' | 'county' | 'netMineralAcres' | 'grossAcres' | 'status' | 'assignedBuyer' | null;
+type SortDirection = 'asc' | 'desc';
 
 const SectionsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +21,8 @@ const SectionsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +63,80 @@ const SectionsPage: React.FC = () => {
     }
   };
   
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedSections = React.useMemo(() => {
+    if (!sortField) return sections;
+
+    return [...sections].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'sectionName':
+          aValue = a.sectionName || '';
+          bValue = b.sectionName || '';
+          return sortDirection === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        
+        case 'state':
+          aValue = a.state || '';
+          bValue = b.state || '';
+          return sortDirection === 'asc'
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        
+        case 'county':
+          aValue = a.county || '';
+          bValue = b.county || '';
+          return sortDirection === 'asc'
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        
+        case 'netMineralAcres':
+          aValue = a.netMineralAcres || 0;
+          bValue = b.netMineralAcres || 0;
+          return sortDirection === 'asc'
+            ? aValue - bValue
+            : bValue - aValue;
+        
+        case 'grossAcres':
+          aValue = a.grossAcres || 0;
+          bValue = b.grossAcres || 0;
+          return sortDirection === 'asc'
+            ? aValue - bValue
+            : bValue - aValue;
+        
+        case 'status':
+          aValue = a.status || (a.assignedBuyer?.name || a.assignedBuyerId ? 'assigned' : 'unassigned');
+          bValue = b.status || (b.assignedBuyer?.name || b.assignedBuyerId ? 'assigned' : 'unassigned');
+          return sortDirection === 'asc'
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        
+        case 'assignedBuyer':
+          aValue = a.assignedBuyer?.name || 'Unassigned';
+          bValue = b.assignedBuyer?.name || 'Unassigned';
+          return sortDirection === 'asc'
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        
+        default:
+          return 0;
+      }
+    });
+  }, [sections, sortField, sortDirection]);
+
   const handleSaveSection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -170,9 +250,9 @@ const SectionsPage: React.FC = () => {
     },
     {
       header: 'Net Mineral Acres',
-      accessor: 'acres',
+      accessor: 'netMineralAcres',
       cell: (section: Section) => (
-        <span className="text-sm text-gray-900">{section.netMineralAcres || 'N/A'}</span>
+        <span className="text-sm text-gray-900">{formatNMA(section.netMineralAcres)}</span>
       )
     },
     {
@@ -232,7 +312,56 @@ const SectionsPage: React.FC = () => {
       {isLoading ? (
         <p className="text-center text-sc-medium-gray">Loading sections...</p>
       ) : (
-        <Table data={sections} columns={columns} />
+        <div className="bg-white rounded-lg border border-sc-light-orange shadow-lg overflow-x-auto">
+          <table className="min-w-full table-auto divide-y divide-sc-light-orange">
+            <thead className="bg-gray-100">
+              <tr>
+                {columns.map((column, index) => {
+                  const isSortable = ['sectionName', 'state', 'county', 'netMineralAcres', 'grossAcres', 'status', 'assignedBuyer'].includes(column.accessor as string);
+                  const isActiveSort = sortField === column.accessor;
+                  
+                  return (
+                    <th
+                      key={column.header || index}
+                      scope="col"
+                      className={`px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 ${
+                        isSortable ? 'cursor-pointer hover:bg-gray-200 select-none' : ''
+                      }`}
+                      onClick={() => isSortable && handleSort(column.accessor as SortField)}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>{column.header}</span>
+                        {isSortable && (
+                          <span className="text-gray-400">
+                            {isActiveSort ? (
+                              sortDirection === 'asc' ? '↑' : '↓'
+                            ) : (
+                              <span className="opacity-30">⇅</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedSections.map((item, rowIndex) => (
+                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
+                  {columns.map((column, colIndex) => (
+                    <td
+                      key={`${rowIndex}-${colIndex}`}
+                      className={`px-6 py-4 text-sm text-gray-900 ${column.className || 'whitespace-nowrap'}`}
+                    >
+                      {column.cell ? column.cell(item) : (item[column.accessor] as React.ReactNode)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingSection ? 'Edit Section' : 'Add Section'}>

@@ -5,6 +5,151 @@ import * as api from '../services/api';
 import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
+import { formatNMA, formatAcres, formatPercentage } from '../utils/formatting';
+
+interface RecordRowProps {
+  record: any;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (data: any) => void;
+}
+
+const RecordRow: React.FC<RecordRowProps> = ({ record, isEditing, onEdit, onCancel, onSave }) => {
+  const [formData, setFormData] = useState({
+    OWNER: record.OWNER || '',
+    NMA: record.NMA || '',
+    ROY: record.ROY || '',
+    STATUS: record.STATUS || '',
+    BUYER: record.BUYER || '',
+    LEGAL_DESCRIPTION: record.LEGAL_DESCRIPTION || '',
+    NOTE: record.NOTE || '',
+    COUNTY: record.COUNTY || '',
+    STREET: record.STREET || '',
+    CITY: record.CITY || '',
+    ST: record.ST || '',
+    ZIP: record.ZIP || '',
+    PHONE_EMAIL: record.PHONE_EMAIL || '',
+    CONTACT: record.CONTACT || '',
+    CURRENT_UNIT_NAME: record.CURRENT_UNIT_NAME || '',
+    NEW_UNIT_NAME: record.NEW_UNIT_NAME || '',
+    TITLE_SOURCE: record.TITLE_SOURCE || '',
+    CALCULATED_ACREAGE: record.CALCULATED_ACREAGE || '',
+  });
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = () => {
+    onSave(formData);
+  };
+
+  if (isEditing) {
+    return (
+      <tr className="bg-yellow-50">
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.OWNER}
+            onChange={(e) => handleChange('OWNER', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="number"
+            step="0.01"
+            value={formData.NMA}
+            onChange={(e) => handleChange('NMA', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="number"
+            step="0.01"
+            value={formData.ROY}
+            onChange={(e) => handleChange('ROY', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.STATUS}
+            onChange={(e) => handleChange('STATUS', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <input
+            type="text"
+            value={formData.BUYER}
+            onChange={(e) => handleChange('BUYER', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <textarea
+            value={formData.LEGAL_DESCRIPTION}
+            onChange={(e) => handleChange('LEGAL_DESCRIPTION', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+            rows={2}
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <textarea
+            value={formData.NOTE}
+            onChange={(e) => handleChange('NOTE', e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+            rows={2}
+          />
+        </td>
+        <td className="px-3 py-2 border border-gray-300">
+          <div className="flex space-x-1">
+            <button
+              onClick={handleSave}
+              className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded"
+            >
+              Save
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr className="hover:bg-gray-50">
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.OWNER || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{formatNMA(record.NMA)}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.ROY || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.STATUS || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm">{record.BUYER || 'N/A'}</td>
+      <td className="px-3 py-2 border border-gray-300 text-sm max-w-xs truncate" title={record.LEGAL_DESCRIPTION || ''}>
+        {record.LEGAL_DESCRIPTION || 'N/A'}
+      </td>
+      <td className="px-3 py-2 border border-gray-300 text-sm max-w-xs truncate" title={record.NOTE || ''}>
+        {record.NOTE || 'N/A'}
+      </td>
+      <td className="px-3 py-2 border border-gray-300">
+        <button
+          onClick={onEdit}
+          className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded"
+        >
+          Edit
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 const SectionDetailPage: React.FC = () => {
   const { sectionId } = useParams<{ sectionId: string }>();
@@ -13,7 +158,10 @@ const SectionDetailPage: React.FC = () => {
   const [section, setSection] = useState<Section | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
+  const [acreageScheduleRecords, setAcreageScheduleRecords] = useState<any[]>([]);
+  const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAcreageSchedule, setIsLoadingAcreageSchedule] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'contacts' | 'mapping' | 'title-chain' | 'leads'>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,10 +206,12 @@ const SectionDetailPage: React.FC = () => {
           ...foundSection,
           sectionName: foundSection.sectionName || (foundSection as any).section_name,
           county: foundSection.county || (foundSection as any).COUNTY,
-          state: foundSection.state || (foundSection as any).ST || (foundSection as any).state
+          state: foundSection.state || (foundSection as any).ST || (foundSection as any).state,
+          str: foundSection.str || (foundSection as any).S_T_R || (foundSection as any).s_t_r
         };
         console.log('Section data loaded:', normalizedSection);
         console.log('County value:', normalizedSection.county);
+        console.log('STR value:', normalizedSection.str);
         setSection(normalizedSection);
       } else {
         navigate('/sections');
@@ -86,16 +236,23 @@ const SectionDetailPage: React.FC = () => {
     return <div className="text-center text-gray-600">Section not found</div>;
   }
 
-  const formatPercentage = (value?: number): string => {
-    return value ? `${(value * 100).toFixed(2)}%` : 'N/A';
-  };
 
-  const formatAcres = (value?: number): string => {
-    return value ? value.toFixed(2) : 'N/A';
-  };
-
-  const handleEditSection = () => {
+  const handleEditSection = async () => {
     setIsEditModalOpen(true);
+    if (sectionId) {
+      setIsLoadingAcreageSchedule(true);
+      try {
+        console.log('Fetching acreage schedule for section:', sectionId, 'STR:', section?.str);
+        const records = await api.fetchSectionAcreageSchedule(sectionId, section?.str);
+        console.log('Fetched acreage schedule records:', records);
+        setAcreageScheduleRecords(records || []);
+      } catch (error) {
+        console.error('Failed to fetch acreage schedule records:', error);
+        setAcreageScheduleRecords([]);
+      } finally {
+        setIsLoadingAcreageSchedule(false);
+      }
+    }
   };
 
   const handleExportSection = () => {
@@ -147,6 +304,35 @@ const SectionDetailPage: React.FC = () => {
 
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
+    setAcreageScheduleRecords([]);
+    setEditingRecordId(null);
+  };
+
+  const handleEditRecord = (recordId: number) => {
+    setEditingRecordId(recordId);
+  };
+
+  const handleCancelEditRecord = () => {
+    setEditingRecordId(null);
+  };
+
+  const handleSaveRecord = async (recordId: number, recordData: any) => {
+    try {
+      await api.updateAcreageScheduleRecord(recordId, recordData);
+      
+      // Update local state
+      setAcreageScheduleRecords(prev => 
+        prev.map(record => 
+          record.id === recordId ? { ...record, ...recordData } : record
+        )
+      );
+      
+      setEditingRecordId(null);
+      alert('Record updated successfully!');
+    } catch (error) {
+      console.error('Failed to update record:', error);
+      alert('Failed to update record. Please try again.');
+    }
   };
 
   const toggleCardCollapse = (cardKey: string) => {
@@ -410,7 +596,7 @@ const SectionDetailPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Net Mineral Acres</span>
-                  <div className="text-gray-900 font-medium">{formatAcres(section.netMineralAcres)}</div>
+                  <div className="text-gray-900 font-medium">{formatNMA(section.netMineralAcres)}</div>
                 </div>
                 <div>
                   <span className="text-gray-600 text-sm">Royalty %</span>
@@ -545,7 +731,7 @@ const SectionDetailPage: React.FC = () => {
                             <span className="font-medium text-gray-900 text-sm">Ownership:</span>
                             <div className="text-sm text-gray-600 space-y-1">
                               {contact.nma && (
-                                <div>NMA: {parseFloat(contact.nma).toFixed(2)}</div>
+                                <div>NMA: {formatNMA(contact.nma)}</div>
                               )}
                               {contact.royalty && (
                                 <div>Royalty: {parseFloat(contact.royalty).toFixed(2)}%</div>
@@ -854,6 +1040,53 @@ const SectionDetailPage: React.FC = () => {
                     />
                     <span className="text-sm text-gray-700">Lock Flag</span>
                   </label>
+                </div>
+
+                {/* Acreage Schedule Records */}
+                <div className="pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Acreage Schedule Records</h3>
+                  
+                  {isLoadingAcreageSchedule ? (
+                    <div className="text-center text-gray-600 py-4">Loading acreage schedule records...</div>
+                  ) : acreageScheduleRecords.length === 0 ? (
+                    <div className="text-center text-gray-500 py-4">
+                      <p>No acreage schedule records found for this section.</p>
+                      {section?.str ? (
+                        <p className="text-xs mt-2">Section STR: {section.str}</p>
+                      ) : (
+                        <p className="text-xs mt-2 text-red-500">Warning: Section STR not available</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                      <table className="min-w-full divide-y divide-gray-200 border border-gray-300">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Owner</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">NMA</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Royalty</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Status</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Buyer</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Legal Description</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Note</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border border-gray-300">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {acreageScheduleRecords.map((record) => (
+                            <RecordRow
+                              key={record.id}
+                              record={record}
+                              isEditing={editingRecordId === record.id}
+                              onEdit={() => handleEditRecord(record.id)}
+                              onCancel={handleCancelEditRecord}
+                              onSave={(data) => handleSaveRecord(record.id, data)}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
                 {/* Form Actions */}

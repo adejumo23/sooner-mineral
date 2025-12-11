@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './AcreageSchedulePage.css';
 import { fetchAcreageSchedule } from '../services/apiClient';
+import { formatNMA } from '../utils/formatting';
 
 interface AcreageRecord {
   COUNTY: string;
@@ -430,7 +431,7 @@ const AcreageSchedulePage: React.FC = () => {
                     <td>{record.COUNTY}</td>
                     <td>{record.S_TR}</td>
                     <td className="owner-cell">{record.OWNER}</td>
-                    <td className="number-cell">{parseFloat(record.NMA).toFixed(2)}</td>
+                    <td className="number-cell">{formatNMA(record.NMA)}</td>
                     <td>
                       <span className={`status-badge ${record.STATUS.toLowerCase().replace(/\s+/g, '-')}`}>
                         {record.STATUS || 'Unknown'}
@@ -471,7 +472,7 @@ const AcreageSchedulePage: React.FC = () => {
                   </div>
                   <div className="card-row">
                     <span className="label">Acres:</span>
-                    <span>{parseFloat(record.NMA).toFixed(2)} NMA</span>
+                    <span>{formatNMA(record.NMA)} NMA</span>
                   </div>
                   <div className="card-row">
                     <span className="label">Allocation:</span>
@@ -589,7 +590,7 @@ const AcreageSchedulePage: React.FC = () => {
                   <h4>📊 Mineral Interest Details</h4>
                   <div className="detail-item">
                     <span className="detail-label">Net Mineral Acres:</span>
-                    <span className="detail-value">{parseFloat(selectedRecord.NMA).toFixed(2)}</span>
+                    <span className="detail-value">{formatNMA(selectedRecord.NMA)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Royalty %:</span>

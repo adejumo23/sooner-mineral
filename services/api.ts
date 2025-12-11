@@ -19,6 +19,11 @@ export const deleteSection = apiClient.deleteSection;
 export const fetchSectionOwners = apiClient.fetchSectionOwners;
 export const fetchSectionPricing = apiClient.fetchSectionPricing;
 export const fetchSectionDashboard = apiClient.fetchSectionDashboard;
+export const fetchSectionAcreageSchedule = apiClient.fetchSectionAcreageSchedule;
+export const updateAcreageScheduleRecord = apiClient.updateAcreageScheduleRecord;
+export const fetchUnitAcreageSchedule = apiClient.fetchUnitAcreageSchedule;
+export const fetchUnitTracker = apiClient.fetchUnitTracker;
+export const updateUnitTrackerRecord = apiClient.updateUnitTrackerRecord;
 
 export const fetchUnits = apiClient.fetchUnits;
 export const fetchUnit = apiClient.fetchUnit;

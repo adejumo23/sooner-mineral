@@ -3,6 +3,7 @@ import type { LeadEnhanced, User, Section } from '../types';
 import Button from './ui/Button';
 import { UserIcon, MapIcon, EyeIcon, PencilIcon, CheckIcon, XCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from './icons/Icons';
 import * as api from '../services/api';
+import { formatNMA } from '../utils/formatting';
 
 // Status metadata for section assignments
 const statusMeta: Record<string, { color: string; icon: React.ReactNode; tooltip: string }> = {
@@ -213,7 +214,7 @@ const LeadSectionAssignmentTab: React.FC<{
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Net Mineral Acres</span>
-                      <p className="text-sm font-medium">{section.netMineralAcres || 'N/A'}</p>
+                      <p className="text-sm font-medium">{formatNMA(section.netMineralAcres)}</p>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Royalty</span>

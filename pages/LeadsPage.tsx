@@ -16,15 +16,27 @@ const LeadsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<LeadFilters>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [sortField, setSortField] = useState<keyof LeadEnhanced | string>('priorityScore');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Debounce search term to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     loadLeads();
-  }, [filters, searchTerm]);
+  }, [filters, debouncedSearchTerm]);
 
   const loadData = async () => {
     try {
@@ -46,12 +58,13 @@ const LeadsPage: React.FC = () => {
       setLoading(true);
       const leadsResponse = await fetchLeads({
         ...filters,
-        search: searchTerm || undefined
+        search: debouncedSearchTerm || undefined
       });
       const leadsData = leadsResponse.data || leadsResponse;
-      setLeads(leadsData || []);
+      setLeads(Array.isArray(leadsData) ? leadsData : []);
     } catch (error) {
       console.error('Error loading leads:', error);
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -65,6 +78,59 @@ const LeadsPage: React.FC = () => {
     setFilters({});
     setSearchTerm('');
   };
+
+  const handleSort = (field: keyof LeadEnhanced | string) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort leads based on current sort field and direction
+  const sortedLeads = [...leads].sort((a, b) => {
+    let aValue: any;
+    let bValue: any;
+
+    // Handle different field types
+    switch (sortField) {
+      case 'linkedContact':
+        aValue = a.linkedContact?.name || a.name || '';
+        bValue = b.linkedContact?.name || b.name || '';
+        break;
+      case 'status':
+        aValue = a.status || '';
+        bValue = b.status || '';
+        break;
+      case 'priorityScore':
+        aValue = a.priorityScore ?? 0;
+        bValue = b.priorityScore ?? 0;
+        break;
+      case 'lastContactDate':
+        aValue = a.lastContactDate ? new Date(a.lastContactDate).getTime() : 0;
+        bValue = b.lastContactDate ? new Date(b.lastContactDate).getTime() : 0;
+        break;
+      case 'nextFollowUpDate':
+        aValue = a.nextFollowUpDate ? new Date(a.nextFollowUpDate).getTime() : 0;
+        bValue = b.nextFollowUpDate ? new Date(b.nextFollowUpDate).getTime() : 0;
+        break;
+      case 'buyer':
+        aValue = a.buyer?.name || '';
+        bValue = b.buyer?.name || '';
+        break;
+      default:
+        aValue = a[sortField as keyof LeadEnhanced] ?? '';
+        bValue = b[sortField as keyof LeadEnhanced] ?? '';
+    }
+
+    // Handle comparison
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const getStatusColor = (status: LeadEnhanced['status']) => {
     switch (status) {
@@ -87,6 +153,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Contact',
       accessor: 'linkedContact',
+      sortable: true,
       cell: (lead: LeadEnhanced) => (
         <div>
           <div className="font-medium text-gray-900">
@@ -104,6 +171,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Assets',
       accessor: 'assets',
+      sortable: false,
       cell: (lead: LeadEnhanced) => {
         // Sections are already deduplicated on the server
         const sections = lead.linkedSections || [];
@@ -135,6 +203,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Buyer',
       accessor: 'buyer',
+      sortable: true,
       cell: (lead: LeadEnhanced) => (
         <span className="text-sm text-gray-600">{lead.buyer?.name || 'Unassigned'}</span>
       )
@@ -142,6 +211,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Status',
       accessor: 'status',
+      sortable: true,
       cell: (lead: LeadEnhanced) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
           {lead.status}
@@ -151,6 +221,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Priority',
       accessor: 'priorityScore',
+      sortable: true,
       cell: (lead: LeadEnhanced) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(lead.priorityScore)}`}>
           {lead.priorityScore}
@@ -160,6 +231,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Last Contact',
       accessor: 'lastContactDate',
+      sortable: true,
       cell: (lead: LeadEnhanced) => (
         <span className="text-sm text-gray-600">
           {lead.lastContactDate ? new Date(lead.lastContactDate).toLocaleDateString() : 'Never'}
@@ -169,6 +241,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Next Follow-up',
       accessor: 'nextFollowUpDate',
+      sortable: true,
       cell: (lead: LeadEnhanced) => (
         <span className="text-sm text-gray-600">
           {lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toLocaleDateString() : 'Not set'}
@@ -178,6 +251,7 @@ const LeadsPage: React.FC = () => {
     {
       header: 'Actions',
       accessor: 'actions',
+      sortable: false,
       cell: (lead: LeadEnhanced) => (
         <div className="flex space-x-2">
           <Link
@@ -340,7 +414,18 @@ const LeadsPage: React.FC = () => {
 
       {/* Results Summary */}
       <div className="text-sm text-gray-500">
-        Showing {leads.length} leads
+        {loading ? (
+          'Loading...'
+        ) : (
+          <>
+            Showing {sortedLeads.length} lead{sortedLeads.length !== 1 ? 's' : ''}
+            {debouncedSearchTerm && (
+              <span className="ml-2 text-blue-600">
+                (filtered by "{debouncedSearchTerm}")
+              </span>
+            )}
+          </>
+        )}
       </div>
 
       {/* Leads Table */}
@@ -350,7 +435,13 @@ const LeadsPage: React.FC = () => {
             <div className="text-lg">Loading leads...</div>
           </div>
         ) : (
-          <Table data={leads} columns={columns} />
+          <Table 
+            data={sortedLeads} 
+            columns={columns}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+          />
         )}
       </Card>
     </div>

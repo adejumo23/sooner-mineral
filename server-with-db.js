@@ -5514,15 +5514,26 @@ app.get('/api/units/:id/sections/enhanced', async (req, res) => {
       
       const netAcres = parseFloat(row.net_mineral_acres) || 0;
       
+      // Clean STR value: remove all commas and newlines
+      const cleanStr = row.str 
+        ? String(row.str)
+            .replace(/,/g, '') // Remove all commas
+            .replace(/\r\n/g, ' ') // Replace Windows line breaks
+            .replace(/\n/g, ' ') // Replace Unix line breaks
+            .replace(/\r/g, ' ') // Replace old Mac line breaks
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim()
+        : `Section ${index + 1}`;
+      
       return {
         id: `s${index + 1}`,
-        section_name: row.str || `Section ${index + 1}`,
+        section_name: cleanStr,
         state: row.state || 'OK',
         county: row.county || 'Unknown',
         sectionNumber: section,
         township: township,
         range: range,
-        str: row.str,
+        str: cleanStr,
         grossAcres: netAcres,
         netMineralAcres: netAcres,
         titleStatus: row.title_status || 'Unknown',

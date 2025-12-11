@@ -255,53 +255,81 @@ export const fetchUnits = async (page = 1, limit = 50) => {
 };
 
 export const fetchUnit = async (id: string) => {
-  try {
-    return await apiRequest(`/units/${id}`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return null;
-  }
+  return await apiRequest(`/units/${id}`);
 };
 
 export const createUnit = async (unitData: any) => {
-  try {
-    return await apiRequest('/units', {
-      method: 'POST',
-      body: JSON.stringify(unitData),
-    });
-  } catch (error) {
-    console.warn('Server not available, creating mock unit:', error);
-    return { ...unitData, id: `unit${Date.now()}` };
-  }
+  return await apiRequest('/units', {
+    method: 'POST',
+    body: JSON.stringify(unitData),
+  });
 };
 
 export const updateUnit = async (id: string, unitData: any) => {
-  try {
-    return await apiRequest(`/units/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(unitData),
-    });
-  } catch (error) {
-    console.warn('Server not available, updating mock unit:', error);
-    return { ...unitData, id };
-  }
+  return await apiRequest(`/units/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(unitData),
+  });
 };
 
 export const deleteUnit = async (id: string) => {
-  try {
-    return await apiRequest(`/units/${id}`, {
-      method: 'DELETE',
-    });
-  } catch (error) {
-    console.warn('Server not available, deleting mock unit:', error);
-    return { success: true };
-  }
+  return await apiRequest(`/units/${id}`, {
+    method: 'DELETE',
+  });
 };
 
 // Lead API functions
-export const fetchLeads = async (page = 1, limit = 50) => {
+export const fetchLeads = async (filters: any = {}, page = 1, limit = 50) => {
   try {
-    const response = await apiRequest(`/leads?page=${page}&limit=${limit}`);
+    // Build query string with filters and pagination
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
+    
+    // Add search parameter if provided
+    if (filters.search) {
+      queryParams.append('search', filters.search);
+    }
+    
+    // Add filter parameters
+    if (filters.status) {
+      queryParams.append('status', filters.status);
+    }
+    if (filters.buyerId) {
+      queryParams.append('buyerId', filters.buyerId);
+    }
+    if (filters.sourceChannel) {
+      queryParams.append('sourceChannel', filters.sourceChannel);
+    }
+    if (filters.priorityMin !== undefined) {
+      queryParams.append('priorityMin', filters.priorityMin.toString());
+    }
+    if (filters.priorityMax !== undefined) {
+      queryParams.append('priorityMax', filters.priorityMax.toString());
+    }
+    if (filters.lastContactFrom) {
+      queryParams.append('lastContactFrom', filters.lastContactFrom);
+    }
+    if (filters.lastContactTo) {
+      queryParams.append('lastContactTo', filters.lastContactTo);
+    }
+    if (filters.nextFollowUpFrom) {
+      queryParams.append('nextFollowUpFrom', filters.nextFollowUpFrom);
+    }
+    if (filters.nextFollowUpTo) {
+      queryParams.append('nextFollowUpTo', filters.nextFollowUpTo);
+    }
+    if (filters.county) {
+      queryParams.append('county', filters.county);
+    }
+    if (filters.tractId) {
+      queryParams.append('tractId', filters.tractId);
+    }
+    if (filters.unitId) {
+      queryParams.append('unitId', filters.unitId);
+    }
+    
+    const response = await apiRequest(`/leads?${queryParams.toString()}`);
     // Handle new paginated response structure
     return {
       data: response.data || response,
@@ -525,118 +553,59 @@ export const fetchAssignmentHistory = async (assignmentId: string) => {
 
 // Unit-specific functions
 export const fetchUnitSections = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/sections`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return [];
-  }
+  return await apiRequest(`/units/${unitId}/sections`);
 };
 
 export const fetchUnitSectionsEnhanced = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/sections/enhanced`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return [];
-  }
+  return await apiRequest(`/units/${unitId}/sections/enhanced`);
 };
 
 export const fetchUnitContacts = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/contacts`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return [];
-  }
+  return await apiRequest(`/units/${unitId}/contacts`);
 };
 
 export const fetchUnitContactsAggregated = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/contacts/aggregated`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return [];
-  }
+  return await apiRequest(`/units/${unitId}/contacts/aggregated`);
 };
 
 export const fetchUnitNotes = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/notes`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return [];
-  }
+  return await apiRequest(`/units/${unitId}/notes`);
 };
 
 export const fetchUnitAssignments = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/assignments`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return [];
-  }
+  return await apiRequest(`/units/${unitId}/assignments`);
 };
 
 export const fetchUnitNames = async (unitId: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/unit-names`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return {
-      currentUnitNames: [],
-      newUnitNames: [],
-      totalRecords: 0
-    };
-  }
+  return await apiRequest(`/units/${unitId}/unit-names`);
 };
 
 export const assignUnit = async (unitId: string, assignmentData: any) => {
-  try {
-    return await apiRequest(`/units/${unitId}/assign`, {
-      method: 'POST',
-      body: JSON.stringify(assignmentData),
-    });
-  } catch (error) {
-    console.warn('Server not available, creating mock assignment:', error);
-    return { ...assignmentData, id: `assignment${Date.now()}` };
-  }
+  return await apiRequest(`/units/${unitId}/assign`, {
+    method: 'POST',
+    body: JSON.stringify(assignmentData),
+  });
 };
 
 export const unassignUnit = async (unitId: string, notes: string) => {
-  try {
-    return await apiRequest(`/units/${unitId}/unassign`, {
-      method: 'POST',
-      body: JSON.stringify({ notes }),
-    });
-  } catch (error) {
-    console.warn('Server not available, unassigning mock unit:', error);
-    return { success: true };
-  }
+  return await apiRequest(`/units/${unitId}/unassign`, {
+    method: 'POST',
+    body: JSON.stringify({ notes }),
+  });
 };
 
 export const updateUnitLock = async (unitId: string, lockData: any) => {
-  try {
-    return await apiRequest(`/units/${unitId}/lock`, {
-      method: 'PUT',
-      body: JSON.stringify(lockData),
-    });
-  } catch (error) {
-    console.warn('Server not available, updating mock unit lock:', error);
-    return { ...lockData, id: unitId };
-  }
+  return await apiRequest(`/units/${unitId}/lock`, {
+    method: 'PUT',
+    body: JSON.stringify(lockData),
+  });
 };
 
 export const createUnitNote = async (unitId: string, noteData: any) => {
-  try {
-    return await apiRequest(`/units/${unitId}/notes`, {
-      method: 'POST',
-      body: JSON.stringify(noteData),
-    });
-  } catch (error) {
-    console.warn('Server not available, creating mock unit note:', error);
-    return { ...noteData, id: `note${Date.now()}` };
-  }
+  return await apiRequest(`/units/${unitId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify(noteData),
+  });
 };
 
 // Contact-specific functions
@@ -1522,6 +1491,65 @@ export const fetchSectionPricing = async (sectionId: string) => {
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return null;
+  }
+};
+
+// Fetch all acreage schedule records for a section
+export const fetchSectionAcreageSchedule = async (sectionId: string, str?: string) => {
+  try {
+    const url = str 
+      ? `/sections/${sectionId}/acreage-schedule?str=${encodeURIComponent(str)}`
+      : `/sections/${sectionId}/acreage-schedule`;
+    return await apiRequest(url);
+  } catch (error) {
+    console.warn('Server not available, using mock data:', error);
+    return [];
+  }
+};
+
+// Update an individual acreage schedule record
+export const updateAcreageScheduleRecord = async (recordId: number, recordData: any) => {
+  try {
+    return await apiRequest(`/acreage-schedule/${recordId}`, {
+      method: 'PUT',
+      body: JSON.stringify(recordData),
+    });
+  } catch (error) {
+    console.warn('Server not available, updating mock record:', error);
+    return { success: true, data: { ...recordData, id: recordId } };
+  }
+};
+
+// Fetch all acreage schedule records for a unit
+export const fetchUnitAcreageSchedule = async (unitId: string) => {
+  try {
+    return await apiRequest(`/units/${encodeURIComponent(unitId)}/acreage-schedule`);
+  } catch (error) {
+    console.error('Error fetching unit acreage schedule:', error);
+    throw error;
+  }
+};
+
+// Fetch all unit tracker records for a unit
+export const fetchUnitTracker = async (unitId: string) => {
+  try {
+    return await apiRequest(`/units/${encodeURIComponent(unitId)}/unit-tracker`);
+  } catch (error) {
+    console.error('Error fetching unit tracker records:', error);
+    throw error;
+  }
+};
+
+// Update a prod_unit_tracker record
+export const updateUnitTrackerRecord = async (recordId: string, recordData: any) => {
+  try {
+    return await apiRequest(`/unit-tracker/${recordId}`, {
+      method: 'PUT',
+      body: JSON.stringify(recordData),
+    });
+  } catch (error) {
+    console.error('Error updating unit tracker record:', error);
+    throw error;
   }
 };
 
