@@ -226,22 +226,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
       const { id } = req.params;
       
-      // Get the section's S_T_R value from sectionId (e.g., "s1" -> get S_T_R from ordered list)
-      const sectionsResponse = await executeQuery(dbPool, `
-        SELECT DISTINCT S_T_R as str
-        FROM prod_acreage_schedule 
-        WHERE S_T_R IS NOT NULL 
-        ORDER BY S_T_R
-      `);
-      
-      const sectionNumber = parseInt(id.replace('s', ''));
-      if (isNaN(sectionNumber) || sectionNumber < 1 || sectionNumber > sectionsResponse.length) {
-        return res.status(404).json({ success: false, message: 'Section not found' });
-      }
-      
-      const sectionStr = sectionsResponse[sectionNumber - 1].str;
-      
-      // Filter leads by the section's S_T_R value
+      // Show all owners in the database regardless of section
       const query = `
         SELECT DISTINCT
           OWNER as name,
@@ -262,12 +247,11 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           updated_at
         FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
-          AND S_T_R = ?
         ORDER BY OWNER
         LIMIT 50
       `;
 
-      const rows = await executeQuery(dbPool, query, [sectionStr]);
+      const rows = await executeQuery(dbPool, query, []);
       
       const leads = rows.map((row: any, index: number) => {
         // Map database status to the new status values
@@ -328,25 +312,6 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
   // Update section lead status
   router.put('/api/sections/:sectionId/leads/:leadId/status', async (req, res) => {
-    // #region agent log
-    console.log('[DEBUG] PUT /api/sections/:sectionId/leads/:leadId/status - Entry', {
-      sectionId: req.params.sectionId,
-      leadId: req.params.leadId,
-      body: req.body,
-      bodyType: typeof req.body,
-      status: req.body?.status,
-      statusType: typeof req.body?.status,
-      contentType: req.headers['content-type']
-    });
-    try {
-      const fs = await import('fs');
-      const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-      const logEntry = JSON.stringify({location:'sections.ts:313',message:'PUT endpoint entry',data:{sectionId:req.params.sectionId,leadId:req.params.leadId,body:req.body,bodyType:typeof req.body,status:req.body?.status,statusType:typeof req.body?.status,headers:req.headers['content-type']},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})+'\n';
-      fs.appendFileSync(logPath, logEntry, 'utf8');
-    } catch (logError) {
-      console.error('[DEBUG] Failed to write log:', logError);
-    }
-    // #endregion
     try {
       if (!dbPool) {
         return res.status(500).json({ success: false, message: 'Database pool not initialized' });
@@ -354,196 +319,32 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
       const { sectionId, leadId } = req.params;
       const { status } = req.body;
-      
-      // #region agent log
-      console.log('[DEBUG] After extracting params and body', {
-        sectionId,
-        leadId,
-        status,
-        statusType: typeof status,
-        bodyKeys: Object.keys(req.body || {})
-      });
-      try {
-        const fs = await import('fs');
-        const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-        const logEntry2 = JSON.stringify({location:'sections.ts:322',message:'After extracting params and body',data:{sectionId:sectionId,leadId:leadId,status:status,statusType:typeof status,bodyKeys:Object.keys(req.body || {})},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H4'})+'\n';
-        fs.appendFileSync(logPath, logEntry2, 'utf8');
-      } catch (logError) {
-        console.error('[DEBUG] Failed to write log:', logError);
-      }
-      // #endregion
 
       // Validate status
       const validStatuses = ['NEW', 'Working to Locate', 'LVM/TXT/EMAIL', 'sent mailer', 'Negotiating', 'Offer Accepted', 'Not Selling Now', 'Unable to Locate', 'Dropped'];
-      // #region agent log
-      console.log('[DEBUG] Before status validation', {
-        status,
-        statusInValidList: validStatuses.includes(status),
-        validStatuses
-      });
-      try {
-        const fs = await import('fs');
-        const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-        const logEntry3 = JSON.stringify({location:'sections.ts:333',message:'Before status validation',data:{status:status,statusInValidList:validStatuses.includes(status),validStatuses:validStatuses},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n';
-        fs.appendFileSync(logPath, logEntry3, 'utf8');
-      } catch (logError) {
-        console.error('[DEBUG] Failed to write log:', logError);
-      }
-      // #endregion
       if (!status || !validStatuses.includes(status)) {
-        // #region agent log
-        console.log('[DEBUG] Status validation failed - returning 400', {
-          status,
-          statusInValidList: validStatuses.includes(status),
-          validStatuses
-        });
-        try {
-          const fs = await import('fs');
-          const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-          const logEntry4 = JSON.stringify({location:'sections.ts:339',message:'Status validation failed - returning 400',data:{status:status,statusInValidList:validStatuses.includes(status),validStatuses:validStatuses},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})+'\n';
-          fs.appendFileSync(logPath, logEntry4, 'utf8');
-        } catch (logError) {
-          console.error('[DEBUG] Failed to write log:', logError);
-        }
-        // #endregion
         return res.status(400).json({ 
           success: false, 
           message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` 
         });
       }
 
-      // Parse leadId to extract owner name (format: lead-{sectionId}-{index})
-      // We need to find the lead by matching the owner name from the leadId
-      // Since we can't directly map leadId to a database record, we'll need to
-      // get the lead first to find the owner name
-      
-      // Get section STR first
-      const sectionsResponse = await executeQuery(dbPool, `
-        SELECT DISTINCT S_T_R as str
-        FROM prod_acreage_schedule 
-        WHERE S_T_R IS NOT NULL 
-        ORDER BY S_T_R
-      `);
-      
-      const sectionNumber = parseInt(sectionId.replace('s', ''));
-      if (isNaN(sectionNumber) || sectionNumber < 1 || sectionNumber > sectionsResponse.length) {
-        return res.status(404).json({ success: false, message: 'Section not found' });
-      }
-      
-      const sectionStr = sectionsResponse[sectionNumber - 1].str;
-      
       // Parse leadId to get the index (format: lead-{sectionId}-{index})
-      // The leadId format is: lead-{sectionId}-{index}
-      // Example: lead-s1-0 means section s1, index 0
-      // But sectionId might contain dashes, so we need to handle that
-      // We'll extract the last part as the index
       const leadIdParts = leadId.split('-');
-      // #region agent log
-      console.log('[DEBUG] After parsing leadId', {
-        leadId,
-        leadIdParts,
-        partsLength: leadIdParts.length,
-        firstPart: leadIdParts[0],
-        lastPart: leadIdParts[leadIdParts.length - 1]
-      });
-      try {
-        const fs = await import('fs');
-        const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-        const logEntry5 = JSON.stringify({location:'sections.ts:352',message:'After parsing leadId',data:{leadId:leadId,leadIdParts:leadIdParts,partsLength:leadIdParts.length,firstPart:leadIdParts[0],lastPart:leadIdParts[leadIdParts.length - 1]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n';
-        fs.appendFileSync(logPath, logEntry5, 'utf8');
-      } catch (logError) {
-        console.error('[DEBUG] Failed to write log:', logError);
-      }
-      // #endregion
       if (leadIdParts.length < 3 || leadIdParts[0] !== 'lead') {
-        // #region agent log
-        console.log('[DEBUG] LeadId format validation failed - returning 400', {
-          leadId,
-          leadIdParts,
-          partsLength: leadIdParts.length,
-          firstPart: leadIdParts[0]
-        });
-        try {
-          const fs = await import('fs');
-          const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-          const logEntry6 = JSON.stringify({location:'sections.ts:354',message:'LeadId format validation failed - returning 400',data:{leadId:leadId,leadIdParts:leadIdParts,partsLength:leadIdParts.length,firstPart:leadIdParts[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n';
-          fs.appendFileSync(logPath, logEntry6, 'utf8');
-        } catch (logError) {
-          console.error('[DEBUG] Failed to write log:', logError);
-        }
-        // #endregion
         return res.status(400).json({ success: false, message: 'Invalid lead ID format' });
       }
       
-      // Extract the index from the last part of the leadId
-      // Format: lead-{sectionId}-{index}, so index is always the last part
       const indexString = leadIdParts[leadIdParts.length - 1]?.trim();
       if (!indexString || indexString === '') {
         return res.status(400).json({ success: false, message: 'Lead ID missing index part' });
       }
       const leadIndex = parseInt(indexString, 10);
-      // #region agent log
-      console.log('[DEBUG] After parsing leadIndex', {
-        leadIndex,
-        isNaN: isNaN(leadIndex),
-        indexString,
-        leadIdParts2: leadIdParts[2],
-        allParts: leadIdParts
-      });
-      try {
-        const fs = await import('fs');
-        const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-        const logEntry7 = JSON.stringify({location:'sections.ts:365',message:'After parsing leadIndex',data:{leadIndex:leadIndex,isNaN:isNaN(leadIndex),indexString:indexString,leadIdParts2:leadIdParts[2],allParts:leadIdParts},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n';
-        fs.appendFileSync(logPath, logEntry7, 'utf8');
-      } catch (logError) {
-        console.error('[DEBUG] Failed to write log:', logError);
-      }
-      // #endregion
       if (isNaN(leadIndex) || leadIndex < 0) {
-        // #region agent log
-        console.log('[DEBUG] LeadIndex is NaN or negative - returning 400', {
-          leadIndex,
-          indexString
-        });
-        try {
-          const fs = await import('fs');
-          const logPath = 'c:\\devroot\\webpages\\sooner-mineral\\.cursor\\debug.log';
-          const logEntry8 = JSON.stringify({location:'sections.ts:375',message:'LeadIndex is NaN or negative - returning 400',data:{leadIndex:leadIndex,indexString:indexString},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})+'\n';
-          fs.appendFileSync(logPath, logEntry8, 'utf8');
-        } catch (logError) {
-          console.error('[DEBUG] Failed to write log:', logError);
-        }
-        // #endregion
         return res.status(400).json({ success: false, message: `Invalid lead index: ${indexString}` });
       }
 
-      // Get the lead to find the owner name
-      // IMPORTANT: Use the EXACT same query as the GET endpoint to ensure we get leads in the same order
-      // #region agent log
-      console.log('[DEBUG] Before querying for lead', {
-        sectionId,
-        leadIndex,
-        offset: leadIndex,
-        sectionIdForQuery: `%${sectionId}%`
-      });
-      // #endregion
-      
-      // Ensure leadIndex is a valid number
-      if (typeof leadIndex !== 'number' || isNaN(leadIndex) || leadIndex < 0) {
-        // #region agent log
-        console.log('[DEBUG] leadIndex is not a valid number before query', {
-          leadIndex,
-          leadIndexType: typeof leadIndex
-        });
-        // #endregion
-        return res.status(400).json({ 
-          success: false, 
-          message: `Invalid lead index: ${leadIndex}. LeadId: ${leadId}` 
-        });
-      }
-      
-      // Use the EXACT same query structure as GET /api/sections/:id/leads
-      // Filter by the section's S_T_R value (sectionStr is already computed above)
+      // Fetch all leads (same query as GET endpoint)
       const leadsQuery = `
         SELECT DISTINCT
           OWNER as name,
@@ -564,77 +365,24 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           updated_at
         FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
-          AND S_T_R = ?
         ORDER BY OWNER
         LIMIT 50
       `;
       
-      // #region agent log
-      console.log('[DEBUG] Executing query to fetch all leads', {
-        leadIndex,
-        sectionStr,
-        maxLeads: 50
-      });
-      // #endregion
+      const allLeadsRows = await executeQuery(dbPool, leadsQuery, []);
       
-      // Fetch all leads (same as GET endpoint, up to 50)
-      const allLeadsRows = await executeQuery(dbPool, leadsQuery, [sectionStr]);
-      
-      // #region agent log
-      console.log('[DEBUG] Fetched all leads', {
-        totalLeads: allLeadsRows?.length || 0,
-        requestedIndex: leadIndex
-      });
-      // #endregion
-      
-      // Select the lead at the specified index
       if (leadIndex >= allLeadsRows.length) {
-        // #region agent log
-        console.log('[DEBUG] Lead index out of range', {
-          leadIndex,
-          totalLeads: allLeadsRows.length
-        });
-        // #endregion
         return res.status(404).json({ success: false, message: 'Lead not found' });
       }
       
-      const leadsRows = [allLeadsRows[leadIndex]];
+      const leadRow = allLeadsRows[leadIndex];
+      const ownerName = leadRow.name;
+      const actualSectionStr = leadRow.str;
       
-      // #region agent log
-      console.log('[DEBUG] Query result', {
-        rowsReturned: leadsRows?.length || 0,
-        firstRow: leadsRows?.[0] || null
-      });
-      // #endregion
-      
-      if (!leadsRows || leadsRows.length === 0) {
-        // #region agent log
-        console.log('[DEBUG] No leads found for index', {
-          leadIndex,
-          sectionId
-        });
-        // #endregion
-        return res.status(404).json({ success: false, message: 'Lead not found' });
+      if (!actualSectionStr) {
+        return res.status(404).json({ success: false, message: 'Lead section not found' });
       }
-      
-      const ownerName = leadsRows[0].name;
-      const unitName = leadsRows[0].unitName;
-      // Use the actual S_T_R from the lead row, not from sectionId
-      // This is critical because the lead might be in a different section than the one we're viewing
-      const actualSectionStr = leadsRows[0].str || sectionStr;
-      
-      // #region agent log
-      console.log('[DEBUG] Found owner name and unit name', {
-        ownerName,
-        unitName,
-        leadIndex,
-        sectionId,
-        sectionStrFromSectionId: sectionStr,
-        actualSectionStrFromLead: actualSectionStr,
-        selectedRow: leadsRows[0]
-      });
-      // #endregion
-      
+
       // Map the new status to database status format
       let dbStatus = status;
       if (status === 'Working to Locate') dbStatus = 'WTL';
@@ -645,139 +393,14 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       else if (status === 'Unable to Locate') dbStatus = 'UNABLE TO LOCATE';
       else if (status === 'Dropped') dbStatus = 'DROPPED';
       
-      // #region agent log
-      console.log('[DEBUG] Before UPDATE query', {
-        dbStatus,
-        ownerName,
-        unitName,
-        sectionStr,
-        sectionIdParam: `%${sectionId}%`
-      });
-      // #endregion
-      
-      // First, check if rows exist for this owner and section
-      // Use the actual section from the lead row, not from sectionId
-      const checkQuery = `
-        SELECT STATUS, CURRENT_UNIT_NAME, S_T_R
-        FROM prod_acreage_schedule
-        WHERE OWNER = ? AND S_T_R = ?
-        LIMIT 5
-      `;
-      const checkRows = await executeQuery(dbPool, checkQuery, [ownerName, actualSectionStr]);
-      
-      // #region agent log
-      console.log('[DEBUG] Pre-update check query', {
-        matchingRows: checkRows.length,
-        sampleRows: checkRows,
-        ownerName,
-        actualSectionStr
-      });
-      // #endregion
-      
-      if (checkRows.length === 0) {
-        // Try to find rows with just OWNER to see what S_T_R values exist
-        const ownerCheckQuery = `
-          SELECT DISTINCT S_T_R, CURRENT_UNIT_NAME, STATUS
-          FROM prod_acreage_schedule
-          WHERE OWNER = ?
-          LIMIT 10
-        `;
-        const ownerCheckRows = await executeQuery(dbPool, ownerCheckQuery, [ownerName]);
-        
-        // #region agent log
-        console.log('[DEBUG] Owner check - no matching S_T_R found', {
-          ownerName,
-          requestedSectionStr: actualSectionStr,
-          availableSections: ownerCheckRows.map((r: any) => ({
-            s_t_r: r.S_T_R,
-            unitName: r.CURRENT_UNIT_NAME,
-            status: r.STATUS
-          }))
-        });
-        // #endregion
-        
-        return res.status(404).json({ 
-          success: false, 
-          message: `No records found for owner "${ownerName}" in section "${actualSectionStr}"`,
-          debug: {
-            ownerName,
-            sectionStr: actualSectionStr,
-            availableSections: ownerCheckRows.map((r: any) => r.S_T_R)
-          }
-        });
-      }
-      
-      // Update rows for this owner and section STR
-      // Use the actual S_T_R from the lead row, not from sectionId
+      // Update all rows for this owner and section
       const updateQuery = `
         UPDATE prod_acreage_schedule
         SET STATUS = ?, updated_at = NOW()
         WHERE OWNER = ? AND S_T_R = ?
       `;
       
-      // #region agent log
-      console.log('[DEBUG] Executing UPDATE query', {
-        query: updateQuery,
-        params: [dbStatus, ownerName, actualSectionStr],
-        ownerName,
-        actualSectionStr,
-        dbStatus
-      });
-      // #endregion
-      
-      // Execute UPDATE and get affected rows
-      let connection;
-      try {
-        connection = await dbPool!.getConnection();
-        const [result] = await connection.execute(updateQuery, [dbStatus, ownerName, actualSectionStr]) as any;
-        const affectedRows = result.affectedRows || 0;
-        
-        // #region agent log
-        console.log('[DEBUG] UPDATE query result', {
-          affectedRows,
-          changedRows: result.changedRows || 0,
-          ownerName,
-          unitName,
-          actualSectionStr,
-          dbStatus
-        });
-        // #endregion
-        
-        if (affectedRows === 0) {
-          console.warn('[DEBUG] UPDATE affected 0 rows - no matching records found', {
-            ownerName,
-            unitName,
-            actualSectionStr,
-            dbStatus,
-            updateQuery,
-            updateParams: [dbStatus, ownerName, actualSectionStr]
-          });
-        }
-        
-        connection.release();
-      } catch (updateError: any) {
-        if (connection) connection.release();
-        throw updateError;
-      }
-      
-      // Verify the update by querying the updated row
-      const verifyQuery = `
-        SELECT STATUS, OWNER, S_T_R
-        FROM prod_acreage_schedule
-        WHERE OWNER = ? AND S_T_R = ?
-        LIMIT 1
-      `;
-      const verifyRows = await executeQuery(dbPool, verifyQuery, [ownerName, actualSectionStr]);
-      
-      // #region agent log
-      console.log('[DEBUG] Verification query after UPDATE', {
-        verifyRows: verifyRows.length,
-        actualStatus: verifyRows[0]?.STATUS,
-        expectedStatus: dbStatus,
-        ownerName,
-        actualSectionStr
-      });
-      // #endregion
+      await executeQuery(dbPool, updateQuery, [dbStatus, ownerName, actualSectionStr]);
       
       res.json({ 
         success: true, 

@@ -23,6 +23,7 @@ const SectionsPage: React.FC = () => {
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
