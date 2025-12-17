@@ -23,6 +23,7 @@ const SectionsPage: React.FC = () => {
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -74,10 +75,38 @@ const SectionsPage: React.FC = () => {
     }
   };
 
-  const sortedSections = React.useMemo(() => {
-    if (!sortField) return sections;
+  const filteredAndSortedSections = React.useMemo(() => {
+    // First filter by search term
+    let filtered = sections;
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = sections.filter(section => {
+        const sectionName = (section.sectionName || '').toLowerCase();
+        const county = (section.county || '').toLowerCase();
+        const state = (section.state || '').toLowerCase();
+        const str = (section.str || '').toLowerCase();
+        const sectionNumber = (section.sectionNumber || '').toLowerCase();
+        const township = (section.township || '').toLowerCase();
+        const range = (section.range || '').toLowerCase();
+        const assignedBuyer = (section.assignedBuyer?.name || '').toLowerCase();
+        const currentUnit = ((section as any).current_unit || '').toLowerCase();
+        
+        return sectionName.includes(searchLower) ||
+               county.includes(searchLower) ||
+               state.includes(searchLower) ||
+               str.includes(searchLower) ||
+               sectionNumber.includes(searchLower) ||
+               township.includes(searchLower) ||
+               range.includes(searchLower) ||
+               assignedBuyer.includes(searchLower) ||
+               currentUnit.includes(searchLower);
+      });
+    }
 
-    return [...sections].sort((a, b) => {
+    // Then sort if sortField is set
+    if (!sortField) return filtered;
+
+    return [...filtered].sort((a, b) => {
       let aValue: any;
       let bValue: any;
 
@@ -135,7 +164,7 @@ const SectionsPage: React.FC = () => {
           return 0;
       }
     });
-  }, [sections, sortField, sortDirection]);
+  }, [sections, sortField, sortDirection, searchTerm]);
 
   const handleSaveSection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -288,7 +317,7 @@ const SectionsPage: React.FC = () => {
     <div>
       {/* Header with white background and icon */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-4">
           <div className="flex items-center">
             <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mr-4">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,6 +335,32 @@ const SectionsPage: React.FC = () => {
           >
             Add Section
           </button>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="flex items-center space-x-4">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search sections by name, county, state, STR, section number, township, range, buyer, or unit..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm"
+            />
+          </div>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition duration-200"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -347,7 +402,14 @@ const SectionsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sortedSections.map((item, rowIndex) => (
+              {filteredAndSortedSections.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-8 text-center text-gray-500">
+                    {searchTerm ? `No sections found matching "${searchTerm}"` : 'No sections found'}
+                  </td>
+                </tr>
+              ) : (
+                filteredAndSortedSections.map((item, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
                   {columns.map((column, colIndex) => (
                     <td
@@ -358,7 +420,8 @@ const SectionsPage: React.FC = () => {
                     </td>
                   ))}
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -253,11 +253,20 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       const rows = await executeQuery(dbPool, query, [`%${id}%`]);
       
       const leads = rows.map((row: any, index: number) => {
-        let leadStatus = 'In Progress';
-        if (row.status === 'DROPPED') leadStatus = 'Closed';
-        else if (row.status === 'LVM/TXT/EMAIL') leadStatus = 'In Progress';
-        else if (row.status === 'NEW') leadStatus = 'In Progress';
-        else if (row.status === 'WTL') leadStatus = 'In Progress';
+        // Map database status to the new status values
+        let leadStatus: 'NEW' | 'Working to Locate' | 'LVM/TXT/EMAIL' | 'sent mailer' | 'Negotiating' | 'Offer Accepted' | 'Not Selling Now' | 'Unable to Locate' | 'Dropped' = 'NEW';
+        const dbStatus = (row.status || '').trim();
+        
+        if (dbStatus === 'DROPPED') leadStatus = 'Dropped';
+        else if (dbStatus === 'LVM/TXT/EMAIL') leadStatus = 'LVM/TXT/EMAIL';
+        else if (dbStatus === 'NEW') leadStatus = 'NEW';
+        else if (dbStatus === 'WTL' || dbStatus === 'Working to Locate') leadStatus = 'Working to Locate';
+        else if (dbStatus === 'sent mailer' || dbStatus === 'SENT MAILER') leadStatus = 'sent mailer';
+        else if (dbStatus === 'Negotiating' || dbStatus === 'NEGOTIATING') leadStatus = 'Negotiating';
+        else if (dbStatus === 'Offer Accepted' || dbStatus === 'OFFER ACCEPTED') leadStatus = 'Offer Accepted';
+        else if (dbStatus === 'Not Selling Now' || dbStatus === 'NOT SELLING NOW') leadStatus = 'Not Selling Now';
+        else if (dbStatus === 'Unable to Locate' || dbStatus === 'UNABLE TO LOCATE') leadStatus = 'Unable to Locate';
+        else if (dbStatus) leadStatus = dbStatus as any; // Use the status as-is if it matches one of our values
         
         return {
           id: `lead-${id}-${index}`,
@@ -480,6 +489,78 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       res.status(500).json({ 
         success: false, 
         message: 'Error updating acreage schedule record', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Update section lead status
+  router.put('/api/sections/:sectionId/leads/:leadId/status', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { sectionId, leadId } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      const validStatuses = ['NEW', 'Working to Locate', 'LVM/TXT/EMAIL', 'sent mailer', 'Negotiating', 'Offer Accepted', 'Not Selling Now', 'Unable to Locate', 'Dropped'];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` 
+        });
+      }
+
+      // Extract owner name from leadId (format: lead-{sectionId}-{index})
+      // We need to find the lead by matching the section and index
+      const leadMatch = leadId.match(/lead-(.+)-(\d+)/);
+      if (!leadMatch) {
+        return res.status(400).json({ success: false, message: 'Invalid lead ID format' });
+      }
+
+      // Get the leads for this section to find the owner
+      const leadsQuery = `
+        SELECT DISTINCT
+          OWNER as name,
+          STATUS as status
+        FROM prod_acreage_schedule
+        WHERE OWNER IS NOT NULL AND OWNER != ''
+          AND (CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME IS NOT NULL)
+        ORDER BY OWNER
+        LIMIT 50
+      `;
+      
+      const leadsRows = await executeQuery(dbPool, leadsQuery, [`%${sectionId}%`]);
+      const leadIndex = parseInt(leadMatch[2]);
+      
+      if (leadIndex < 0 || leadIndex >= leadsRows.length) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
+      }
+
+      const ownerName = leadsRows[leadIndex].name;
+
+      // Update the status for all records with this owner in this section
+      const updateQuery = `
+        UPDATE prod_acreage_schedule
+        SET STATUS = ?, updated_at = NOW()
+        WHERE OWNER = ?
+          AND (CURRENT_UNIT_NAME LIKE ? OR CURRENT_UNIT_NAME IS NOT NULL)
+      `;
+
+      await executeQuery(dbPool, updateQuery, [status, ownerName, `%${sectionId}%`]);
+
+      res.json({ 
+        success: true, 
+        message: 'Lead status updated successfully',
+        status: status
+      });
+    } catch (error: any) {
+      console.error('Error updating lead status:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error updating lead status', 
         error: error.message 
       });
     }

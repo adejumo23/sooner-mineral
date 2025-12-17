@@ -84,6 +84,7 @@ export const fetchSectionLeads = apiClient.fetchSectionLeads;
 export const createSectionLead = apiClient.createSectionLead;
 export const createTractLead = apiClient.createTractLead;
 export const updateLeadStatus = apiClient.updateLeadStatus;
+export const updateSectionLeadStatus = apiClient.updateSectionLeadStatus;
 export const convertLeadToDeal = apiClient.convertLeadToDeal;
 
 // Mapping and spatial functions

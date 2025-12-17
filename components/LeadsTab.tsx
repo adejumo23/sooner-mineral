@@ -17,6 +17,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<SectionLead | null>(null);
   const [leadNotes, setLeadNotes] = useState<Record<string, LeadNote[]>>({});
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchLeads();
@@ -28,13 +29,12 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
       const leadsData = await api.fetchSectionLeads(sectionId);
       setLeads(leadsData);
       
-      // Expand the most recent active lead by default
-      const activeLeads = leadsData.filter(lead => lead.status === 'In Progress');
-      if (activeLeads.length > 0) {
-        const mostRecentActive = activeLeads.sort((a, b) => 
+      // Expand the most recent lead by default
+      if (leadsData.length > 0) {
+        const mostRecent = leadsData.sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         )[0];
-        setExpandedLeads(new Set([mostRecentActive.id]));
+        setExpandedLeads(new Set([mostRecent.id]));
       }
     } catch (error) {
       console.error('Failed to fetch leads:', error);
@@ -103,7 +103,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
 
   const handleStatusChange = async (leadId: string, newStatus: SectionLead['status']) => {
     try {
-      await api.updateLeadStatus(leadId, newStatus);
+      await api.updateSectionLeadStatus(sectionId, leadId, newStatus);
       fetchLeads();
     } catch (error) {
       console.error('Failed to update lead status:', error);
@@ -112,12 +112,24 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
 
   const getStatusColor = (status: SectionLead['status']) => {
     switch (status) {
-      case 'In Progress':
+      case 'NEW':
         return 'bg-blue-100 text-blue-800';
-      case 'Closed':
-        return 'bg-gray-100 text-gray-800';
-      case 'Converted':
+      case 'Working to Locate':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'LVM/TXT/EMAIL':
+        return 'bg-purple-100 text-purple-800';
+      case 'sent mailer':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'Negotiating':
+        return 'bg-orange-100 text-orange-800';
+      case 'Offer Accepted':
         return 'bg-green-100 text-green-800';
+      case 'Not Selling Now':
+        return 'bg-gray-100 text-gray-800';
+      case 'Unable to Locate':
+        return 'bg-red-100 text-red-800';
+      case 'Dropped':
+        return 'bg-gray-200 text-gray-900';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -125,12 +137,24 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
 
   const getStatusIcon = (status: SectionLead['status']) => {
     switch (status) {
-      case 'In Progress':
-        return '🔵';
-      case 'Closed':
-        return '⚪';
-      case 'Converted':
-        return '🟢';
+      case 'NEW':
+        return '🆕';
+      case 'Working to Locate':
+        return '🔍';
+      case 'LVM/TXT/EMAIL':
+        return '📞';
+      case 'sent mailer':
+        return '📮';
+      case 'Negotiating':
+        return '🤝';
+      case 'Offer Accepted':
+        return '✅';
+      case 'Not Selling Now':
+        return '⏸️';
+      case 'Unable to Locate':
+        return '❌';
+      case 'Dropped':
+        return '🗑️';
       default:
         return '⚪';
     }
@@ -161,6 +185,30 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
     return new Date(dateString).toLocaleString();
   };
 
+  // Filter leads based on search term
+  const filteredLeads = React.useMemo(() => {
+    if (!searchTerm.trim()) return leads;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return leads.filter(lead => {
+      const name = (lead.name || '').toLowerCase();
+      const contact = (lead.contact || '').toLowerCase();
+      const phoneEmail = (lead.phoneEmail || '').toLowerCase();
+      const status = (lead.status || '').toLowerCase();
+      const unitName = (lead.unitName || '').toLowerCase();
+      const buyer = (lead.buyer?.name || '').toLowerCase();
+      const priority = (lead.priority || '').toLowerCase();
+      
+      return name.includes(searchLower) ||
+             contact.includes(searchLower) ||
+             phoneEmail.includes(searchLower) ||
+             status.includes(searchLower) ||
+             unitName.includes(searchLower) ||
+             buyer.includes(searchLower) ||
+             priority.includes(searchLower);
+    });
+  }, [leads, searchTerm]);
+
   if (isLoading) {
     return <div className="text-center text-sc-slate">Loading leads...</div>;
   }
@@ -175,6 +223,32 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
         </Button>
       </div>
 
+      {/* Search Bar */}
+      <div className="flex items-center space-x-4">
+        <div className="flex-1 relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Search leads by name, contact, phone/email, status, unit, buyer, or priority..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm"
+          />
+        </div>
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm('')}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition duration-200"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       {/* Leads List */}
       <div className="space-y-4">
         {leads.length === 0 ? (
@@ -182,8 +256,13 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
             <p>No leads found for this section.</p>
             <p className="text-sm mt-2">Create a new lead to get started.</p>
           </div>
+        ) : filteredLeads.length === 0 ? (
+          <div className="text-center text-sc-slate py-12">
+            <p>No leads found matching "{searchTerm}".</p>
+            <p className="text-sm mt-2">Try a different search term or clear the search.</p>
+          </div>
         ) : (
-          leads.map((lead) => (
+          filteredLeads.map((lead) => (
             <div key={lead.id} className="bg-white rounded-lg border border-gray-200 shadow-sm">
               {/* Lead Header */}
               <div 
@@ -224,17 +303,25 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
                     >
                       Add Note
                     </Button>
-                    <Button 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={(e) => {
+                    <select
+                      value={lead.status}
+                      onChange={(e) => {
                         e.stopPropagation();
-                        const newStatus = lead.status === 'In Progress' ? 'Closed' : 'In Progress';
-                        handleStatusChange(lead.id, newStatus);
+                        handleStatusChange(lead.id, e.target.value as SectionLead['status']);
                       }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                     >
-                      {lead.status === 'In Progress' ? 'Close' : 'Reopen'}
-                    </Button>
+                      <option value="NEW">NEW</option>
+                      <option value="Working to Locate">Working to Locate</option>
+                      <option value="LVM/TXT/EMAIL">LVM/TXT/EMAIL</option>
+                      <option value="sent mailer">sent mailer</option>
+                      <option value="Negotiating">Negotiating</option>
+                      <option value="Offer Accepted">Offer Accepted</option>
+                      <option value="Not Selling Now">Not Selling Now</option>
+                      <option value="Unable to Locate">Unable to Locate</option>
+                      <option value="Dropped">Dropped</option>
+                    </select>
                     <button className="text-sc-slate hover:text-white transition-colors">
                       {expandedLeads.has(lead.id) ? '▼' : '▶'}
                     </button>

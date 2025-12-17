@@ -284,6 +284,164 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
     }
   });
 
+  // Get map assets
+  router.get('/api/map/assets', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      // Return empty array for now - can be populated with actual assets later
+      res.json([]);
+    } catch (error: any) {
+      console.error('Error fetching map assets:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching map assets', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get map overlays
+  router.get('/api/map/overlays', async (req, res) => {
+    try {
+      // Return empty array for now - overlays can be added later
+      res.json([]);
+    } catch (error: any) {
+      console.error('Error fetching map overlays:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching map overlays', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get map layer configs
+  router.get('/api/map/layer-configs', async (req, res) => {
+    try {
+      // Return default layer configurations
+      const defaultConfigs = [
+        {
+          id: 'sections',
+          name: 'Sections',
+          type: 'graphics',
+          visible: true,
+          opacity: 0.8
+        },
+        {
+          id: 'tracts',
+          name: 'Tracts',
+          type: 'graphics',
+          visible: true,
+          opacity: 0.7
+        },
+        {
+          id: 'units',
+          name: 'Units',
+          type: 'graphics',
+          visible: false,
+          opacity: 0.6
+        }
+      ];
+
+      res.json(defaultConfigs);
+    } catch (error: any) {
+      console.error('Error fetching map layer configs:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching map layer configs', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get map filter options
+  router.get('/api/map/filter-options', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      // Get unique values from database for filter options
+      const [countiesResult, statesResult] = await Promise.all([
+        executeQuery(dbPool, `
+          SELECT DISTINCT COUNTY as county
+          FROM prod_acreage_schedule
+          WHERE COUNTY IS NOT NULL AND COUNTY != ''
+          ORDER BY COUNTY
+        `).catch(() => []),
+        executeQuery(dbPool, `
+          SELECT DISTINCT ST as state
+          FROM prod_acreage_schedule
+          WHERE ST IS NOT NULL AND ST != ''
+          ORDER BY ST
+        `).catch(() => [])
+      ]);
+
+      const counties = countiesResult.map((row: any) => row.county);
+      const states = statesResult.map((row: any) => row.state);
+
+      res.json({
+        assetTypes: ['Tract', 'Unit', 'Section'],
+        counties: counties,
+        states: states,
+        assignmentStatuses: ['assigned', 'unassigned', 'In Negotiation', 'Under Review', 'Completed']
+      });
+    } catch (error: any) {
+      console.error('Error fetching map filter options:', error);
+      // Return default options on error
+      res.json({
+        assetTypes: ['Tract', 'Unit', 'Section'],
+        counties: [],
+        states: ['OK'],
+        assignmentStatuses: ['assigned', 'unassigned', 'In Negotiation', 'Under Review', 'Completed']
+      });
+    }
+  });
+
+  // Log map interaction
+  router.post('/api/map/interactions', async (req, res) => {
+    try {
+      const interaction = req.body;
+      console.log('Map interaction logged:', interaction);
+      
+      res.json({ 
+        success: true, 
+        message: 'Interaction logged successfully'
+      });
+    } catch (error: any) {
+      console.error('Error logging map interaction:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error logging map interaction', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Export map data
+  router.post('/api/map/export', async (req, res) => {
+    try {
+      const exportRequest = req.body;
+      console.log('Map export requested:', exportRequest);
+      
+      res.json({ 
+        success: true, 
+        message: 'Export request received',
+        exportId: `export-${Date.now()}`
+      });
+    } catch (error: any) {
+      console.error('Error exporting map data:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error exporting map data', 
+        error: error.message 
+      });
+    }
+  });
+
   return router;
 };
 

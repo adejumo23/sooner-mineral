@@ -725,6 +725,18 @@ export const createSectionLead = async (sectionId: string, leadData: any) => {
   }
 };
 
+export const updateSectionLeadStatus = async (sectionId: string, leadId: string, status: string) => {
+  try {
+    return await apiRequest(`/sections/${sectionId}/leads/${leadId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  } catch (error) {
+    console.warn('Server not available, updating mock section lead status:', error);
+    return { success: true };
+  }
+};
+
 export const updateLeadStatus = async (leadId: string, status: string) => {
   try {
     return await apiRequest(`/leads/${leadId}/status`, {

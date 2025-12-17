@@ -318,7 +318,7 @@ export interface SectionLead {
   id: string;
   sectionId: string;
   buyerId: string;
-  status: 'In Progress' | 'Closed' | 'Converted';
+  status: 'NEW' | 'Working to Locate' | 'LVM/TXT/EMAIL' | 'sent mailer' | 'Negotiating' | 'Offer Accepted' | 'Not Selling Now' | 'Unable to Locate' | 'Dropped';
   leadSource: 'Inbound' | 'Assignment' | 'Referral' | 'Cold Outreach' | 'Other';
   createdAt: string;
   updatedAt: string;
@@ -326,6 +326,19 @@ export interface SectionLead {
   section?: Section;
   lastActivity?: string;
   noteCount?: number;
+  // Additional properties from the API response
+  name?: string;
+  contact?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  phoneEmail?: string;
+  unitName?: string;
+  grossAcres?: number;
+  netMineralAcres?: number;
+  royalty?: number;
+  priority?: string;
 }
 
 export interface LeadNote {

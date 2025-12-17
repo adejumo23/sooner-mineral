@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapIcon, FilterIcon, EyeIcon, EyeSlashIcon, DownloadIcon, UserGroupIcon, CubeIcon, MapPinIcon, ChevronDownIcon, ChevronUpIcon } from './icons/Icons';
-import type { MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, User } from '../types';
+import type { MapAsset, MapFilter, MapSelection, MapOverlay, MapLayerConfig, User, Section } from '../types';
 import * as api from '../services/api';
 import * as arcgis from '../services/arcgis';
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+import { getCountyCenter } from '../utils/countyCoordinates';
 
 interface MappingDashboardProps {
   currentUser: User;
 }
 
 const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
+  const navigate = useNavigate();
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapView, setMapView] = useState<any>(null);
   const [assets, setAssets] = useState<MapAsset[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [overlays, setOverlays] = useState<MapOverlay[]>([]);
   const [layerConfigs, setLayerConfigs] = useState<MapLayerConfig[]>([]);
   const [filters, setFilters] = useState<MapFilter>({});
@@ -27,6 +31,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
   const [error, setError] = useState<string | null>(null);
   const [arcgisLoaded, setArcgisLoaded] = useState(false);
   const [useFallbackMap, setUseFallbackMap] = useState(false);
+  const [sectionsLayer, setSectionsLayer] = useState<any>(null);
 
   useEffect(() => {
     initializeMap();
@@ -44,6 +49,12 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
       addLayersToMap(assets, overlays);
     }
   }, [mapView, assets, overlays]);
+
+  useEffect(() => {
+    if (mapView && sections.length > 0) {
+      addSectionsToMap(sections);
+    }
+  }, [mapView, sections]);
 
   const initializeMap = async () => {
     if (!mapRef.current) return;
@@ -110,21 +121,33 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      const [assetsData, overlaysData, configsData, optionsData] = await Promise.all([
+      const [assetsData, overlaysData, configsData, optionsData, sectionsResponse] = await Promise.all([
         api.fetchMapAssets(),
         api.fetchMapOverlays(),
         api.fetchMapLayerConfigs(),
-        api.getMapFilterOptions()
+        api.getMapFilterOptions ? api.getMapFilterOptions() : Promise.resolve(null),
+        (api.fetchSections as any)(1, 1000) // Fetch all sections (up to 1000)
       ]);
 
       setAssets(assetsData);
       setOverlays(overlaysData);
       setLayerConfigs(configsData);
       setFilterOptions(optionsData);
+      
+      // Handle paginated sections response
+      const sectionsData = sectionsResponse.data || sectionsResponse;
+      const sectionsArray = Array.isArray(sectionsData) ? sectionsData : [];
+      console.log(`Fetched ${sectionsArray.length} sections from API`);
+      setSections(sectionsArray);
 
       // Add layers to map if map is initialized
       if (mapView) {
         await addLayersToMap(assetsData, overlaysData);
+        if (sectionsArray.length > 0) {
+          await addSectionsToMap(sectionsArray);
+        } else {
+          console.warn('No sections data to display on map');
+        }
       }
     } catch (error) {
       console.error('Failed to fetch initial data:', error);
@@ -171,9 +194,335 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
     }
   };
 
+  const addSectionsToMap = async (sectionsData: Section[]) => {
+    if (!mapView) {
+      console.warn('MapView not available, cannot add sections');
+      return;
+    }
+
+    if (!arcgisLoaded) {
+      console.warn('ArcGIS not loaded yet, cannot add sections');
+      return;
+    }
+
+    if (!sectionsData || sectionsData.length === 0) {
+      console.warn('No sections data provided to addSectionsToMap');
+      return;
+    }
+
+    console.log(`Adding ${sectionsData.length} sections to map...`);
+
+    try {
+      // Load ArcGIS modules if needed
+      await arcgis.loadModules();
+      
+      // Import ArcGIS modules dynamically
+      const GraphicsLayerModule = await import('@arcgis/core/layers/GraphicsLayer');
+      const GraphicModule = await import('@arcgis/core/Graphic');
+      const PointModule = await import('@arcgis/core/geometry/Point');
+      const SimpleMarkerSymbolModule = await import('@arcgis/core/symbols/SimpleMarkerSymbol');
+      const SpatialReferenceModule = await import('@arcgis/core/geometry/SpatialReference');
+      
+      const GraphicsLayer = GraphicsLayerModule.default;
+      const Graphic = GraphicModule.default;
+      const Point = PointModule.default;
+      const SimpleMarkerSymbol = SimpleMarkerSymbolModule.default;
+      const SpatialReference = SpatialReferenceModule.default;
+
+      // Remove existing sections layer if it exists
+      if (sectionsLayer) {
+        // Clean up event handlers
+        if ((sectionsLayer as any)._clickHandler) {
+          (sectionsLayer as any)._clickHandler.remove();
+        }
+        if ((sectionsLayer as any)._pointerMoveHandler) {
+          (sectionsLayer as any)._pointerMoveHandler.remove();
+        }
+        if ((sectionsLayer as any)._popupActionHandler) {
+          (sectionsLayer as any)._popupActionHandler.remove();
+        }
+        if ((sectionsLayer as any)._popupOpenHandler) {
+          (sectionsLayer as any)._popupOpenHandler.remove();
+        }
+        mapView.map.remove(sectionsLayer);
+      }
+
+      // Create new sections layer
+      const layer = new GraphicsLayer({
+        id: 'sections-layer',
+        title: 'Sections',
+        listMode: 'show'
+      });
+
+      // Import PopupTemplate for proper popup (do this once before the loop)
+      const PopupTemplateModule = await import('@arcgis/core/PopupTemplate');
+      const PopupTemplate = PopupTemplateModule.default;
+
+      // Group sections by county for better visualization
+      const sectionsByCounty: { [key: string]: Section[] } = {};
+      sectionsData.forEach(section => {
+        const county = section.county || 'Unknown';
+        if (!sectionsByCounty[county]) {
+          sectionsByCounty[county] = [];
+        }
+        sectionsByCounty[county].push(section);
+      });
+
+      // Add sections to map
+      let totalGraphicsAdded = 0;
+      Object.entries(sectionsByCounty).forEach(([county, countySections], countyIndex) => {
+        const countyCenter = getCountyCenter(county, countySections[0]?.state || 'OK');
+        if (!countyCenter) {
+          console.warn(`Could not find county center for ${county}, ${countySections[0]?.state || 'OK'}`);
+          return;
+        }
+
+        const [lon, lat] = countyCenter;
+        console.log(`Adding ${countySections.length} sections for county: ${county} at [${lon}, ${lat}]`);
+        
+        // Create a grid pattern for sections within the same county
+        const cols = Math.ceil(Math.sqrt(countySections.length));
+        const spacing = 0.05; // degrees spacing between sections
+        const startLon = lon - (cols - 1) * spacing / 2;
+        const startLat = lat + (cols - 1) * spacing / 2;
+
+        countySections.forEach((section, index) => {
+          const row = Math.floor(index / cols);
+          const col = index % cols;
+          const sectionLon = startLon + col * spacing;
+          const sectionLat = startLat - row * spacing;
+
+          // Create point geometry
+          const point = new Point({
+            longitude: sectionLon,
+            latitude: sectionLat,
+            spatialReference: SpatialReference.WGS84
+          });
+
+          // Create marker symbol - make it more visible
+          const symbol = new SimpleMarkerSymbol({
+            style: 'circle',
+            color: [59, 130, 246, 1.0], // Blue, fully opaque
+            size: 16, // Larger size for better visibility
+            outline: {
+              color: [255, 255, 255, 1], // White outline for contrast
+              width: 2
+            }
+          });
+
+          // Create popup template with proper structure and action
+          const popupTemplate = new PopupTemplate({
+            title: section.sectionName || section.str || 'Section',
+            content: `
+              <div style="padding: 10px;">
+                <p><strong>Section:</strong> ${section.sectionName || section.str || 'N/A'}</p>
+                <p><strong>County:</strong> ${section.county || 'N/A'}</p>
+                <p><strong>State:</strong> ${section.state || 'N/A'}</p>
+                <p><strong>STR:</strong> ${section.str || 'N/A'}</p>
+                <p><strong>Net Mineral Acres:</strong> ${section.netMineralAcres?.toFixed(2) || '0'}</p>
+                <p><strong>Status:</strong> ${section.status || 'unassigned'}</p>
+              </div>
+            `,
+            actions: [
+              {
+                title: 'View Details',
+                id: 'view-details',
+                type: 'button' as const
+              }
+            ]
+          });
+
+          // Create graphic with cursor pointer style
+          const graphic = new Graphic({
+            geometry: point,
+            symbol: symbol,
+            attributes: {
+              id: section.id,
+              sectionName: section.sectionName || section.str || 'Unknown',
+              county: section.county || 'Unknown',
+              state: section.state || 'OK',
+              str: section.str || '',
+              netMineralAcres: section.netMineralAcres || 0,
+              status: section.status || 'unassigned'
+            },
+            popupTemplate: popupTemplate
+          });
+
+          layer.add(graphic);
+          totalGraphicsAdded++;
+        });
+      });
+
+      console.log(`Total graphics added to layer: ${totalGraphicsAdded}`);
+
+      // Add click handler to navigate to section detail page
+      (window as any).navigateToSection = (sectionId: string) => {
+        navigate(`/sections/${sectionId}`);
+      };
+
+      // Enable popups on the map view but we'll handle navigation on click
+      mapView.popup.autoOpenEnabled = true;
+      mapView.popup.dockEnabled = true;
+      mapView.popup.dockOptions = {
+        buttonEnabled: false,
+        breakpoint: false
+      };
+
+      // Add click event listener on map view to handle section clicks
+      const clickHandler = mapView.on('click', async (event: any) => {
+        try {
+          const hitTest = await mapView.hitTest(event);
+          const sectionResult = hitTest.results.find((result: any) => 
+            result.graphic && result.graphic.layer === layer
+          );
+          
+          if (sectionResult && sectionResult.graphic && sectionResult.graphic.attributes) {
+            const sectionId = sectionResult.graphic.attributes.id;
+            if (sectionId) {
+              console.log('Section clicked, navigating to:', sectionId);
+              // Close popup if it opened
+              setTimeout(() => {
+                if (mapView.popup.visible) {
+                  mapView.popup.close();
+                }
+              }, 50);
+              // Navigate directly to the section detail page
+              navigate(`/sections/${sectionId}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error handling section click:', error);
+        }
+      });
+
+      // Add pointer-move event for hover tooltips
+      const pointerMoveHandler = mapView.on('pointer-move', async (event: any) => {
+        try {
+          const hitTest = await mapView.hitTest(event);
+          const sectionResult = hitTest.results.find((result: any) => 
+            result.graphic && result.graphic.layer === layer
+          );
+          
+          if (sectionResult && sectionResult.graphic && sectionResult.graphic.attributes) {
+            // Change cursor to pointer
+            mapView.container.style.cursor = 'pointer';
+            
+            // Show hover info
+            const sectionName = sectionResult.graphic.attributes.sectionName || 
+                               sectionResult.graphic.attributes.str || 
+                               'Section';
+            const county = sectionResult.graphic.attributes.county || 'Unknown';
+            const state = sectionResult.graphic.attributes.state || 'OK';
+            
+            // Create or get tooltip element
+            let tooltip = document.getElementById('section-hover-tooltip') as HTMLElement;
+            if (!tooltip) {
+              tooltip = document.createElement('div');
+              tooltip.id = 'section-hover-tooltip';
+              tooltip.style.cssText = `
+                position: fixed;
+                background: rgba(0, 0, 0, 0.85);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                pointer-events: none;
+                z-index: 10000;
+                display: none;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                max-width: 250px;
+                line-height: 1.4;
+              `;
+              document.body.appendChild(tooltip);
+            }
+            
+            tooltip.innerHTML = `
+              <div style="font-weight: 600; margin-bottom: 4px;">${sectionName}</div>
+              <div style="font-size: 11px; opacity: 0.9;">${county} County, ${state}</div>
+            `;
+            tooltip.style.display = 'block';
+            
+            // Position tooltip near cursor, but keep it in viewport
+            const tooltipWidth = tooltip.offsetWidth || 200;
+            const tooltipHeight = tooltip.offsetHeight || 50;
+            const x = event.x + 15;
+            const y = event.y + 15;
+            const maxX = window.innerWidth - tooltipWidth - 10;
+            const maxY = window.innerHeight - tooltipHeight - 10;
+            
+            tooltip.style.left = `${Math.min(x, maxX)}px`;
+            tooltip.style.top = `${Math.min(y, maxY)}px`;
+          } else {
+            // Reset cursor
+            mapView.container.style.cursor = 'default';
+            
+            // Hide tooltip
+            const tooltip = document.getElementById('section-hover-tooltip');
+            if (tooltip) {
+              tooltip.style.display = 'none';
+            }
+          }
+        } catch (error) {
+          // Silently handle errors during hover
+        }
+      });
+
+      // Add layer to map
+      mapView.map.add(layer);
+      setSectionsLayer(layer);
+
+      console.log(`Successfully added ${totalGraphicsAdded} section graphics to map`);
+      console.log(`Sections layer added to map. Layer count: ${mapView.map.layers.length}`);
+      
+      // Handle popup action clicks (backup navigation method)
+      const popupActionHandler = mapView.popup.on('trigger-action', (event: any) => {
+        if (event.action.id === 'view-details') {
+          const graphic = mapView.popup.selectedFeature;
+          if (graphic && graphic.attributes && graphic.attributes.id) {
+            console.log('Popup action clicked, navigating to:', graphic.attributes.id);
+            navigate(`/sections/${graphic.attributes.id}`);
+          }
+        }
+      });
+
+      // Also handle popup opening to ensure we can navigate
+      const popupOpenHandler = mapView.popup.watch('visible', (visible: boolean) => {
+        if (visible && mapView.popup.selectedFeature) {
+          const graphic = mapView.popup.selectedFeature;
+          if (graphic && graphic.attributes && graphic.attributes.id) {
+            // Store the section ID for the popup action button
+            (graphic as any)._sectionId = graphic.attributes.id;
+          }
+        }
+      });
+
+      // Store handlers for cleanup
+      (layer as any)._clickHandler = clickHandler;
+      (layer as any)._pointerMoveHandler = pointerMoveHandler;
+      (layer as any)._popupActionHandler = popupActionHandler;
+      (layer as any)._popupOpenHandler = popupOpenHandler;
+
+      // Zoom to show all sections if we have any
+      if (totalGraphicsAdded > 0 && layer.graphics.length > 0) {
+        try {
+          const extent = layer.fullExtent;
+          if (extent) {
+            await mapView.goTo(extent.expand(1.2)); // Expand by 20% for padding
+            console.log('Map zoomed to show sections');
+          }
+        } catch (extentError) {
+          console.warn('Could not zoom to sections extent:', extentError);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to add sections to map:', error);
+      console.error('Error details:', error);
+    }
+  };
+
   const fetchAssets = async () => {
     try {
-      const assetsData = await api.fetchMapAssets(filters);
+      const assetsData = await (api.fetchMapAssets as any)(filters);
       setAssets(assetsData);
     } catch (error) {
       console.error('Failed to fetch assets:', error);
@@ -533,14 +882,23 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                   <MapIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">Mapping Dashboard Overview</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-white p-3 rounded shadow">
-                      <div className="font-semibold text-blue-600">{assets.filter(a => a.assetType === 'Tract').length}</div>
-                      <div className="text-gray-600">Tracts</div>
-                    </div>
-                    <div className="bg-white p-3 rounded shadow">
-                      <div className="font-semibold text-purple-600">{assets.filter(a => a.assetType === 'Unit').length}</div>
-                      <div className="text-gray-600">Units</div>
-                    </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-blue-600">{assets.filter(a => a.assetType === 'Tract').length}</div>
+                    <div className="text-gray-600">Tracts</div>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-purple-600">{assets.filter(a => a.assetType === 'Unit').length}</div>
+                    <div className="text-gray-600">Units</div>
+                  </div>
+                  <div className="bg-white p-3 rounded shadow">
+                    <div className="font-semibold text-green-600">{sections.length}</div>
+                    <div className="text-gray-600">Sections</div>
+                    {sections.length > 0 && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {sectionsLayer ? '✓ Loaded on map' : 'Loading...'}
+                      </div>
+                    )}
+                  </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-4">
                     Configure REACT_APP_ARCGIS_API_KEY for full mapping features.
@@ -597,6 +955,13 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                 <div className="flex items-center space-x-2">
                   <CubeIcon className="w-4 h-4 text-purple-500" />
                   <span className="text-sm text-gray-600">Unit</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-4 h-4 rounded-full ${sectionsLayer ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <span className="text-sm text-gray-600">
+                    Sections ({sections.length})
+                    {sectionsLayer && sections.length > 0 && ' - Visible'}
+                  </span>
                 </div>
               </div>
             </div>

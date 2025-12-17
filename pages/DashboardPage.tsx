@@ -106,17 +106,6 @@ const DashboardPage: React.FC = () => {
       status: 'active',
       roles: ['Admin', 'Manager', 'Buyer']
     },
-    {
-      name: 'Owners',
-      description: 'Manage landowner and stakeholder relationships',
-      href: '/contacts',
-      icon: UserGroupIcon,
-      category: 'core',
-      color: 'from-teal-500 to-cyan-600',
-      gradient: 'bg-gradient-to-br from-teal-500 to-cyan-600',
-      status: 'active',
-      roles: ['Admin', 'Manager', 'Buyer']
-    },
 
     // Communication & Outreach Modules
     {

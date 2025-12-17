@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import type { Section, User, TitleStatus } from '../types';
 import * as api from '../services/api';
@@ -6,6 +6,7 @@ import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
 import { formatNMA, formatAcres, formatPercentage } from '../utils/formatting';
+import { useAuth } from '../hooks/useAuth';
 
 interface RecordRowProps {
   record: any;
@@ -155,6 +156,7 @@ const SectionDetailPage: React.FC = () => {
   const { sectionId } = useParams<{ sectionId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [section, setSection] = useState<Section | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -173,6 +175,18 @@ const SectionDetailPage: React.FC = () => {
     notesFlags: false
   });
 
+  // Normalize role name (handle "Administrator" vs "Admin", etc.)
+  const normalizeRole = (role: string): string => {
+    const normalized = role.trim();
+    if (normalized.toLowerCase() === 'administrator') return 'Admin';
+    if (normalized.toLowerCase() === 'read-only') return 'Viewer';
+    return normalized;
+  };
+
+  const userRole = user?.role?.name || 'Viewer';
+  const normalizedUserRole = normalizeRole(userRole);
+  const isManagerOrAdmin = normalizedUserRole === 'Manager' || normalizedUserRole === 'Admin';
+
   useEffect(() => {
     if (sectionId) {
       fetchSectionData();
@@ -182,10 +196,43 @@ const SectionDetailPage: React.FC = () => {
   useEffect(() => {
     // Check if there's a tab query parameter and set the active tab
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['overview', 'contacts', 'mapping', 'title-chain', 'leads'].includes(tabParam)) {
-      setActiveTab(tabParam as any);
+    if (tabParam) {
+      // If user tries to access title-chain but is not Manager/Admin, redirect to overview
+      if (tabParam === 'title-chain' && !isManagerOrAdmin) {
+        setActiveTab('overview');
+        return;
+      }
+      if (['overview', 'mapping', 'title-chain', 'leads'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, isManagerOrAdmin]);
+
+  // Redirect non-managers away from title-chain tab if they're on it
+  useEffect(() => {
+    if (activeTab === 'title-chain' && !isManagerOrAdmin) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, isManagerOrAdmin]);
+
+  // Filter tabs based on user role - only Manager and Admin can see Title Chain
+  // IMPORTANT: This must be called before any early returns to follow Rules of Hooks
+  const tabs = useMemo(() => {
+    const allTabs = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'mapping', label: 'Mapping' },
+      { id: 'title-chain', label: 'Title Chain' },
+      { id: 'leads', label: 'Leads' }
+    ];
+    
+    // Filter out title-chain if user is not Manager or Admin
+    return allTabs.filter(tab => {
+      if (tab.id === 'title-chain' && !isManagerOrAdmin) {
+        return false;
+      }
+      return true;
+    });
+  }, [isManagerOrAdmin]);
 
   const fetchSectionData = async () => {
     setIsLoading(true);
@@ -268,7 +315,6 @@ const SectionDetailPage: React.FC = () => {
       'Section Number': section.sectionNumber || '',
       'Township': section.township || '',
       'Range': section.range || '',
-      'Abssection Number': section.abssectionNumber || '',
       'ANUM': section.anum || '',
       'Gross Acres': section.grossAcres,
       'Net Mineral Acres': section.netMineralAcres || '',
@@ -359,7 +405,6 @@ const SectionDetailPage: React.FC = () => {
         sectionNumber: formData.get('sectionNumber') as string || undefined,
         township: formData.get('township') as string || undefined,
         range: formData.get('range') as string || undefined,
-        abssectionNumber: formData.get('abssectionNumber') as string || undefined,
         anum: formData.get('anum') as string || undefined,
         grossAcres: parseFloat(formData.get('grossAcres') as string) || undefined,
         netMineralAcres: parseFloat(formData.get('netMineralAcres') as string) || undefined,
@@ -388,14 +433,6 @@ const SectionDetailPage: React.FC = () => {
       setIsSaving(false);
     }
   };
-
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'contacts', label: 'Owners' },
-    { id: 'mapping', label: 'Mapping' },
-    { id: 'title-chain', label: 'Title Chain' },
-    { id: 'leads', label: 'Leads' }
-  ] as const;
 
   return (
     <div className="space-y-6">
@@ -520,14 +557,10 @@ const SectionDetailPage: React.FC = () => {
                   <span className="text-gray-600 text-sm">Legal Description</span>
                   <div className="text-gray-900 mt-1 whitespace-pre-line">{section.legalDescription}</div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <span className="text-gray-600 text-sm">STR (Combined)</span>
                     <div className="text-gray-900 font-medium">{section.str || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 text-sm">Abssection Number</span>
-                    <div className="text-gray-900 font-medium">{section.abssectionNumber || 'N/A'}</div>
                   </div>
                   <div>
                     <span className="text-gray-600 text-sm">ANUM</span>
@@ -671,86 +704,6 @@ const SectionDetailPage: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'contacts' && (
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Section Owners</h3>
-              <div className="text-sm text-gray-500">
-                {contacts.length} owner{contacts.length !== 1 ? 's' : ''} found
-              </div>
-            </div>
-            
-            {contacts.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <p>No owners found for this section.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {contacts.map((contact, index) => (
-                  <div key={contact.id || index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {/* Contact Information */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-900">{contact.name}</h4>
-                        {contact.contact && (
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">Contact:</span> {contact.contact}
-                          </p>
-                        )}
-                        {contact.phoneEmail && (
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">Phone/Email:</span> {contact.phoneEmail}
-                          </p>
-                        )}
-                      </div>
-                      
-                      {/* Address Information */}
-                      <div className="space-y-2">
-                        {(contact.street || contact.city || contact.state || contact.zip) && (
-                          <div>
-                            <span className="font-medium text-gray-900 text-sm">Address:</span>
-                            <div className="text-sm text-gray-600">
-                              {contact.street && <div>{contact.street}</div>}
-                              {(contact.city || contact.state || contact.zip) && (
-                                <div>
-                                  {contact.city && contact.city}
-                                  {contact.city && contact.state && ', '}
-                                  {contact.state && contact.state}
-                                  {contact.zip && ` ${contact.zip}`}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Ownership Information */}
-                      <div className="space-y-2">
-                        {(contact.nma || contact.royalty || contact.allocation) && (
-                          <div>
-                            <span className="font-medium text-gray-900 text-sm">Ownership:</span>
-                            <div className="text-sm text-gray-600 space-y-1">
-                              {contact.nma && (
-                                <div>NMA: {formatNMA(contact.nma)}</div>
-                              )}
-                              {contact.royalty && (
-                                <div>Royalty: {parseFloat(contact.royalty).toFixed(2)}%</div>
-                              )}
-                              {contact.allocation && (
-                                <div>Allocation: {parseFloat(contact.allocation).toFixed(2)}%</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {activeTab === 'mapping' && (
           <ArcGISMappingTab 
             sectionId={section.id} 
@@ -884,17 +837,6 @@ const SectionDetailPage: React.FC = () => {
                       type="text"
                       name="sectionNumber"
                       defaultValue={section.sectionNumber}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Abssection Number
-                    </label>
-                    <input
-                      type="text"
-                      name="abssectionNumber"
-                      defaultValue={section.abssectionNumber}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
