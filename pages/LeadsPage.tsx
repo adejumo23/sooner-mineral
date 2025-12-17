@@ -20,6 +20,12 @@ const LeadsPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<keyof LeadEnhanced | string>('priorityScore');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -36,7 +42,12 @@ const LeadsPage: React.FC = () => {
 
   useEffect(() => {
     loadLeads();
-  }, [filters, debouncedSearchTerm]);
+  }, [filters, debouncedSearchTerm, currentPage, pageSize]);
+  
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, filters]);
 
   const loadData = async () => {
     try {
@@ -59,15 +70,35 @@ const LeadsPage: React.FC = () => {
       const leadsResponse = await fetchLeads({
         ...filters,
         search: debouncedSearchTerm || undefined
-      });
+      }, currentPage, pageSize);
       const leadsData = leadsResponse.data || leadsResponse;
       setLeads(Array.isArray(leadsData) ? leadsData : []);
+      
+      // Update pagination info
+      if (leadsResponse.pagination) {
+        setTotalPages(leadsResponse.pagination.totalPages || 0);
+        setTotalItems(leadsResponse.pagination.total || 0);
+      }
     } catch (error) {
       console.error('Error loading leads:', error);
       setLeads([]);
+      setTotalPages(0);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+  
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   const handleFilterChange = (key: keyof LeadFilters, value: any) => {
@@ -154,15 +185,16 @@ const LeadsPage: React.FC = () => {
       header: 'Contact',
       accessor: 'linkedContact',
       sortable: true,
+      className: 'min-w-[200px]',
       cell: (lead: LeadEnhanced) => (
         <div>
           <div className="font-medium text-gray-900">
             {lead.linkedContact?.name || lead.name || 'Unknown Contact'}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 hidden sm:block">
             {lead.linkedContact?.city || lead.city}, {lead.linkedContact?.state || lead.state}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 hidden md:block">
             {lead.phoneEmail || 'No contact info'}
           </div>
         </div>
@@ -172,6 +204,7 @@ const LeadsPage: React.FC = () => {
       header: 'Assets',
       accessor: 'assets',
       sortable: false,
+      className: 'min-w-[180px] hidden lg:table-cell',
       cell: (lead: LeadEnhanced) => {
         // Sections are already deduplicated on the server
         const sections = lead.linkedSections || [];
@@ -180,16 +213,22 @@ const LeadsPage: React.FC = () => {
         
         return (
           <div>
-            {sections.map(section => (
+            {sections.slice(0, 2).map(section => (
               <div key={section.id || section.str} className="text-sm text-gray-600">
                 Section: {section.sectionName || section.str || 'Unknown Section'}
               </div>
             ))}
-            {units.map(unit => (
+            {sections.length > 2 && (
+              <div className="text-xs text-gray-500">+{sections.length - 2} more sections</div>
+            )}
+            {units.slice(0, 2).map(unit => (
               <div key={unit.id || unit.unitName} className="text-sm text-gray-600">
                 Unit: {unit.unitName}
               </div>
             ))}
+            {units.length > 2 && (
+              <div className="text-xs text-gray-500">+{units.length - 2} more units</div>
+            )}
             {sections.length === 0 && units.length === 0 && (
               <div className="text-sm text-gray-400 italic">No assets</div>
             )}
@@ -204,6 +243,7 @@ const LeadsPage: React.FC = () => {
       header: 'Buyer',
       accessor: 'buyer',
       sortable: true,
+      className: 'hidden md:table-cell',
       cell: (lead: LeadEnhanced) => (
         <span className="text-sm text-gray-600">{lead.buyer?.name || 'Unassigned'}</span>
       )
@@ -212,8 +252,9 @@ const LeadsPage: React.FC = () => {
       header: 'Status',
       accessor: 'status',
       sortable: true,
+      className: 'min-w-[100px]',
       cell: (lead: LeadEnhanced) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(lead.status)}`}>
           {lead.status}
         </span>
       )
@@ -222,6 +263,7 @@ const LeadsPage: React.FC = () => {
       header: 'Priority',
       accessor: 'priorityScore',
       sortable: true,
+      className: 'hidden sm:table-cell',
       cell: (lead: LeadEnhanced) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(lead.priorityScore)}`}>
           {lead.priorityScore}
@@ -232,8 +274,9 @@ const LeadsPage: React.FC = () => {
       header: 'Last Contact',
       accessor: 'lastContactDate',
       sortable: true,
+      className: 'hidden lg:table-cell',
       cell: (lead: LeadEnhanced) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-gray-600 whitespace-nowrap">
           {lead.lastContactDate ? new Date(lead.lastContactDate).toLocaleDateString() : 'Never'}
         </span>
       )
@@ -242,8 +285,9 @@ const LeadsPage: React.FC = () => {
       header: 'Next Follow-up',
       accessor: 'nextFollowUpDate',
       sortable: true,
+      className: 'hidden xl:table-cell',
       cell: (lead: LeadEnhanced) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-gray-600 whitespace-nowrap">
           {lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toLocaleDateString() : 'Not set'}
         </span>
       )
@@ -252,11 +296,12 @@ const LeadsPage: React.FC = () => {
       header: 'Actions',
       accessor: 'actions',
       sortable: false,
+      className: 'min-w-[80px]',
       cell: (lead: LeadEnhanced) => (
         <div className="flex space-x-2">
           <Link
             to={`/leads/${lead.id}`}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
           >
             View
           </Link>
@@ -418,7 +463,7 @@ const LeadsPage: React.FC = () => {
           'Loading...'
         ) : (
           <>
-            Showing {sortedLeads.length} lead{sortedLeads.length !== 1 ? 's' : ''}
+            Showing {totalItems > 0 ? `${((currentPage - 1) * pageSize) + 1} to ${Math.min(currentPage * pageSize, totalItems)}` : '0'} of {totalItems} lead{totalItems !== 1 ? 's' : ''}
             {debouncedSearchTerm && (
               <span className="ml-2 text-blue-600">
                 (filtered by "{debouncedSearchTerm}")
@@ -434,6 +479,16 @@ const LeadsPage: React.FC = () => {
           <div className="text-center py-8">
             <div className="text-lg">Loading leads...</div>
           </div>
+        ) : sortedLeads.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-lg mb-2">No leads found</div>
+            <p className="text-gray-500">
+              {Object.keys(filters).length > 0 || debouncedSearchTerm
+                ? 'Try adjusting your filters or search terms'
+                : 'Get started by creating your first lead'
+              }
+            </p>
+          </div>
         ) : (
           <Table 
             data={sortedLeads} 
@@ -444,6 +499,79 @@ const LeadsPage: React.FC = () => {
           />
         )}
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Card className="mt-6">
+          <div className="p-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <span className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} leads
+                </span>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-700">Page size:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm"
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        onClick={() => handlePageChange(pageNum)}
+                        className="px-3 py-1 text-sm min-w-[40px]"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

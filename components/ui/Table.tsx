@@ -51,6 +51,8 @@ const Table = <T extends Record<string, any>>({
                     key={column.header || index}
                     scope="col"
                     className={`px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 ${
+                      column.className || ''
+                    } ${
                       isSortable ? 'cursor-pointer hover:bg-gray-200 select-none active:bg-gray-300 touch-manipulation' : ''
                     }`}
                     onClick={() => isSortable && onSort(column.accessor)}
