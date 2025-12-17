@@ -6,6 +6,7 @@ import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
 import { formatNMA, formatAcres, formatPercentage } from '../utils/formatting';
+import { useAuth } from '../hooks/useAuth';
 
 interface RecordRowProps {
   record: any;

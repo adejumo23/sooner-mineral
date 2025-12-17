@@ -102,11 +102,34 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
   };
 
   const handleStatusChange = async (leadId: string, newStatus: SectionLead['status']) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LeadsTab.tsx:104',message:'handleStatusChange entry',data:{sectionId:sectionId,leadId:leadId,newStatus:newStatus,newStatusType:typeof newStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+    // #endregion
+    
+    // Optimistically update the UI immediately
+    setLeads(prevLeads => 
+      prevLeads.map(lead => 
+        lead.id === leadId ? { ...lead, status: newStatus } : lead
+      )
+    );
+    
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LeadsTab.tsx:107',message:'Before api.updateSectionLeadStatus call',data:{sectionId:sectionId,leadId:leadId,newStatus:newStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+      // #endregion
       await api.updateSectionLeadStatus(sectionId, leadId, newStatus);
-      fetchLeads();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LeadsTab.tsx:110',message:'After api.updateSectionLeadStatus call - success',data:{sectionId:sectionId,leadId:leadId,newStatus:newStatus},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+      // #endregion
+      // Refresh from server to ensure we have the latest data
+      await fetchLeads();
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LeadsTab.tsx:113',message:'handleStatusChange error caught',data:{sectionId:sectionId,leadId:leadId,newStatus:newStatus,errorMessage:error instanceof Error ? error.message : String(error),errorStack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
+      // #endregion
       console.error('Failed to update lead status:', error);
+      // Revert optimistic update on error
+      await fetchLeads();
     }
   };
 

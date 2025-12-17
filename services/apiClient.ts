@@ -26,6 +26,9 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const separator = endpoint.includes('?') ? '&' : '?';
   const cacheBuster = `_t=${Date.now()}`;
   const url = `${API_BASE_URL}${endpoint}${separator}${cacheBuster}`;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:24',message:'apiRequest entry',data:{endpoint:endpoint,url:url,method:options.method,hasBody:!!options.body},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
@@ -39,7 +42,16 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    // #region agent log
+    let errorBody = null;
+    try {
+      errorBody = await response.clone().json();
+    } catch (e) {
+      errorBody = await response.clone().text();
+    }
+    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:44',message:'apiRequest error response',data:{status:response.status,statusText:response.statusText,errorBody:errorBody,url:url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
+    // #endregion
+    throw new Error(`API request failed: ${response.status} ${response.statusText}${errorBody ? ' - ' + JSON.stringify(errorBody) : ''}`);
   }
 
   return response.json();
@@ -726,12 +738,25 @@ export const createSectionLead = async (sectionId: string, leadData: any) => {
 };
 
 export const updateSectionLeadStatus = async (sectionId: string, leadId: string, status: string) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:728',message:'updateSectionLeadStatus entry',data:{sectionId:sectionId,leadId:leadId,status:status,statusType:typeof status,url:`/sections/${sectionId}/leads/${leadId}/status`,requestBody:JSON.stringify({ status })},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
+  // #endregion
   try {
-    return await apiRequest(`/sections/${sectionId}/leads/${leadId}/status`, {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:730',message:'Before apiRequest call',data:{url:`/sections/${sectionId}/leads/${leadId}/status`,method:'PUT',body:JSON.stringify({ status })},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
+    const result = await apiRequest(`/sections/${sectionId}/leads/${leadId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:736',message:'After apiRequest call - success',data:{result:result},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
+    return result;
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:738',message:'updateSectionLeadStatus error caught',data:{sectionId:sectionId,leadId:leadId,status:status,errorMessage:error instanceof Error ? error.message : String(error),errorStack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
+    // #endregion
     console.warn('Server not available, updating mock section lead status:', error);
     return { success: true };
   }
