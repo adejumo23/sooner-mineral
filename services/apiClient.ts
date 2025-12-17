@@ -291,7 +291,7 @@ export const deleteUnit = async (id: string) => {
 };
 
 // Lead API functions
-export const fetchLeads = async (filters: any = {}, page = 1, limit = 50) => {
+export const fetchLeads = async (filters: any = {}, page = 1, limit = 10000) => {
   try {
     // Build query string with filters and pagination
     const queryParams = new URLSearchParams();

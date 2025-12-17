@@ -226,7 +226,22 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
       const { id } = req.params;
       
-      // Show all owners in the database regardless of section
+      // Get the section's S_T_R value from sectionId (e.g., "s1" -> get S_T_R from ordered list)
+      const sectionsResponse = await executeQuery(dbPool, `
+        SELECT DISTINCT S_T_R as str
+        FROM prod_acreage_schedule 
+        WHERE S_T_R IS NOT NULL 
+        ORDER BY S_T_R
+      `);
+      
+      const sectionNumber = parseInt(id.replace('s', ''));
+      if (isNaN(sectionNumber) || sectionNumber < 1 || sectionNumber > sectionsResponse.length) {
+        return res.status(404).json({ success: false, message: 'Section not found' });
+      }
+      
+      const sectionStr = sectionsResponse[sectionNumber - 1].str;
+      
+      // Filter leads by the section's S_T_R value
       const query = `
         SELECT DISTINCT
           OWNER as name,
@@ -247,11 +262,12 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           updated_at
         FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
+          AND S_T_R = ?
         ORDER BY OWNER
         LIMIT 50
       `;
 
-      const rows = await executeQuery(dbPool, query, []);
+      const rows = await executeQuery(dbPool, query, [sectionStr]);
       
       const leads = rows.map((row: any, index: number) => {
         // Map database status to the new status values
@@ -329,12 +345,28 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         });
       }
 
+      // Get the section's S_T_R value from sectionId (same as GET endpoint)
+      const sectionsResponse = await executeQuery(dbPool, `
+        SELECT DISTINCT S_T_R as str
+        FROM prod_acreage_schedule 
+        WHERE S_T_R IS NOT NULL 
+        ORDER BY S_T_R
+      `);
+      
+      const sectionNumber = parseInt(sectionId.replace('s', ''));
+      if (isNaN(sectionNumber) || sectionNumber < 1 || sectionNumber > sectionsResponse.length) {
+        return res.status(404).json({ success: false, message: 'Section not found' });
+      }
+      
+      const sectionStr = sectionsResponse[sectionNumber - 1].str;
+      
       // Parse leadId to get the index (format: lead-{sectionId}-{index})
       const leadIdParts = leadId.split('-');
       if (leadIdParts.length < 3 || leadIdParts[0] !== 'lead') {
         return res.status(400).json({ success: false, message: 'Invalid lead ID format' });
       }
       
+      // Extract the index from the last part of the leadId
       const indexString = leadIdParts[leadIdParts.length - 1]?.trim();
       if (!indexString || indexString === '') {
         return res.status(400).json({ success: false, message: 'Lead ID missing index part' });
@@ -344,7 +376,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         return res.status(400).json({ success: false, message: `Invalid lead index: ${indexString}` });
       }
 
-      // Fetch all leads (same query as GET endpoint)
+      // Fetch leads for this section (same query as GET endpoint)
       const leadsQuery = `
         SELECT DISTINCT
           OWNER as name,
@@ -365,11 +397,12 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           updated_at
         FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
+          AND S_T_R = ?
         ORDER BY OWNER
         LIMIT 50
       `;
       
-      const allLeadsRows = await executeQuery(dbPool, leadsQuery, []);
+      const allLeadsRows = await executeQuery(dbPool, leadsQuery, [sectionStr]);
       
       if (leadIndex >= allLeadsRows.length) {
         return res.status(404).json({ success: false, message: 'Lead not found' });
@@ -377,11 +410,8 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       
       const leadRow = allLeadsRows[leadIndex];
       const ownerName = leadRow.name;
-      const actualSectionStr = leadRow.str;
       
-      if (!actualSectionStr) {
-        return res.status(404).json({ success: false, message: 'Lead section not found' });
-      }
+      // Use the section's S_T_R (we already validated it exists)
 
       // Map the new status to database status format
       let dbStatus = status;
@@ -400,7 +430,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         WHERE OWNER = ? AND S_T_R = ?
       `;
       
-      await executeQuery(dbPool, updateQuery, [dbStatus, ownerName, actualSectionStr]);
+      await executeQuery(dbPool, updateQuery, [dbStatus, ownerName, sectionStr]);
       
       res.json({ 
         success: true, 
