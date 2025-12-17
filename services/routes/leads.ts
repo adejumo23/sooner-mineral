@@ -5,7 +5,7 @@ import { executeQuery } from '../utils/database.js';
 export const createLeadsRoutes = (dbPool: Pool | null) => {
   const router = Router();
 
-  // Get all leads
+  // Get all leads - shows all owners in the database regardless of section
   router.get('/api/leads', async (req, res) => {
     try {
       if (!dbPool) {
@@ -13,14 +13,15 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
       }
 
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      // Default to a very high limit to show all owners, but allow override via query param
+      const limit = parseInt(req.query.limit as string) || 10000;
       const offset = (page - 1) * limit;
       const search = (req.query.search as string) || '';
 
-      if (page < 1 || limit < 1 || limit > 1000) {
+      if (page < 1 || limit < 1 || limit > 100000) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 1000'
+          message: 'Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 100000'
         });
       }
 
