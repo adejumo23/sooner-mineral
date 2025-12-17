@@ -6,7 +6,6 @@ import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
 import { formatNMA, formatAcres, formatPercentage } from '../utils/formatting';
-import { useAuth } from '../hooks/useAuth';
 
 interface RecordRowProps {
   record: any;
@@ -701,6 +700,86 @@ const SectionDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'contacts' && (
+          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Section Owners</h3>
+              <div className="text-sm text-gray-500">
+                {contacts.length} owner{contacts.length !== 1 ? 's' : ''} found
+              </div>
+            </div>
+            
+            {contacts.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <p>No owners found for this section.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {contacts.map((contact, index) => (
+                  <div key={contact.id || index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Contact Information */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-gray-900">{contact.name}</h4>
+                        {contact.contact && (
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Contact:</span> {contact.contact}
+                          </p>
+                        )}
+                        {contact.phoneEmail && (
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Phone/Email:</span> {contact.phoneEmail}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Address Information */}
+                      <div className="space-y-2">
+                        {(contact.street || contact.city || contact.state || contact.zip) && (
+                          <div>
+                            <span className="font-medium text-gray-900 text-sm">Address:</span>
+                            <div className="text-sm text-gray-600">
+                              {contact.street && <div>{contact.street}</div>}
+                              {(contact.city || contact.state || contact.zip) && (
+                                <div>
+                                  {contact.city && contact.city}
+                                  {contact.city && contact.state && ', '}
+                                  {contact.state && contact.state}
+                                  {contact.zip && ` ${contact.zip}`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Ownership Information */}
+                      <div className="space-y-2">
+                        {(contact.nma || contact.royalty || contact.allocation) && (
+                          <div>
+                            <span className="font-medium text-gray-900 text-sm">Ownership:</span>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              {contact.nma && (
+                                <div>NMA: {formatNMA(contact.nma)}</div>
+                              )}
+                              {contact.royalty && (
+                                <div>Royalty: {parseFloat(contact.royalty).toFixed(2)}%</div>
+                              )}
+                              {contact.allocation && (
+                                <div>Allocation: {parseFloat(contact.allocation).toFixed(2)}%</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

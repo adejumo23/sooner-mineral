@@ -23,7 +23,6 @@ const SectionsPage: React.FC = () => {
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -75,38 +74,10 @@ const SectionsPage: React.FC = () => {
     }
   };
 
-  const filteredAndSortedSections = React.useMemo(() => {
-    // First filter by search term
-    let filtered = sections;
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = sections.filter(section => {
-        const sectionName = (section.sectionName || '').toLowerCase();
-        const county = (section.county || '').toLowerCase();
-        const state = (section.state || '').toLowerCase();
-        const str = (section.str || '').toLowerCase();
-        const sectionNumber = (section.sectionNumber || '').toLowerCase();
-        const township = (section.township || '').toLowerCase();
-        const range = (section.range || '').toLowerCase();
-        const assignedBuyer = (section.assignedBuyer?.name || '').toLowerCase();
-        const currentUnit = ((section as any).current_unit || '').toLowerCase();
-        
-        return sectionName.includes(searchLower) ||
-               county.includes(searchLower) ||
-               state.includes(searchLower) ||
-               str.includes(searchLower) ||
-               sectionNumber.includes(searchLower) ||
-               township.includes(searchLower) ||
-               range.includes(searchLower) ||
-               assignedBuyer.includes(searchLower) ||
-               currentUnit.includes(searchLower);
-      });
-    }
+  const sortedSections = React.useMemo(() => {
+    if (!sortField) return sections;
 
-    // Then sort if sortField is set
-    if (!sortField) return filtered;
-
-    return [...filtered].sort((a, b) => {
+    return [...sections].sort((a, b) => {
       let aValue: any;
       let bValue: any;
 
@@ -164,7 +135,7 @@ const SectionsPage: React.FC = () => {
           return 0;
       }
     });
-  }, [sections, sortField, sortDirection, searchTerm]);
+  }, [sections, sortField, sortDirection]);
 
   const handleSaveSection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -402,14 +373,7 @@ const SectionsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAndSortedSections.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-8 text-center text-gray-500">
-                    {searchTerm ? `No sections found matching "${searchTerm}"` : 'No sections found'}
-                  </td>
-                </tr>
-              ) : (
-                filteredAndSortedSections.map((item, rowIndex) => (
+              {sortedSections.map((item, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
                   {columns.map((column, colIndex) => (
                     <td
@@ -420,8 +384,7 @@ const SectionsPage: React.FC = () => {
                     </td>
                   ))}
                 </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>

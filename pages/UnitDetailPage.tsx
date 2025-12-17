@@ -936,6 +936,195 @@ const UnitDetailPage: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'contacts' && (
+          <div className="space-y-6">
+            {/* Header with Actions */}
+            <Card>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Unit Owners</h3>
+                  <div className="flex space-x-3">
+                    <Button variant="outline" size="sm">
+                      Filter & Sort
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Bulk Actions
+                    </Button>
+                  </div>
+                </div>
+                
+                {unitContactsAggregated.length === 0 ? (
+                  <p className="text-gray-500">No owners linked to this unit</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Contact Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ownership % (Weighted)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Royalty % (Weighted)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NMA (Total)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NRA (1/8 Normalized)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sections Owned
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Last Outreach
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Lead Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {unitContactsAggregated.map((contact) => (
+                          <tr key={contact.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {contact.contact?.name?.charAt(0) || '?'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    <Link 
+                                      to={`/contacts/${contact.contactId}`}
+                                      className="text-primary hover:text-primary-600"
+                                    >
+                                      {contact.contact?.name || 'Unknown Contact'}
+                                    </Link>
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {contact.contact?.contactType || 'Unknown Type'}
+                                  </div>
+                                  {contact.contact?.email && (
+                                    <div className="text-xs text-gray-400">
+                                      {contact.contact.email}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(contact.ownershipPercentageWeighted * 100).toFixed(1)}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(contact.royaltyPercentageWeighted * 100).toFixed(1)}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatNMA(contact.totalNMA)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {contact.totalNRA ? contact.totalNRA.toLocaleString() : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex flex-wrap gap-1">
+                                {(Array.isArray(contact.sectionsOwned) ? contact.sectionsOwned : []).map((sectionId) => {
+                                  const section = unitSections.find(us => us.sectionId === sectionId)?.section;
+                                  return (
+                                    <span 
+                                      key={sectionId}
+                                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                      title={section?.sectionName || sectionId}
+                                    >
+                                      {section?.sectionName || sectionId}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {contact.lastOutreach ? (
+                                <span>{new Date(contact.lastOutreach).toLocaleDateString()}</span>
+                              ) : (
+                                <span className="text-gray-400">No outreach</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                contact.leadStatus === 'Open' ? 'bg-green-100 text-green-800' :
+                                contact.leadStatus === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {contact.leadStatus}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex space-x-2">
+                                {!contact.hasActiveLeads ? (
+                                  <Button size="sm" variant="outline">
+                                    Create Lead
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="outline">
+                                    View Leads
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="outline">
+                                  <PencilIcon className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Contact Summary Statistics */}
+            <Card>
+              <div className="p-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Contact Summary</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.length}
+                    </div>
+                    <div className="text-sm text-gray-500">Total Owners</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.filter(c => c.leadStatus === 'Open').length}
+                    </div>
+                    <div className="text-sm text-gray-500">Active Leads</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {formatNMA(unitContactsAggregated.reduce((sum, c) => sum + (c.totalNMA || 0), 0))}
+                    </div>
+                    <div className="text-sm text-gray-500">Total NMA</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {unitContactsAggregated.reduce((sum, c) => sum + (c.totalNRA || 0), 0).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500">Total NRA</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'mapping' && (
           <div className="h-[600px]">
             <UnitMappingTab 
