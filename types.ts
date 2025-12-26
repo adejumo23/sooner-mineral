@@ -814,6 +814,34 @@ export interface CreateLeadNoteData {
   noteType?: LeadNote['noteType'];
 }
 
+export interface LeadEmailActivity {
+  id: string;
+  leadId: string;
+  emailDate: string;
+  direction: 'Sent' | 'Received';
+  subject?: string;
+  body?: string;
+  recipientEmail?: string;
+  senderEmail?: string;
+  status: 'Sent' | 'Delivered' | 'Opened' | 'Clicked' | 'Replied' | 'Bounced' | 'Failed';
+  notes?: string;
+  loggedById: string;
+  
+  // Populated fields
+  loggedBy?: User;
+}
+
+export interface CreateEmailActivityData {
+  leadId: string;
+  direction: 'Sent' | 'Received';
+  subject?: string;
+  body?: string;
+  recipientEmail?: string;
+  senderEmail?: string;
+  status?: LeadEmailActivity['status'];
+  notes?: string;
+}
+
 // Deal interface for communication integration
 export interface Deal {
   id: string;

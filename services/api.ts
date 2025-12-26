@@ -82,7 +82,6 @@ export const logout = apiClient.logout;
 // Lead-related functions
 export const fetchSectionLeads = apiClient.fetchSectionLeads;
 export const createSectionLead = apiClient.createSectionLead;
-export const createTractLead = apiClient.createTractLead;
 export const updateLeadStatus = apiClient.updateLeadStatus;
 export const updateSectionLeadStatus = apiClient.updateSectionLeadStatus;
 export const convertLeadToDeal = apiClient.convertLeadToDeal;
@@ -91,6 +90,7 @@ export const convertLeadToDeal = apiClient.convertLeadToDeal;
 export const fetchSectionSpatial = apiClient.fetchSectionSpatial;
 export const fetchMapLayerPreferences = apiClient.fetchMapLayerPreferences;
 export const fetchNearbyWells = apiClient.fetchNearbyWells;
+export const fetchWellsBySections = apiClient.fetchWellsBySections;
 export const fetchNearbyPermits = apiClient.fetchNearbyPermits;
 export const fetchNearbyRigs = apiClient.fetchNearbyRigs;
 export const fetchNearbyUnits = apiClient.fetchNearbyUnits;
@@ -333,7 +333,6 @@ export default {
   
   // Lead-related functions
   fetchSectionLeads,
-  createTractLead,
   updateLeadStatus,
   convertLeadToDeal,
   

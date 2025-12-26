@@ -12,7 +12,8 @@
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "dump:create": "node scripts/create-database-dump.js",
     "dump:deploy": "node scripts/deploy-to-production.js",
-    "dump:full": "npm run dump:create && npm run dump:deploy"
+    "dump:full": "npm run dump:create && npm run dump:deploy",
+    "import:wells": "tsx scripts/import-occ-wells.ts"
   },
   "dependencies": {
     "@arcgis/core": "^4.28.0",
@@ -31,6 +32,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.6.0",
+    "shpjs": "^6.2.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

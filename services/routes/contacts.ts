@@ -5,6 +5,111 @@ import { executeQuery } from '../utils/database.js';
 export const createContactsRoutes = (dbPool: Pool | null) => {
   const router = Router();
 
+  // Get unassigned owners (owners without a buyer)
+  router.get('/api/unassigned-owners', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      if (page < 1 || limit < 1 || limit > 1000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 1000'
+        });
+      }
+
+      // Count distinct owners that have NO assigned buyer in ANY of their records
+      // An owner is unassigned if they have NO records with a buyer assigned
+      const countQuery = `
+        SELECT COUNT(DISTINCT owner_name) as total
+        FROM (
+          SELECT DISTINCT OWNER as owner_name
+          FROM prod_acreage_schedule
+          WHERE OWNER IS NOT NULL 
+            AND OWNER != ''
+          GROUP BY OWNER
+          HAVING SUM(CASE WHEN BUYER IS NOT NULL AND BUYER != '' THEN 1 ELSE 0 END) = 0
+        ) as unassigned_owners
+      `;
+      const countResult = await executeQuery(dbPool, countQuery);
+      const totalCount = countResult[0].total;
+
+      // Get owners that have NO assigned buyer in ANY of their records
+      const query = `
+        SELECT 
+          OWNER as name,
+          MAX(CONTACT) as contact,
+          MAX(STREET) as street,
+          MAX(CITY) as city,
+          MAX(ST) as state,
+          MAX(ZIP) as zip,
+          MAX(PHONE_EMAIL) as phoneEmail,
+          MAX(CURRENT_UNIT_NAME) as unitName,
+          SUM(CAST(NMA AS DECIMAL(10,2))) as totalNMA,
+          COUNT(DISTINCT S_T_R) as sectionCount,
+          MAX(created_at) as created_at,
+          MAX(updated_at) as updated_at
+        FROM prod_acreage_schedule
+        WHERE OWNER IS NOT NULL 
+          AND OWNER != ''
+        GROUP BY OWNER
+        HAVING SUM(CASE WHEN BUYER IS NOT NULL AND BUYER != '' THEN 1 ELSE 0 END) = 0
+        ORDER BY OWNER
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+
+      const rows = await executeQuery(dbPool, query);
+      
+      const owners = rows.map((row: any, index: number) => ({
+        id: `unassigned-owner-${offset + index}`,
+        name: row.name,
+        contact: row.contact,
+        street: row.street,
+        city: row.city,
+        state: row.state,
+        zip: row.zip,
+        phoneEmail: row.phoneEmail,
+        unitName: row.unitName,
+        totalNMA: parseFloat(row.totalNMA) || 0,
+        netMineralAcres: parseFloat(row.totalNMA) || 0,
+        sectionCount: parseInt(row.sectionCount) || 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        assignedBuyer: null // Explicitly null for unassigned owners
+      }));
+
+      const totalPages = Math.ceil(totalCount / limit);
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      res.json({
+        data: owners,
+        pagination: {
+          page: page,
+          limit: limit,
+          total: totalCount,
+          totalPages: totalPages,
+          hasNextPage: hasNextPage,
+          hasPrevPage: hasPrevPage,
+          nextPage: hasNextPage ? page + 1 : null,
+          prevPage: hasPrevPage ? page - 1 : null
+        }
+      });
+    } catch (error: any) {
+      console.error('Error fetching unassigned owners:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching unassigned owners', 
+        error: error.message 
+      });
+    }
+  });
+
   // Get all contacts
   router.get('/api/contacts', async (req, res) => {
     try {

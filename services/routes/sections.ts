@@ -16,10 +16,10 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = (page - 1) * limit;
 
-      if (page < 1 || limit < 1 || limit > 1000) {
+      if (page < 1 || limit < 1 || limit > 100000) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 1000'
+          message: 'Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 100000'
         });
       }
 
@@ -117,6 +117,219 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       res.status(500).json({ 
         success: false, 
         message: 'Error fetching sections', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Update section - MUST be before GET /api/sections/:id to avoid route conflicts
+  router.put('/api/sections/:id', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { id } = req.params;
+      const updateData = req.body;
+
+      console.log(`PUT /api/sections/${id} - Update data:`, JSON.stringify(updateData, null, 2));
+
+      // Get the section's S_T_R value from sectionId (e.g., "s1" -> get S_T_R from ordered list)
+      const sectionsResponse = await executeQuery(dbPool, `
+        SELECT DISTINCT S_T_R as str
+        FROM prod_acreage_schedule 
+        WHERE S_T_R IS NOT NULL 
+        ORDER BY S_T_R
+      `);
+      
+      const sectionNumber = parseInt(id.replace('s', ''));
+      if (isNaN(sectionNumber) || sectionNumber < 1 || sectionNumber > sectionsResponse.length) {
+        return res.status(404).json({ success: false, message: 'Section not found' });
+      }
+      
+      const sectionStr = sectionsResponse[sectionNumber - 1].str;
+      
+      // Build update query based on provided fields
+      const updateFields: string[] = [];
+      const updateValues: any[] = [];
+
+      // Map frontend field names to database column names
+      if (updateData.county !== undefined) {
+        updateFields.push('COUNTY = ?');
+        updateValues.push(updateData.county);
+      }
+
+      if (updateData.state !== undefined) {
+        updateFields.push('ST = ?');
+        updateValues.push(updateData.state);
+      }
+
+      if (updateData.legalDescription !== undefined) {
+        updateFields.push('LEGAL_DESCRIPTION = ?');
+        updateValues.push(updateData.legalDescription);
+      }
+
+      // Handle S_T_R update if sectionNumber, township, or range are provided
+      if (updateData.sectionNumber || updateData.township || updateData.range) {
+        const section = updateData.sectionNumber || sectionStr.split('-')[0];
+        const township = updateData.township || sectionStr.split('-')[1];
+        const range = updateData.range || sectionStr.split('-')[2];
+        const newStr = `${section}-${township}-${range}`;
+        updateFields.push('S_T_R = ?');
+        updateValues.push(newStr);
+      } else if (updateData.str) {
+        updateFields.push('S_T_R = ?');
+        updateValues.push(updateData.str);
+      } else if (updateData.sectionName) {
+        updateFields.push('S_T_R = ?');
+        updateValues.push(updateData.sectionName);
+      }
+
+      // Handle netMineralAcres -> NMA
+      if (updateData.netMineralAcres !== undefined) {
+        updateFields.push('NMA = ?');
+        updateValues.push(updateData.netMineralAcres);
+      }
+
+      // Handle grossAcres -> CALCULATED_ACREAGE
+      if (updateData.grossAcres !== undefined) {
+        updateFields.push('CALCULATED_ACREAGE = ?');
+        updateValues.push(updateData.grossAcres);
+      }
+
+      // Handle royalty -> ROY
+      if (updateData.royalty !== undefined) {
+        updateFields.push('ROY = ?');
+        updateValues.push(updateData.royalty);
+      }
+
+      // Handle ownershipPercentage -> ALLO_
+      if (updateData.ownershipPercentage !== undefined) {
+        updateFields.push('ALLO_ = ?');
+        updateValues.push(updateData.ownershipPercentage);
+      }
+
+      // Handle titleStatus -> STATUS
+      if (updateData.titleStatus !== undefined) {
+        updateFields.push('STATUS = ?');
+        updateValues.push(updateData.titleStatus);
+      }
+
+      // Handle assignedBuyerId -> BUYER
+      if (updateData.assignedBuyerId !== undefined) {
+        const buyerValue = updateData.assignedBuyerId && updateData.assignedBuyerId !== '' 
+          ? updateData.assignedBuyerId.toUpperCase() 
+          : null;
+        updateFields.push('BUYER = ?');
+        updateValues.push(buyerValue);
+      }
+
+      // Handle routingNotes -> NOTE
+      if (updateData.routingNotes !== undefined) {
+        updateFields.push('NOTE = ?');
+        updateValues.push(updateData.routingNotes);
+      }
+
+      if (updateFields.length === 0) {
+        return res.status(400).json({ success: false, message: 'No valid fields to update' });
+      }
+
+      // Add updated_at timestamp
+      updateFields.push('updated_at = NOW()');
+      
+      // Add S_T_R to the end for WHERE clause
+      updateValues.push(sectionStr);
+
+      const query = `
+        UPDATE prod_acreage_schedule
+        SET ${updateFields.join(', ')}
+        WHERE S_T_R = ?
+      `;
+
+      console.log('Update query:', query);
+      console.log('Update values:', updateValues);
+
+      await executeQuery(dbPool, query, updateValues);
+
+      // Fetch and return the updated section
+      const updatedSectionQuery = `
+        SELECT 
+          S_T_R as str,
+          MAX(COUNTY) as county,
+          MAX(ST) as state,
+          GROUP_CONCAT(DISTINCT STATUS ORDER BY STATUS SEPARATOR ',\n') as statuses,
+          GROUP_CONCAT(DISTINCT LEGAL_DESCRIPTION ORDER BY LEGAL_DESCRIPTION SEPARATOR ';\n') as legal_descriptions,
+          SUM(NMA) as net_mineral_acres,
+          AVG(CALCULATED_ACREAGE) as calculated_acreage,
+          GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
+          COUNT(DISTINCT BUYER) as buyer_count,
+          COUNT(DISTINCT OWNER) as owner_count,
+          MIN(DATE) as date_created,
+          GROUP_CONCAT(DISTINCT TITLE_SOURCE ORDER BY TITLE_SOURCE SEPARATOR ', ') as title_sources,
+          GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit
+        FROM prod_acreage_schedule 
+        WHERE S_T_R = ?
+        GROUP BY S_T_R
+      `;
+
+      // Determine which S_T_R value to use for fetching the updated section
+      let strToFetch = sectionStr;
+      const strIndex = updateFields.findIndex(field => field === 'S_T_R = ?');
+      if (strIndex !== -1) {
+        strToFetch = updateValues[strIndex];
+      }
+      
+      const updatedRows = await executeQuery(dbPool, updatedSectionQuery, [strToFetch]);
+      
+      if (updatedRows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Section not found after update' });
+      }
+
+      const row = updatedRows[0];
+      let section = null, township = null, range = null;
+      if (row.str) {
+        const parts = String(row.str).split('-');
+        if (parts.length >= 3) {
+          section = parts[0];
+          township = parts[1];
+          range = parts[2];
+        }
+      }
+      
+      const netAcres = parseFloat(row.net_mineral_acres) || 0;
+      const buyer = row.assigned_buyer ? String(row.assigned_buyer).trim() : '';
+      const status = buyer ? 'assigned' : 'unassigned';
+      
+      const updatedSection = {
+        id: id,
+        section_name: row.str || `Section ${sectionNumber}`,
+        state: row.state || 'OK',
+        county: row.county || 'Unknown',
+        sectionNumber: section,
+        township: township,
+        range: range,
+        str: row.str,
+        grossAcres: netAcres,
+        netMineralAcres: netAcres,
+        titleStatus: row.statuses || 'Unknown',
+        status: status,
+        legalDescription: row.legal_descriptions || 'No description available',
+        assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
+        buyerCount: row.buyer_count || 0,
+        ownerCount: row.owner_count || 0,
+        date_created: row.date_created || new Date().toISOString(),
+        title_source: row.title_sources || 'Unknown',
+        current_unit: row.current_unit || 'Unknown',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      res.json({ success: true, data: updatedSection });
+    } catch (error: any) {
+      console.error('Error updating section:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Error updating section',
         error: error.message 
       });
     }
