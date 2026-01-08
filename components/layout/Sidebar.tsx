@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Buyer', href: '/assignments', icon: ClipboardDocumentListIcon, roles: ['Admin', 'Manager', 'Buyer'] },
   { name: 'Leads', href: '/leads', icon: UserIcon, roles: ['Admin', 'Manager', 'Buyer'] },
   { name: 'Owners', href: '/contacts', icon: UserIcon, roles: ['Admin', 'Manager', 'Buyer'] },
+  { name: 'Unassigned Owners', href: '/unassigned-owners', icon: UserIcon, roles: ['Admin', 'Manager', 'Buyer'] },
   { name: 'Message Center', href: '/communication', icon: EnvelopeIcon, roles: ['Admin', 'Manager', 'Buyer'] },
   { name: 'Mapping', href: '/mapping', icon: MapIcon, roles: ['Admin', 'Manager', 'Buyer'] },
   { name: 'Calendar & Tasks', href: '/calendar-tasks', icon: CheckListIcon, roles: ['Admin', 'Manager', 'Buyer'] },

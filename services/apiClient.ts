@@ -43,11 +43,12 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
   if (!response.ok) {
     // #region agent log
-    let errorBody = null;
+    let errorBody: string | object | null = null;
     try {
       errorBody = await response.clone().json();
     } catch (e) {
-      errorBody = await response.clone().text();
+      const text = await response.clone().text();
+      errorBody = text || null;
     }
     fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:44',message:'apiRequest error response',data:{status:response.status,statusText:response.statusText,errorBody:errorBody,url:url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
     // #endregion
@@ -398,6 +399,15 @@ export const deleteLead = async (id: string) => {
 };
 
 // Contact API functions
+export const fetchUnassignedOwners = async (page = 1, limit = 50) => {
+  try {
+    return await apiRequest(`/unassigned-owners?page=${page}&limit=${limit}`);
+  } catch (error) {
+    console.error('Error fetching unassigned owners:', error);
+    throw error;
+  }
+};
+
 export const fetchContacts = async (page = 1, limit = 50) => {
   try {
     const response = await apiRequest(`/contacts?page=${page}&limit=${limit}`);
@@ -550,6 +560,28 @@ export const createLeadNote = async (leadId: string, noteData: any) => {
   } catch (error) {
     console.warn('Server not available, creating mock note:', error);
     return { ...noteData, id: `note${Date.now()}` };
+  }
+};
+
+// Email activity functions
+export const fetchLeadEmailActivities = async (leadId: string) => {
+  try {
+    return await apiRequest(`/leads/${leadId}/email-activities`);
+  } catch (error) {
+    console.warn('Server not available, using mock data:', error);
+    return [];
+  }
+};
+
+export const createLeadEmailActivity = async (leadId: string, emailData: any) => {
+  try {
+    return await apiRequest(`/leads/${leadId}/email-activities`, {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  } catch (error) {
+    console.warn('Server not available, creating mock email activity:', error);
+    return { ...emailData, id: `email${Date.now()}` };
   }
 };
 
@@ -814,6 +846,41 @@ export const fetchNearbyWells = async (lat: number, lng: number, radius: number,
     return await apiRequest(url);
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
+    return [];
+  }
+};
+
+// Fetch wells within PLSS sections (by bounds or section STRs)
+export const fetchWellsBySections = async (bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number }, sectionStrs?: string[], wellTypes?: string[]) => {
+  try {
+    let url = '/map/wells/by-sections?';
+    const params: string[] = [];
+    
+    if (bounds) {
+      params.push(`minLat=${bounds.minLat}&maxLat=${bounds.maxLat}&minLon=${bounds.minLon}&maxLon=${bounds.maxLon}`);
+    }
+    
+    if (sectionStrs && sectionStrs.length > 0) {
+      params.push(`sectionStrs=${encodeURIComponent(sectionStrs.join(','))}`);
+    }
+    
+    if (wellTypes && wellTypes.length > 0) {
+      params.push(`wellTypes=${encodeURIComponent(wellTypes.join(','))}`);
+    }
+    
+    url += params.join('&');
+    console.log('Fetching wells from:', url);
+    const response = await apiRequest(url);
+    console.log('Wells API response:', { 
+      hasData: !!response.data, 
+      dataLength: response.data?.length || 0,
+      responseKeys: Object.keys(response || {})
+    });
+    const wells = response.data || response || [];
+    console.log(`Returning ${wells.length} wells`);
+    return Array.isArray(wells) ? wells : [];
+  } catch (error) {
+    console.error('Error fetching wells by sections:', error);
     return [];
   }
 };
@@ -1844,10 +1911,13 @@ export default {
   createLeadCallLog,
   fetchLeadNotes,
   createLeadNote,
+  fetchLeadEmailActivities,
+  createLeadEmailActivity,
   
   // Contacts
   fetchContacts,
   fetchContact,
+  fetchUnassignedOwners,
   
   // Assignments
   fetchAssignments,
@@ -1892,6 +1962,7 @@ export default {
   fetchSectionSpatial,
   fetchMapLayerPreferences,
   fetchNearbyWells,
+  fetchWellsBySections,
   fetchNearbyPermits,
   fetchNearbyRigs,
   fetchNearbyUnits,

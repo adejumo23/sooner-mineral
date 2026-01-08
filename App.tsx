@@ -18,6 +18,7 @@ import LeadDetailPage from './pages/LeadDetailPage';
 import LeadFormPage from './pages/LeadFormPage';
 import ContactsPage from './pages/ContactsPage';
 import ContactDetailPage from './pages/ContactDetailPage';
+import UnassignedOwnersPage from './pages/UnassignedOwnersPage';
 import MessageCenterPage from './pages/MessageCenterPage';
 import MappingPage from './pages/MappingPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
@@ -83,6 +84,7 @@ function App() {
           <Route path="/contacts/new" element={<LeadFormPage />} />
           <Route path="/contacts/:id" element={<ContactDetailPage />} />
           <Route path="/contacts/:id/edit" element={<LeadFormPage />} />
+          <Route path="/unassigned-owners" element={<UnassignedOwnersPage />} />
           <Route path="/communication" element={<MessageCenterPage />} />
           <Route path="/mapping" element={<MappingPage />} />
           <Route path="/calendar-tasks" element={<CalendarTaskPage />} />

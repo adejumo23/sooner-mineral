@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Lead, LeadCallLog, LeadNote, User } from '../types';
+import type { Lead, LeadCallLog, LeadNote, LeadEmailActivity, User } from '../types';
 import * as api from '../services/api';
 import Button from './ui/Button';
 import Modal from './ui/Modal';
@@ -49,7 +49,11 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
     summary: '',
     content: '',
     nextSteps: '',
-    outcome: 'No Answer'
+    outcome: 'No Answer',
+    subject: '',
+    recipientEmail: '',
+    senderEmail: '',
+    emailStatus: 'Sent'
   });
 
   useEffect(() => {
@@ -59,16 +63,17 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
   const loadActivities = async () => {
     setIsLoading(true);
     try {
-      const [callLogs, notes] = await Promise.all([
+      const [callLogs, notes, emailActivities] = await Promise.all([
         api.fetchLeadCallLogs(leadId),
-        api.fetchLeadNotes(leadId)
+        api.fetchLeadNotes(leadId),
+        api.fetchLeadEmailActivities(leadId)
       ]);
 
       const callActivities: ActivityEntry[] = (callLogs || []).map(log => ({
         id: log.id,
         timestamp: new Date(log.callDate),
         activityType: 'Call' as const,
-        actor: users.find(u => u.id === log.createdBy) || users[0],
+        actor: users.find(u => u.id === log.loggedById) || users[0],
         summary: log.outcome,
         fullContent: log.notes,
         isSystemGenerated: false
@@ -84,6 +89,18 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
         isSystemGenerated: false
       }));
 
+      const emailActivitiesList: ActivityEntry[] = (emailActivities || []).map((email: LeadEmailActivity) => ({
+        id: email.id,
+        timestamp: new Date(email.emailDate),
+        activityType: 'Email' as const,
+        actor: users.find(u => u.id === email.loggedById) || users[0],
+        summary: email.direction === 'Sent' 
+          ? `Email sent to ${email.recipientEmail || 'recipient'}` 
+          : `Email received from ${email.senderEmail || 'sender'}`,
+        fullContent: email.subject ? `Subject: ${email.subject}\n\n${email.body || email.notes || ''}` : email.body || email.notes || '',
+        isSystemGenerated: false
+      }));
+
       const systemActivities: ActivityEntry[] = [
         {
           id: 'system-1',
@@ -95,7 +112,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
         }
       ];
 
-      const allActivities = [...callActivities, ...noteActivities, ...systemActivities]
+      const allActivities = [...callActivities, ...noteActivities, ...emailActivitiesList, ...systemActivities]
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
       setActivities(allActivities);
@@ -123,11 +140,32 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
           noteText: activityForm.content,
           noteType: 'General'
         });
+      } else if (selectedActivityType === 'Email') {
+        await api.createLeadEmailActivity(leadId, {
+          leadId,
+          direction: activityForm.summary.includes('sent') || activityForm.summary.includes('Sent') ? 'Sent' : 'Received',
+          subject: activityForm.subject,
+          body: activityForm.content,
+          recipientEmail: activityForm.recipientEmail,
+          senderEmail: activityForm.senderEmail,
+          status: activityForm.emailStatus as any,
+          notes: activityForm.nextSteps
+        });
       }
 
       await loadActivities();
       setShowLogActivityModal(false);
-      setActivityForm({ summary: '', content: '', nextSteps: '', outcome: 'No Answer' });
+      setActivityForm({ 
+        summary: '', 
+        content: '', 
+        nextSteps: '', 
+        outcome: 'No Answer',
+        subject: '',
+        recipientEmail: '',
+        senderEmail: '',
+        emailStatus: 'Sent'
+      });
+      setSelectedActivityType('Call'); // Reset to default
     } catch (error) {
       console.error('Failed to log activity:', error);
     }
@@ -316,12 +354,20 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Activity Type
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['Call', 'Note'] as const).map(type => (
+            <div className="grid grid-cols-3 gap-2">
+              {(['Call', 'Email', 'Note'] as const).map(type => (
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setSelectedActivityType(type)}
+                  onClick={() => {
+                    setSelectedActivityType(type);
+                    // Reset form when switching activity types
+                    if (type === 'Email') {
+                      setActivityForm(prev => ({ ...prev, summary: '', subject: '', recipientEmail: '', senderEmail: '' }));
+                    } else {
+                      setActivityForm(prev => ({ ...prev, subject: '', recipientEmail: '', senderEmail: '', emailStatus: 'Sent' }));
+                    }
+                  }}
                   className={`p-3 border rounded-lg text-sm font-medium transition-colors ${
                     selectedActivityType === type
                       ? 'border-sc-blue bg-sc-blue text-white'
@@ -336,20 +382,84 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
 
           <div>
             <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-1">
-              Summary
+              {selectedActivityType === 'Email' ? 'Direction' : 'Summary'}
             </label>
-            <Input
-              id="summary"
-              value={activityForm.summary}
-              onChange={(e) => setActivityForm(prev => ({ ...prev, summary: e.target.value }))}
-              placeholder="Brief summary of the activity"
-              required
-            />
+            {selectedActivityType === 'Email' ? (
+              <select
+                id="summary"
+                value={activityForm.summary}
+                onChange={(e) => setActivityForm(prev => ({ ...prev, summary: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-sc-blue"
+                required
+              >
+                <option value="">Select direction...</option>
+                <option value="Sent">Email Sent</option>
+                <option value="Received">Email Received</option>
+              </select>
+            ) : (
+              <Input
+                id="summary"
+                value={activityForm.summary}
+                onChange={(e) => setActivityForm(prev => ({ ...prev, summary: e.target.value }))}
+                placeholder="Brief summary of the activity"
+                required
+              />
+            )}
           </div>
+
+          {selectedActivityType === 'Email' && (
+            <>
+              <div>
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Subject
+                </label>
+                <Input
+                  id="subject"
+                  value={activityForm.subject}
+                  onChange={(e) => setActivityForm(prev => ({ ...prev, subject: e.target.value }))}
+                  placeholder="Email subject line"
+                />
+              </div>
+              <div>
+                <label htmlFor="emailAddress" className="block text-sm font-medium text-gray-700 mb-1">
+                  {activityForm.summary === 'Sent' ? 'Recipient Email' : 'Sender Email'}
+                </label>
+                <Input
+                  id="emailAddress"
+                  type="email"
+                  value={activityForm.summary === 'Sent' ? activityForm.recipientEmail : activityForm.senderEmail}
+                  onChange={(e) => setActivityForm(prev => ({
+                    ...prev,
+                    [activityForm.summary === 'Sent' ? 'recipientEmail' : 'senderEmail']: e.target.value
+                  }))}
+                  placeholder={activityForm.summary === 'Sent' ? 'recipient@example.com' : 'sender@example.com'}
+                />
+              </div>
+              <div>
+                <label htmlFor="emailStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Status
+                </label>
+                <select
+                  id="emailStatus"
+                  value={activityForm.emailStatus}
+                  onChange={(e) => setActivityForm(prev => ({ ...prev, emailStatus: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-sc-blue"
+                >
+                  <option value="Sent">Sent</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Opened">Opened</option>
+                  <option value="Clicked">Clicked</option>
+                  <option value="Replied">Replied</option>
+                  <option value="Bounced">Bounced</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <div>
             <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
-              {selectedActivityType === 'Call' ? 'Call Notes' : 'Note Content'}
+              {selectedActivityType === 'Call' ? 'Call Notes' : selectedActivityType === 'Email' ? 'Email Body' : 'Note Content'}
             </label>
             <textarea
               id="content"
@@ -357,7 +467,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ leadId, users }) => {
               onChange={(e) => setActivityForm(prev => ({ ...prev, content: e.target.value }))}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-sc-blue"
-              placeholder={selectedActivityType === 'Call' ? 'Details about the call...' : 'Note content...'}
+              placeholder={selectedActivityType === 'Call' ? 'Details about the call...' : selectedActivityType === 'Email' ? 'Email body content...' : 'Note content...'}
               required
             />
           </div>

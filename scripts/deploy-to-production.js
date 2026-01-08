@@ -144,7 +144,7 @@ async function deployToProduction() {
     console.log(`📋 Tables in production database: ${tables.length}`);
     
     // Count records in key tables
-    const keyTables = ['prod_acreage_schedule', 'staging_acreage_schedule', 'import_sessions'];
+    const keyTables = ['prod_acreage_schedule', 'staging_acreage_schedule', 'import_sessions', 'producing_wells'];
     for (const tableName of keyTables) {
       try {
         const [count] = await connection.execute(`SELECT COUNT(*) as count FROM \`${tableName}\``);

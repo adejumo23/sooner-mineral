@@ -24,6 +24,37 @@ const SectionsPage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  
+  // Initialize column visibility from localStorage or default to all visible
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('sections-column-visibility');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        // If parsing fails, return default (all visible)
+      }
+    }
+    // Default: all columns visible except we'll track them all
+    return new Set();
+  });
+
+  // Column width state and resizing
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('sections-column-widths');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -75,10 +106,42 @@ const SectionsPage: React.FC = () => {
     }
   };
 
-  const sortedSections = React.useMemo(() => {
-    if (!sortField) return sections;
+  // Filter sections based on search term
+  const filteredSections = React.useMemo(() => {
+    if (!searchTerm.trim()) return sections;
 
-    return [...sections].sort((a, b) => {
+    const searchLower = searchTerm.toLowerCase().trim();
+    return sections.filter(section => {
+      const sectionName = (section.sectionName || '').toLowerCase();
+      const county = (section.county || '').toLowerCase();
+      const state = (section.state || '').toLowerCase();
+      const str = (section.str || '').toLowerCase();
+      const sectionNumber = (section.sectionNumber || '').toLowerCase();
+      const township = (section.township || '').toLowerCase();
+      const range = (section.range || '').toLowerCase();
+      const legalDescription = (section.legalDescription || '').toLowerCase();
+      const assignedBuyer = (section.assignedBuyer?.name || '').toLowerCase();
+      const abstractNumber = (section.abstractNumber || '').toLowerCase();
+      const anum = (section.anum || '').toLowerCase();
+      
+      return sectionName.includes(searchLower) ||
+        county.includes(searchLower) ||
+        state.includes(searchLower) ||
+        str.includes(searchLower) ||
+        sectionNumber.includes(searchLower) ||
+        township.includes(searchLower) ||
+        range.includes(searchLower) ||
+        legalDescription.includes(searchLower) ||
+        assignedBuyer.includes(searchLower) ||
+        abstractNumber.includes(searchLower) ||
+        anum.includes(searchLower);
+    });
+  }, [sections, searchTerm]);
+
+  const sortedSections = React.useMemo(() => {
+    if (!sortField) return filteredSections;
+
+    return [...filteredSections].sort((a, b) => {
       let aValue: any;
       let bValue: any;
 
@@ -136,7 +199,7 @@ const SectionsPage: React.FC = () => {
           return 0;
       }
     });
-  }, [sections, sortField, sortDirection]);
+  }, [filteredSections, sortField, sortDirection]);
 
   const handleSaveSection = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -166,16 +229,29 @@ const SectionsPage: React.FC = () => {
         isLocked: formData.has('isLocked'),
     };
     
-    if (editingSection) {
-      await api.updateSection(editingSection.id, sectionData);
-    } else {
-      await api.createSection(sectionData);
+    try {
+      if (editingSection) {
+        await api.updateSection(editingSection.id, sectionData);
+      } else {
+        await api.createSection(sectionData);
+      }
+      await fetchData();
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving section:', error);
+      alert('Failed to save section. Please try again.');
     }
-    fetchData();
-    handleCloseModal();
   };
 
-  const columns = [
+  // Initialize visible columns on mount if not set
+  useEffect(() => {
+    if (visibleColumns.size === 0) {
+      const allColumns = ['sectionName', 'state', 'county', 'sectionNumber', 'township', 'range', 'current_unit', 'status', 'assignedBuyer', 'netMineralAcres', 'actions'];
+      setVisibleColumns(new Set(allColumns));
+    }
+  }, []);
+
+  const allColumns = [
     {
       header: 'Section Name',
       accessor: 'sectionName',
@@ -259,6 +335,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Actions',
       accessor: 'actions',
+      alwaysVisible: true, // Actions column should always be visible
       cell: (section: Section) => (
         <div className="flex space-x-2">
           <button
@@ -285,6 +362,81 @@ const SectionsPage: React.FC = () => {
     }
   ];
 
+  // Filter columns based on visibility
+  const columns = React.useMemo(() => {
+    return allColumns.filter(col => {
+      const accessor = col.accessor as string;
+      // Always show Actions column
+      if (col.alwaysVisible) return true;
+      // Show if in visibleColumns set, or if visibleColumns is empty (initial state)
+      return visibleColumns.size === 0 || visibleColumns.has(accessor);
+    });
+  }, [visibleColumns]);
+
+  const toggleColumnVisibility = (accessor: string) => {
+    const newVisible = new Set(visibleColumns);
+    if (newVisible.has(accessor)) {
+      newVisible.delete(accessor);
+    } else {
+      newVisible.add(accessor);
+    }
+    setVisibleColumns(newVisible);
+    // Save to localStorage
+    localStorage.setItem('sections-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const showAllColumns = () => {
+    const allAccessors = allColumns.map(col => col.accessor as string);
+    const newVisible = new Set(allAccessors);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('sections-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const hideAllColumns = () => {
+    const newVisible = new Set(['actions']); // Keep only Actions
+    setVisibleColumns(newVisible);
+    localStorage.setItem('sections-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  // Column resizing handlers
+  const handleResizeStart = (e: React.MouseEvent, accessor: string, currentWidth: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(accessor);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(currentWidth);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(100, resizeStartWidth + diff); // Minimum width of 100px
+      setColumnWidths(prev => {
+        const updated = { ...prev, [resizingColumn]: newWidth };
+        localStorage.setItem('sections-column-widths', JSON.stringify(updated));
+        return updated;
+      });
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+
+  const getColumnWidth = (accessor: string): number => {
+    return columnWidths[accessor] || 150; // Default width of 150px
+  };
+
   return (
     <div>
       {/* Header with white background and icon */}
@@ -310,25 +462,193 @@ const SectionsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Search Bar and Column Controls */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <Input
+              type="text"
+              placeholder="Search sections by name, county, state, STR, section number, township, range, legal description, buyer, abstract number, or ANUM..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+          {/* Column Visibility Toggle */}
+          <div className="relative">
+            <button
+              onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span>Columns</span>
+              <svg className={`w-4 h-4 transition-transform ${isColumnMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {isColumnMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsColumnMenuOpen(false)}
+                ></div>
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+                  <div className="p-3 border-b border-gray-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-sm font-semibold text-gray-900">Column Visibility</h3>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={showAllColumns}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Show All
+                        </button>
+                        <button
+                          onClick={hideAllColumns}
+                          className="text-xs text-gray-600 hover:text-gray-800"
+                        >
+                          Hide All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                      <div className="p-2">
+                        {allColumns.map((column) => {
+                          const accessor = column.accessor as string;
+                          const isVisible = column.alwaysVisible || visibleColumns.size === 0 || visibleColumns.has(accessor);
+                          const isDisabled = column.alwaysVisible;
+                          const width = getColumnWidth(accessor);
+                          
+                          return (
+                            <div key={accessor} className="p-2 rounded hover:bg-gray-50">
+                              <label
+                                className={`flex items-center space-x-2 cursor-pointer ${
+                                  isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isVisible}
+                                  onChange={() => !isDisabled && toggleColumnVisibility(accessor)}
+                                  disabled={isDisabled}
+                                  className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                                />
+                                <span className="text-sm text-gray-700 flex-1">{column.header}</span>
+                                {isDisabled && (
+                                  <span className="text-xs text-gray-400">Required</span>
+                                )}
+                              </label>
+                              {!isDisabled && (
+                                <div className="mt-1 flex items-center space-x-2">
+                                  <span className="text-xs text-gray-500">Width: {width}px</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newWidth = width + 50;
+                                      setColumnWidths(prev => {
+                                        const updated = { ...prev, [accessor]: newWidth };
+                                        localStorage.setItem('sections-column-widths', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                    title="Increase width by 50px"
+                                  >
+                                    +50
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newWidth = Math.max(100, width - 50);
+                                      setColumnWidths(prev => {
+                                        const updated = { ...prev, [accessor]: newWidth };
+                                        localStorage.setItem('sections-column-widths', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                    title="Decrease width by 50px"
+                                  >
+                                    -50
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setColumnWidths(prev => {
+                                        const updated = { ...prev };
+                                        delete updated[accessor];
+                                        localStorage.setItem('sections-column-widths', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-xs text-gray-600 hover:text-gray-800 px-2 py-0.5 rounded hover:bg-gray-100"
+                                    title="Reset to default width"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        {searchTerm && (
+          <p className="text-sm text-gray-500">
+            Showing {sortedSections.length} of {sections.length} sections
+          </p>
+        )}
+      </div>
+
       {isLoading ? (
         <p className="text-center text-sc-medium-gray">Loading sections...</p>
       ) : (
         <div className="bg-white rounded-lg border border-sc-light-orange shadow-lg overflow-x-auto">
-          <table className="min-w-full table-auto divide-y divide-sc-light-orange">
+          <table className="table-auto divide-y divide-sc-light-orange" style={{ minWidth: '100%', tableLayout: 'auto' }}>
             <thead className="bg-gray-100">
               <tr>
-                {columns.map((column, index) => {
+                  {columns.map((column, index) => {
                   const isSortable = ['sectionName', 'state', 'county', 'netMineralAcres', 'grossAcres', 'status', 'assignedBuyer'].includes(column.accessor as string);
                   const isActiveSort = sortField === column.accessor;
+                  const accessor = column.accessor as string;
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
                   
                   return (
                     <th
                       key={column.header || index}
                       scope="col"
-                      className={`px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 ${
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className={`px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 relative ${
                         isSortable ? 'cursor-pointer hover:bg-gray-200 select-none' : ''
                       }`}
-                      onClick={() => isSortable && handleSort(column.accessor as SortField)}
+                      onClick={(e) => {
+                        // Don't trigger sort if clicking on resizer
+                        if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                          return;
+                        }
+                        isSortable && handleSort(column.accessor as SortField);
+                      }}
                     >
                       <div className="flex items-center space-x-1">
                         <span>{column.header}</span>
@@ -342,6 +662,14 @@ const SectionsPage: React.FC = () => {
                           </span>
                         )}
                       </div>
+                      {/* Resizer handle */}
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
                     </th>
                   );
                 })}
@@ -350,14 +678,19 @@ const SectionsPage: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {sortedSections.map((item, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
-                  {columns.map((column, colIndex) => (
-                    <td
-                      key={`${rowIndex}-${colIndex}`}
-                      className={`px-6 py-4 text-sm text-gray-900 ${column.className || 'whitespace-nowrap'}`}
-                    >
-                      {column.cell ? column.cell(item) : (item[column.accessor] as React.ReactNode)}
-                    </td>
-                  ))}
+                  {columns.map((column, colIndex) => {
+                    const accessor = column.accessor as string;
+                    const width = getColumnWidth(accessor);
+                    return (
+                      <td
+                        key={`${rowIndex}-${colIndex}`}
+                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className={`px-6 py-4 text-sm text-gray-900 ${column.className || 'whitespace-nowrap'}`}
+                      >
+                        {column.cell ? column.cell(item) : (item[column.accessor] as React.ReactNode)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
