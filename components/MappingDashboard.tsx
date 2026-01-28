@@ -264,12 +264,12 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
           // Convert Web Mercator to WGS84
           const PointModule = await import('@arcgis/core/geometry/Point');
           const SpatialReferenceModule = await import('@arcgis/core/geometry/SpatialReference');
-          const ProjectionModule = await import('@arcgis/core/geometry/projection');
+          const { load, project } = await import('@arcgis/core/geometry/projection');
           const Point = PointModule.default;
           const SpatialReference = SpatialReferenceModule.default;
           
           // Load projection module
-          await ProjectionModule.load();
+          await load();
           
           // Create points for corners and convert
           const bottomLeft = new Point({
@@ -285,8 +285,8 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
           });
           
           // Project to WGS84
-          const bottomLeftWGS84 = ProjectionModule.project(bottomLeft, SpatialReference.WGS84) as any;
-          const topRightWGS84 = ProjectionModule.project(topRight, SpatialReference.WGS84) as any;
+          const bottomLeftWGS84 = project(bottomLeft, SpatialReference.WGS84) as any;
+          const topRightWGS84 = project(topRight, SpatialReference.WGS84) as any;
           
           bounds = {
             minLat: bottomLeftWGS84.latitude,
@@ -1106,8 +1106,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
           // If fullExtent is not available, calculate from graphics
           if (!extent || extent.xmin === undefined || extent.ymin === undefined) {
             console.log('Calculating extent from graphics...');
-            const GeometryEngineModule = await import('@arcgis/core/geometry/geometryEngine');
-            const GeometryEngine = GeometryEngineModule;
+            const geometryEngine = await import('@arcgis/core/geometry/geometryEngine');
             
             if (layer.graphics.length > 0) {
               const geometries = Array.from(layer.graphics)
@@ -1116,7 +1115,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
               
               if (geometries.length > 0) {
                 try {
-                  const union = GeometryEngine.union(geometries as any);
+                  const union = geometryEngine.union(geometries as any);
                   if (union && union.extent) {
                     extent = union.extent;
                     console.log('Calculated extent from graphics:', extent);
@@ -1651,8 +1650,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                   <button
                     onClick={async () => {
                       try {
-                        const GeometryEngineModule = await import('@arcgis/core/geometry/geometryEngine');
-                        const GeometryEngine = GeometryEngineModule;
+                        const geometryEngine = await import('@arcgis/core/geometry/geometryEngine');
                         
                         const allGeometries: any[] = [];
                         shapefileLayers.forEach((layer: any) => {
@@ -1664,7 +1662,7 @@ const MappingDashboard: React.FC<MappingDashboardProps> = ({ currentUser }) => {
                         });
                         
                         if (allGeometries.length > 0) {
-                          const union = GeometryEngine.union(allGeometries as any);
+                          const union = geometryEngine.union(allGeometries as any);
                           if (union && union.extent) {
                             await mapView.goTo(union.extent.expand(1.1), { duration: 1000 });
                           }

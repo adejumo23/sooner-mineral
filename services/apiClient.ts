@@ -26,36 +26,55 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const separator = endpoint.includes('?') ? '&' : '?';
   const cacheBuster = `_t=${Date.now()}`;
   const url = `${API_BASE_URL}${endpoint}${separator}${cacheBuster}`;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:24',message:'apiRequest entry',data:{endpoint:endpoint,url:url,method:options.method,hasBody:!!options.body},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      ...options.headers,
-    },
-    cache: 'no-store',
-    ...options,
-  });
-
-  if (!response.ok) {
-    // #region agent log
-    let errorBody: string | object | null = null;
-    try {
-      errorBody = await response.clone().json();
-    } catch (e) {
-      const text = await response.clone().text();
-      errorBody = text || null;
+  
+  // For call-logs and notes endpoints, silently handle 404s
+  const isSilentEndpoint = endpoint.includes('/call-logs') || endpoint.includes('/notes');
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        ...options.headers,
+      },
+      cache: 'no-store',
+      ...options,
+    });
+    
+    // For silent endpoints, always return success (even for 404s)
+    if (isSilentEndpoint && !response.ok && response.status === 404) {
+      return endpoint.includes('/call-logs') ? [] : endpoint.includes('/notes') ? [] : null;
     }
-    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:44',message:'apiRequest error response',data:{status:response.status,statusText:response.statusText,errorBody:errorBody,url:url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
-    // #endregion
-    throw new Error(`API request failed: ${response.status} ${response.statusText}${errorBody ? ' - ' + JSON.stringify(errorBody) : ''}`);
-  }
+    
+    if (!response.ok) {
+      // For other 404 errors, throw a special error that can be caught silently
+      if (response.status === 404) {
+        const error = new Error(`API request failed: ${response.status} ${response.statusText}`);
+        (error as any).is404 = true;
+        (error as any).silent = true;
+        throw error;
+      }
+      
+      let errorBody: string | object | null = null;
+      try {
+        errorBody = await response.clone().json();
+      } catch (e) {
+        const text = await response.clone().text();
+        errorBody = text || null;
+      }
+      throw new Error(`API request failed: ${response.status} ${response.statusText}${errorBody ? ' - ' + JSON.stringify(errorBody) : ''}`);
+    }
 
-  return response.json();
+    return response.json();
+  } catch (error: any) {
+    // For silent endpoints with 404, return empty array without throwing
+    if (isSilentEndpoint && (error?.is404 || error?.message?.includes('404') || error?.message?.includes('Not Found'))) {
+      return endpoint.includes('/call-logs') ? [] : endpoint.includes('/notes') ? [] : null;
+    }
+    throw error;
+  }
 };
 
 // Mock data for fallback when server is not available
@@ -513,9 +532,10 @@ export const createBulkAssignments = async (assignments: any[]) => {
 // Call log functions
 export const fetchLeadCallLogs = async (leadId: string) => {
   try {
-    return await apiRequest(`/leads/${leadId}/call-logs`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+    const result = await apiRequest(`/leads/${leadId}/call-logs`);
+    return result || [];
+  } catch (error: any) {
+    // Silently return empty array - don't log anything
     return [];
   }
 };
@@ -535,9 +555,10 @@ export const createLeadCallLog = async (leadId: string, callLogData: any) => {
 // Notes functions
 export const fetchLeadNotes = async (leadId: string) => {
   try {
-    return await apiRequest(`/leads/${leadId}/notes`);
-  } catch (error) {
-    console.warn('Server not available, using mock data:', error);
+    const result = await apiRequest(`/leads/${leadId}/notes`);
+    return result || [];
+  } catch (error: any) {
+    // Silently return empty array - don't log anything
     return [];
   }
 };
@@ -770,25 +791,13 @@ export const createSectionLead = async (sectionId: string, leadData: any) => {
 };
 
 export const updateSectionLeadStatus = async (sectionId: string, leadId: string, status: string) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:728',message:'updateSectionLeadStatus entry',data:{sectionId:sectionId,leadId:leadId,status:status,statusType:typeof status,url:`/sections/${sectionId}/leads/${leadId}/status`,requestBody:JSON.stringify({ status })},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
-  // #endregion
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:730',message:'Before apiRequest call',data:{url:`/sections/${sectionId}/leads/${leadId}/status`,method:'PUT',body:JSON.stringify({ status })},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     const result = await apiRequest(`/sections/${sectionId}/leads/${leadId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:736',message:'After apiRequest call - success',data:{result:result},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     return result;
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/90cd929f-97f2-432d-9ab8-554a6577ecbc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:738',message:'updateSectionLeadStatus error caught',data:{sectionId:sectionId,leadId:leadId,status:status,errorMessage:error instanceof Error ? error.message : String(error),errorStack:error instanceof Error ? error.stack : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1,H2,H3,H4'})}).catch(()=>{});
-    // #endregion
     console.warn('Server not available, updating mock section lead status:', error);
     return { success: true };
   }
@@ -1681,24 +1690,48 @@ export const uploadFile = async (formData: FormData) => {
 
 export const fetchStagingTables = async () => {
   try {
-    return await apiRequest('/import/staging-tables');
+    const response = await apiRequest('/import/staging-tables');
+    console.log('fetchStagingTables raw response:', response);
+    
+    // Check if response indicates backend is not actually connected
+    if (response.success && (!response.stagingTables || (Array.isArray(response.stagingTables) && response.stagingTables.length === 0))) {
+      // Check if this is a mock response or real empty response
+      if (response.message && response.message.includes('Database pool not initialized')) {
+        console.warn('Backend database not connected - returning empty staging tables');
+      }
+    }
+    
+    return response;
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return {
       success: true,
-      stagingTables: []
+      stagingTables: [],
+      _isMock: true // Flag to indicate this is mock data
     };
   }
 };
 
 export const fetchStagingTableData = async (tableName: string, limit: number = 50) => {
   try {
-    return await apiRequest(`/import/staging-data/${tableName}?limit=${limit}`);
+    const response = await apiRequest(`/import/staging-data/${tableName}?limit=${limit}`);
+    console.log('fetchStagingTableData raw response:', response);
+    
+    // Check if response indicates backend is not actually connected
+    if (response.success && (!response.data || (Array.isArray(response.data) && response.data.length === 0))) {
+      // Check if this is a mock response or real empty response
+      if (response.message && (response.message.includes('Database pool not initialized') || response.message.includes('not found'))) {
+        console.warn(`Backend database not connected or table ${tableName} not found - returning empty data`);
+      }
+    }
+    
+    return response;
   } catch (error) {
     console.warn('Server not available, using mock data:', error);
     return {
       success: true,
-      data: []
+      data: [],
+      _isMock: true // Flag to indicate this is mock data
     };
   }
 };
@@ -1717,13 +1750,65 @@ export const fetchProductionTables = async () => {
 
 export const fetchProductionTableData = async (tableName: string, limit: number = 50) => {
   try {
-    return await apiRequest(`/import/production-data/${tableName}?limit=${limit}`);
+    const response = await apiRequest(`/import/production-data/${tableName}?limit=${limit}`);
+    console.log('fetchProductionTableData raw response:', response);
+    return response;
   } catch (error) {
-    console.warn('Server not available, using mock data:', error);
-    return {
-      success: true,
-      data: []
-    };
+    console.error('Error fetching production table data:', error);
+    throw error;
+  }
+};
+
+// Preview columns from file before upload
+export const previewFileColumns = async (file: File) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/import/preview-columns?_t=${Date.now()}`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error previewing file columns:', error);
+    throw error;
+  }
+};
+
+// Get existing table columns for comparison
+export const getTableColumns = async (tableName: string) => {
+  try {
+    const response = await apiRequest(`/import/table-columns/${tableName}`);
+    return response;
+  } catch (error) {
+    console.error('Error fetching table columns:', error);
+    throw error;
+  }
+};
+
+// Approve import (move staging to production)
+export const approveImport = async (stagingTableName: string, productionTableName: string) => {
+  try {
+    const response = await apiRequest('/import/approve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        stagingTableName,
+        productionTableName,
+      }),
+    });
+    return response;
+  } catch (error) {
+    console.error('Error approving import:', error);
+    throw error;
   }
 };
 
@@ -1810,24 +1895,6 @@ export const fetchAcreageSchedule = async () => {
     return {
       success: false,
       data: []
-    };
-  }
-};
-
-export const approveImport = async (stagingTableName: string, productionTableName: string) => {
-  try {
-    return await apiRequest('/import/approve', {
-      method: 'POST',
-      body: JSON.stringify({
-        stagingTableName,
-        productionTableName
-      }),
-    });
-  } catch (error) {
-    console.warn('Server not available for import approval:', error);
-    return {
-      success: false,
-      message: 'Import approval failed. Server not available.'
     };
   }
 };
@@ -2023,6 +2090,8 @@ export default {
   fetchStagingTableData,
   fetchProductionTables,
   fetchProductionTableData,
+  previewFileColumns,
+  getTableColumns,
   approveImport,
   deleteStagingTable,
   updateStagingRecord,

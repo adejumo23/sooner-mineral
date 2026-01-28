@@ -104,6 +104,7 @@ export const createDataImportRoutes = (
         dbPool,
         req.file.path,
         stagingTableName,
+        stagingMapping.originalColumns,
         stagingMapping.sanitizedColumns,
         fileExtension
       );
@@ -826,6 +827,82 @@ export const createDataImportRoutes = (
         success: false, 
         message: 'Error deleting staging table',
         error: error.message 
+      });
+    }
+  });
+
+  // Get table columns for comparison
+  router.get('/api/import/table-columns/:tableName', async (req, res) => {
+    try {
+      const { tableName } = req.params;
+
+      if (!dbPool) {
+        return res.status(500).json({
+          success: false,
+          message: 'Database pool not initialized'
+        });
+      }
+
+      const databaseName = process.env.MYSQL_DATABASE || 'soonermineraldb';
+      const query = `
+        SELECT COLUMN_NAME as columnName
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+        AND COLUMN_NAME NOT IN ('id', 'created_at', 'updated_at')
+        ORDER BY ORDINAL_POSITION
+      `;
+
+      const columns = await executeQuery(dbPool, query, [databaseName, tableName]);
+      
+      res.json({
+        success: true,
+        columns: columns.map((row: any) => row.columnName)
+      });
+    } catch (error: any) {
+      console.error('Error fetching table columns:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching table columns',
+        error: error.message
+      });
+    }
+  });
+
+  // Get file columns before upload (for validation)
+  router.post('/api/import/preview-columns', upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded'
+        });
+      }
+
+      const fileExtension = path.extname(req.file.originalname).toLowerCase();
+      let columns: string[] = [];
+
+      if (fileExtension === '.csv') {
+        columns = await extractColumnsFromCSV(req.file.path);
+      } else if (fileExtension === '.xlsx' || fileExtension === '.xls') {
+        columns = await extractColumnsFromExcel(req.file.path);
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: `Unsupported file format: ${fileExtension}`
+        });
+      }
+
+      res.json({
+        success: true,
+        columns,
+        fileName: req.file.originalname
+      });
+    } catch (error: any) {
+      console.error('Error previewing columns:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error previewing columns',
+        error: error.message
       });
     }
   });

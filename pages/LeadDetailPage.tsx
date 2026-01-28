@@ -115,40 +115,37 @@ const LeadDetailPage: React.FC = () => {
     try {
       setLoading(true);
       const leadData = await fetchLead(id!);
-      setLead(leadData);
-      if (leadData) {
-        setEditData({
-          status: leadData.status,
-          priorityScore: leadData.priorityScore,
-          lastContactDate: leadData.lastContactDate,
-          nextFollowUpDate: leadData.nextFollowUpDate,
-          notes: leadData.notes,
-          documentLinks: leadData.documentLinks
-        });
+      if (!leadData) {
+        console.error('No lead data returned from API');
+        return;
       }
+      setLead(leadData);
+      setEditData({
+        status: leadData.status,
+        priorityScore: leadData.priorityScore,
+        lastContactDate: leadData.lastContactDate,
+        nextFollowUpDate: leadData.nextFollowUpDate,
+        notes: leadData.notes,
+        documentLinks: leadData.documentLinks
+      });
     } catch (error) {
       console.error('Error loading lead:', error);
+      setLead(null);
     } finally {
       setLoading(false);
     }
   };
 
   const loadCallLogs = async () => {
-    try {
-      const logs = await fetchLeadCallLogs(id!);
-      setCallLogs(logs || []);
-    } catch (error) {
-      console.error('Error loading call logs:', error);
-    }
+    // Silently fetch call logs - endpoint may not exist yet
+    const logs = await fetchLeadCallLogs(id!);
+    setCallLogs(Array.isArray(logs) ? logs : []);
   };
 
   const loadNotes = async () => {
-    try {
-      const notesData = await fetchLeadNotes(id!);
-      setNotes(notesData || []);
-    } catch (error) {
-      console.error('Error loading notes:', error);
-    }
+    // Silently fetch notes - endpoint may not exist yet
+    const notesData = await fetchLeadNotes(id!);
+    setNotes(Array.isArray(notesData) ? notesData : []);
   };
 
   const handleSave = async () => {
@@ -279,7 +276,13 @@ const LeadDetailPage: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Lead Details</h1>
             <p className="text-sc-slate">
-              {lead.linkedContact?.name} - {lead.linkedContact?.city}, {lead.linkedContact?.state}
+              {(() => {
+                const name = lead.contact || lead.linkedContact?.name || lead.name || '';
+                const city = lead.linkedContact?.city || lead.city || '';
+                const state = lead.linkedContact?.state || lead.state || '';
+                const location = city && state ? `${city}, ${state}` : city || state || '';
+                return name ? (location ? `${name} - ${location}` : name) : location || '';
+              })()}
             </p>
           </div>
         </div>

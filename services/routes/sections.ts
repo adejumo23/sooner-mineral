@@ -45,7 +45,13 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           COUNT(DISTINCT OWNER) as owner_count,
           MIN(DATE) as date_created,
           GROUP_CONCAT(DISTINCT TITLE_SOURCE ORDER BY TITLE_SOURCE SEPARATOR ', ') as title_sources,
-          GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit
+          GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit,
+          GROUP_CONCAT(DISTINCT \`ALLO_%\` SEPARATOR ', ') as allo_percent,
+          GROUP_CONCAT(DISTINCT NEW_UNIT_NAME ORDER BY NEW_UNIT_NAME SEPARATOR ',\n') as new_unit_name,
+          GROUP_CONCAT(DISTINCT NEW_OCC_TYPE ORDER BY NEW_OCC_TYPE SEPARATOR ', ') as new_occ_type,
+          GROUP_CONCAT(DISTINCT \`$_NRA\` SEPARATOR ', ') as dollar_nra,
+          COUNT(CASE WHEN UPPER(STATUS) = 'CLOSED' THEN 1 END) as closed_deals_count,
+          SUM(CASE WHEN UPPER(STATUS) = 'CLOSED' THEN NMA ELSE 0 END) as net_mineral_acres_acquired
         FROM prod_acreage_schedule 
         WHERE S_T_R IS NOT NULL 
         GROUP BY S_T_R
@@ -90,6 +96,22 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           date_created: row.date_created || new Date().toISOString(),
           title_source: row.title_sources || 'Unknown',
           current_unit: row.current_unit || 'Unknown',
+          allo_percent: row.allo_percent || 'N/A',
+          new_unit_name: row.new_unit_name || 'N/A',
+          new_occ_type: row.new_occ_type || 'N/A',
+          dollar_nra: row.dollar_nra || 'N/A',
+          closedDealsCount: row.closed_deals_count || 0,
+          netMineralAcresAcquired: parseFloat(row.net_mineral_acres_acquired) || 0,
+          // Set nraCapUsd to the first value from $_NRA (if available and numeric)
+          nraCapUsd: (() => {
+            if (row.dollar_nra) {
+              // Extract the first numeric value from the comma-separated string
+              const firstValue = String(row.dollar_nra).split(',')[0].trim();
+              const parsed = parseFloat(firstValue);
+              return isNaN(parsed) ? undefined : parsed;
+            }
+            return undefined;
+          })(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
@@ -203,9 +225,9 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         updateValues.push(updateData.royalty);
       }
 
-      // Handle ownershipPercentage -> ALLO_
+      // Handle ownershipPercentage -> ALLO_%
       if (updateData.ownershipPercentage !== undefined) {
-        updateFields.push('ALLO_ = ?');
+        updateFields.push('`ALLO_%` = ?');
         updateValues.push(updateData.ownershipPercentage);
       }
 
@@ -759,8 +781,8 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           CONTACT,
           INTEREST_TYPE,
           PAYSTUB_NRI,
-          ALLO_,
-          TOTAL_,
+          \`ALLO_%\` AS ALLO_,
+          \`TOTAL_\$\`,
           LAST_OGL,
           NEW_OCC_TYPE,
           created_at,
@@ -798,7 +820,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         'COUNTY', 'S_T_R', 'LEGAL_DESCRIPTION', 'NMA', 'OWNER', 'STREET', 'CITY', 'ST', 'ZIP',
         'PHONE_EMAIL', 'ROY', 'STATUS', 'BUYER', 'NOTE', 'CURRENT_UNIT_NAME', 'NEW_UNIT_NAME',
         'DATE', 'TITLE_SOURCE', 'CALCULATED_ACREAGE', 'CONTACT', 'INTEREST_TYPE', 'PAYSTUB_NRI',
-        'ALLO_', 'TOTAL_', 'LAST_OGL', 'NEW_OCC_TYPE'
+        'ALLO_%', 'TOTAL_$', 'LAST_OGL', 'NEW_OCC_TYPE'
       ];
 
       const updateFields: string[] = [];
@@ -806,7 +828,11 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
       for (const field of allowedFields) {
         if (updateData.hasOwnProperty(field)) {
-          updateFields.push(`${field} = ?`);
+          // Handle special column names that need backticks
+          const columnName = field === 'ALLO_%' ? '`ALLO_%`' : 
+                           field === 'TOTAL_$' ? '`TOTAL_$`' : 
+                           field;
+          updateFields.push(`${columnName} = ?`);
           updateValues.push(updateData[field]);
         }
       }

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Section, User, TitleStatus } from '../types';
 import * as api from '../services/api';
@@ -17,6 +17,38 @@ const SectionsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [sortField, setSortField] = useState<keyof Section | string>('sectionName');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  
+  // Initialize column visibility from localStorage
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('tracts-column-visibility');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
+
+  // Column width state and resizing
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('tracts-column-widths');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -93,10 +125,87 @@ const SectionsPage: React.FC = () => {
     handleCloseModal();
   };
 
-  const columns = [
+  const handleSort = (field: keyof Section | string) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort sections based on current sort field and direction
+  const sortedSections = useMemo(() => {
+    return [...sections].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'sectionName':
+          aValue = a.sectionName || '';
+          bValue = b.sectionName || '';
+          break;
+        case 'state':
+          aValue = a.state || '';
+          bValue = b.state || '';
+          break;
+        case 'county':
+          aValue = a.county || '';
+          bValue = b.county || '';
+          break;
+        case 'sectionNumber':
+          aValue = a.sectionNumber || '';
+          bValue = b.sectionNumber || '';
+          break;
+        case 'township':
+          aValue = a.township || '';
+          bValue = b.township || '';
+          break;
+        case 'range':
+          aValue = a.range || '';
+          bValue = b.range || '';
+          break;
+        case 'titleStatus':
+          aValue = a.titleStatus || '';
+          bValue = b.titleStatus || '';
+          break;
+        case 'assignedBuyer':
+          aValue = a.assignedBuyer?.name || 'Unassigned';
+          bValue = b.assignedBuyer?.name || 'Unassigned';
+          break;
+        case 'netMineralAcres':
+          aValue = a.netMineralAcres || 0;
+          bValue = b.netMineralAcres || 0;
+          break;
+        case 'grossAcres':
+          aValue = a.grossAcres || 0;
+          bValue = b.grossAcres || 0;
+          break;
+        default:
+          aValue = a[sortField as keyof Section] ?? '';
+          bValue = b[sortField as keyof Section] ?? '';
+      }
+
+      // Handle comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      if (aStr < bStr) return sortDirection === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [sections, sortField, sortDirection]);
+
+  const allColumns = [
     {
       header: 'Section Name',
       accessor: 'sectionName',
+      sortable: true,
+      alwaysVisible: false,
       cell: (section: Section) => (
         <span className="text-sm font-medium text-gray-900">{section.sectionName}</span>
       )
@@ -104,6 +213,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'State',
       accessor: 'state',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.state}</span>
       )
@@ -111,6 +221,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'County',
       accessor: 'county',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.county}</span>
       )
@@ -118,6 +229,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Section',
       accessor: 'sectionNumber',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.sectionNumber || 'N/A'}</span>
       )
@@ -125,6 +237,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Township',
       accessor: 'township',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.township || 'N/A'}</span>
       )
@@ -132,6 +245,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Range',
       accessor: 'range',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.range || 'N/A'}</span>
       )
@@ -139,6 +253,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Status',
       accessor: 'titleStatus',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.titleStatus}</span>
       )
@@ -146,6 +261,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Assigned To',
       accessor: 'assignedBuyer',
+      sortable: true,
       cell: (section: Section) => (
         <span className="text-sm text-gray-900">{section.assignedBuyer?.name || 'Unassigned'}</span>
       )
@@ -160,6 +276,7 @@ const SectionsPage: React.FC = () => {
     {
       header: 'Actions',
       accessor: 'actions',
+      alwaysVisible: true,
       cell: (section: Section) => (
         <div className="flex space-x-2">
           <button
@@ -186,6 +303,48 @@ const SectionsPage: React.FC = () => {
     }
   ];
 
+  // Filter columns based on visibility
+  const columns = useMemo(() => {
+    return allColumns.filter(col => {
+      const accessor = col.accessor as string;
+      if (col.alwaysVisible) return true;
+      return visibleColumns.size === 0 || visibleColumns.has(accessor);
+    });
+  }, [visibleColumns]);
+
+  // Initialize visible columns on mount if not set
+  useEffect(() => {
+    if (visibleColumns.size === 0) {
+      const allAccessors = allColumns.map(col => col.accessor as string);
+      setVisibleColumns(new Set(allAccessors));
+      localStorage.setItem('tracts-column-visibility', JSON.stringify(Array.from(allAccessors)));
+    }
+  }, []);
+
+  const toggleColumnVisibility = (accessor: string) => {
+    const newVisible = new Set(visibleColumns);
+    if (newVisible.has(accessor)) {
+      newVisible.delete(accessor);
+    } else {
+      newVisible.add(accessor);
+    }
+    setVisibleColumns(newVisible);
+    localStorage.setItem('tracts-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const showAllColumns = () => {
+    const allAccessors = allColumns.map(col => col.accessor as string);
+    const newVisible = new Set(allAccessors);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('tracts-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const hideAllColumns = () => {
+    const newVisible = new Set(['actions']);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('tracts-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
   return (
     <div>
       {/* Header with white background and icon */}
@@ -211,10 +370,210 @@ const SectionsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Column Visibility Toggle */}
+      {!isLoading && (
+        <div className="mb-4 flex justify-end">
+          <div className="relative">
+            <button
+              onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span>Columns</span>
+              <svg className={`w-4 h-4 transition-transform ${isColumnMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {isColumnMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsColumnMenuOpen(false)}
+                ></div>
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+                  <div className="p-3 border-b border-gray-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-sm font-semibold text-gray-900">Column Visibility</h3>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={showAllColumns}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Show All
+                        </button>
+                        <button
+                          onClick={hideAllColumns}
+                          className="text-xs text-gray-600 hover:text-gray-800"
+                        >
+                          Hide All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2">
+                    {allColumns.map((column) => {
+                      const accessor = column.accessor as string;
+                      const isVisible = column.alwaysVisible || visibleColumns.size === 0 || visibleColumns.has(accessor);
+                      const isDisabled = column.alwaysVisible;
+                      
+                      return (
+                        <div key={accessor} className="p-2 rounded hover:bg-gray-50">
+                          <label
+                            className={`flex items-center space-x-2 cursor-pointer ${
+                              isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isVisible}
+                              onChange={() => !isDisabled && toggleColumnVisibility(accessor)}
+                              disabled={isDisabled}
+                              className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                            />
+                            <span className="text-sm text-gray-700 flex-1">{column.header}</span>
+                            {isDisabled && (
+                              <span className="text-xs text-gray-400">Required</span>
+                            )}
+                          </label>
+                          {!isDisabled && (
+                            <div className="mt-1 flex items-center space-x-2">
+                              <span className="text-xs text-gray-500">Width: {getColumnWidth(accessor)}px</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newWidth = getColumnWidth(accessor) + 50;
+                                  setColumnWidths(prev => {
+                                    const updated = { ...prev, [accessor]: newWidth };
+                                    localStorage.setItem('tracts-column-widths', JSON.stringify(updated));
+                                    return updated;
+                                  });
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                title="Increase width by 50px"
+                              >
+                                +50
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newWidth = Math.max(100, getColumnWidth(accessor) - 50);
+                                  setColumnWidths(prev => {
+                                    const updated = { ...prev, [accessor]: newWidth };
+                                    localStorage.setItem('tracts-column-widths', JSON.stringify(updated));
+                                    return updated;
+                                  });
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                title="Decrease width by 50px"
+                              >
+                                -50
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setColumnWidths(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[accessor];
+                                    localStorage.setItem('tracts-column-widths', JSON.stringify(updated));
+                                    return updated;
+                                  });
+                                }}
+                                className="text-xs text-gray-600 hover:text-gray-800 px-2 py-0.5 rounded hover:bg-gray-100"
+                                title="Reset to default width"
+                              >
+                                Reset
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-center text-sc-medium-gray">Loading sections...</p>
       ) : (
-        <Table data={sections} columns={columns} />
+        <div className="bg-white rounded-lg border border-sc-light-orange shadow-lg overflow-x-auto">
+          <table className="table-auto divide-y divide-sc-light-orange" style={{ minWidth: '100%', tableLayout: 'auto' }}>
+            <thead className="bg-gray-100">
+              <tr>
+                {columns.map((column, index) => {
+                  const isSortable = column.sortable !== false;
+                  const isActiveSort = sortField === column.accessor;
+                  const accessor = column.accessor as string;
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  
+                  return (
+                    <th
+                      key={column.header || index}
+                      scope="col"
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className={`px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 relative ${
+                        isSortable ? 'cursor-pointer hover:bg-gray-200 select-none' : ''
+                      }`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                          return;
+                        }
+                        isSortable && handleSort(column.accessor as keyof Section | string);
+                      }}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>{column.header}</span>
+                        {isSortable && (
+                          <span className="text-gray-400">
+                            {isActiveSort ? (
+                              sortDirection === 'asc' ? '↑' : '↓'
+                            ) : (
+                              <span className="opacity-30">⇅</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {/* Resizer handle */}
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedSections.map((item, rowIndex) => (
+                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
+                  {columns.map((column, colIndex) => {
+                    const accessor = column.accessor as string;
+                    const width = getColumnWidth(accessor);
+                    return (
+                      <td
+                        key={`${rowIndex}-${colIndex}`}
+                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className={`px-6 py-4 text-sm text-gray-900 ${column.className || 'whitespace-nowrap'}`}
+                      >
+                        {column.cell ? column.cell(item) : (item[column.accessor] as React.ReactNode)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingSection ? 'Edit Section' : 'Add Section'}>

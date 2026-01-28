@@ -2,78 +2,89 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import './DataImportComponent.css';
 import apiClient from '../services/apiClient';
 
-interface ImportResult {
-  success: boolean;
-  message: string;
-  stagingTableName?: string;
-  productionTableName?: string;
-  missingColumns?: string[];
-  extraColumns?: string[];
-  recordCount?: number;
-}
-
-interface StagingTable {
-  tableName: string;
+interface FileImportState {
+  fileName: string;
+  displayName: string;
+  file: File | null;
+  uploadProgress: number;
+  uploadStatus: 'idle' | 'uploading' | 'uploaded' | 'error';
+  fileColumns: string[];
+  existingTableColumns: string[];
+  stagingTableName: string | null;
+  productionTableName: string | null;
   recordCount: number;
+  stagingData: any[];
+  currentStep: 'upload' | 'validate' | 'staging' | 'complete';
 }
 
-interface UploadProgress {
-  stage: 'uploading' | 'processing' | 'validating' | 'importing' | 'complete';
-  progress: number;
-  message: string;
-}
+type FileType = 'acreage' | 'pricing' | 'units' | 'custom';
+
+const FILE_TYPE_CONFIG: Record<FileType, { displayName: string; tableName: string }> = {
+  acreage: { displayName: 'Acreage Schedule', tableName: 'prod_acreage_schedule' },
+  pricing: { displayName: 'Pricing Data', tableName: 'prod_pricing' },
+  units: { displayName: 'Unit Summary', tableName: 'prod_unit_summary' },
+  custom: { displayName: 'Custom Import', tableName: '' },
+};
 
 const DataImportComponent: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [stagingTables, setStagingTables] = useState<StagingTable[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string>('');
-  const [tableData, setTableData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [editingData, setEditingData] = useState<any>({});
-  const [saving, setSaving] = useState(false);
+  const [activeFileType, setActiveFileType] = useState<FileType>('acreage');
+  const [fileImports, setFileImports] = useState<Map<FileType, FileImportState>>(new Map());
   const [dragActive, setDragActive] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
-  const [activeTab, setActiveTab] = useState<'upload' | 'staging' | 'production' | 'normalized'>('upload');
-  const [productionData, setProductionData] = useState<any[]>([]);
-  const [selectedProductionTable, setSelectedProductionTable] = useState<string>('');
-  const [productionTables, setProductionTables] = useState<StagingTable[]>([]);
-  const [showStagingSubTable, setShowStagingSubTable] = useState(false);
-  const [currentUploadedTable, setCurrentUploadedTable] = useState<string>('');
-  const [currentProductionTable, setCurrentProductionTable] = useState<string>('');
-  
-  // Normalized data state
-  const [normalizedOverview, setNormalizedOverview] = useState<any[]>([]);
-  const [pricingSummary, setPricingSummary] = useState<any[]>([]);
-  const [acreageSummary, setAcreageSummary] = useState<any[]>([]);
-  const [unitSummary, setUnitSummary] = useState<any[]>([]);
-  
-  // Column validation state
-  const [columnWarnings, setColumnWarnings] = useState<{
-    emptyColumns: string[];
-    duplicateHeaders: string[];
-    specialChars: string[];
-    longNames: string[];
-  }>({
-    emptyColumns: [],
-    duplicateHeaders: [],
-    specialChars: [],
-    longNames: []
-  });
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  // Drag and drop handlers
+  // Initialize file import states
+  useEffect(() => {
+    const initialStates = new Map<FileType, FileImportState>();
+    (Object.keys(FILE_TYPE_CONFIG) as FileType[]).forEach((type) => {
+      initialStates.set(type, {
+        fileName: '',
+        displayName: FILE_TYPE_CONFIG[type].displayName,
+        file: null,
+        uploadProgress: 0,
+        uploadStatus: 'idle',
+        fileColumns: [],
+        existingTableColumns: [],
+        stagingTableName: null,
+        productionTableName: null,
+        recordCount: 0,
+        stagingData: [],
+        currentStep: 'upload',
+      });
+    });
+    setFileImports(initialStates);
+  }, []);
+
+  // Load existing table columns when file type changes
+  useEffect(() => {
+    const config = FILE_TYPE_CONFIG[activeFileType];
+    if (config.tableName) {
+      loadExistingColumns(activeFileType, config.tableName);
+    }
+  }, [activeFileType]);
+
+  const loadExistingColumns = async (fileType: FileType, tableName: string) => {
+    try {
+      const response = await apiClient.getTableColumns(tableName);
+      if (response.success && response.columns) {
+        setFileImports((prev) => {
+          const updated = new Map(prev);
+          const current = updated.get(fileType);
+          if (current) {
+            updated.set(fileType, {
+              ...current,
+              existingTableColumns: response.columns,
+            });
+          }
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.log('Table does not exist yet or error loading columns:', error);
+      // This is fine - table might not exist yet
+    }
+  };
+
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -97,1395 +108,830 @@ const DataImportComponent: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type.includes('csv') || droppedFile.type.includes('excel') || droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.csv')) {
-        setFile(droppedFile);
-        setImportResult(null);
-        setShowPreview(true);
-        // Reset warnings
-        setColumnWarnings({
-          emptyColumns: [],
-          duplicateHeaders: [],
-          specialChars: [],
-          longNames: []
-        });
-        handleFilePreview(droppedFile);
-      } else {
-        alert('Please upload a CSV or Excel file');
-      }
+      handleFileSelect(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [activeFileType]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setImportResult(null);
-      setShowPreview(true);
-      // Reset warnings
-      setColumnWarnings({
-        emptyColumns: [],
-        duplicateHeaders: [],
-        specialChars: [],
-        longNames: []
-      });
-      handleFilePreview(selectedFile);
+  const handleFileSelect = async (file: File) => {
+    const currentState = fileImports.get(activeFileType);
+    if (!currentState) return;
+
+    // Validate file type
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(fileExtension || '')) {
+      alert('Please upload a CSV or Excel file');
+      return;
+    }
+
+    // Update state with file
+    setFileImports((prev) => {
+      const updated = new Map(prev);
+      const current = updated.get(activeFileType);
+      if (current) {
+        updated.set(activeFileType, {
+          ...current,
+          file,
+          fileName: file.name,
+          uploadStatus: 'idle',
+        });
+      }
+      return updated;
+    });
+
+    // Preview columns from file
+    try {
+      const previewResponse = await apiClient.previewFileColumns(file);
+      if (previewResponse.success && previewResponse.columns) {
+        setFileImports((prev) => {
+          const updated = new Map(prev);
+          const current = updated.get(activeFileType);
+          if (current) {
+            updated.set(activeFileType, {
+              ...current,
+              fileColumns: previewResponse.columns,
+            });
+          }
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error('Error previewing file columns:', error);
+      alert('Error reading file. Please try again.');
     }
   };
 
-  const analyzeColumns = (headers: string[], rows: any[]) => {
-    const warnings = {
-      emptyColumns: [] as string[],
-      duplicateHeaders: [] as string[],
-      specialChars: [] as string[],
-      longNames: [] as string[]
-    };
-    
-    // Check for empty columns
-    headers.forEach((header, index) => {
-      const isEmpty = rows.every(row => {
-        const value = Object.values(row)[index];
-        return !value || String(value).trim() === '';
-      });
-      if (isEmpty && rows.length > 0) {
-        warnings.emptyColumns.push(header.trim());
-      }
-    });
-    
-    // Check for duplicate headers
-    const headerCounts: { [key: string]: number } = {};
-    headers.forEach(header => {
-      const trimmed = header.trim();
-      headerCounts[trimmed] = (headerCounts[trimmed] || 0) + 1;
-    });
-    Object.entries(headerCounts).forEach(([header, count]) => {
-      if (count > 1) {
-        warnings.duplicateHeaders.push(header);
-      }
-    });
-    
-    // Check for special characters in headers
-    headers.forEach(header => {
-      const trimmed = header.trim();
-      if (/[^a-zA-Z0-9_\s-]/.test(trimmed)) {
-        warnings.specialChars.push(trimmed);
-      }
-    });
-    
-    // Check for very long column names
-    headers.forEach(header => {
-      if (header.trim().length > 50) {
-        warnings.longNames.push(header.trim());
-      }
-    });
-    
-    setColumnWarnings(warnings);
-  };
-
-  const handleFilePreview = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (file.name.endsWith('.csv')) {
-        const lines = text.split('\n').filter(line => line.trim());
-        if (lines.length === 0) {
-          setPreviewData([]);
-          return;
-        }
-        const headers = lines[0].split(',').map(h => h.trim());
-        const rows = lines.slice(1, 6).map(line => {
-          const values = line.split(',');
-          const row: any = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index]?.trim() || '';
-          });
-          return row;
-        });
-        setPreviewData(rows);
-        analyzeColumns(headers, rows);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const simulateProgress = () => {
-    const stages = [
-      { stage: 'uploading' as const, progress: 25, message: 'Uploading file...' },
-      { stage: 'processing' as const, progress: 50, message: 'Processing file...' },
-      { stage: 'validating' as const, progress: 75, message: 'Validating data...' },
-      { stage: 'importing' as const, progress: 90, message: 'Importing to staging...' },
-      { stage: 'complete' as const, progress: 100, message: 'Import complete!' }
-    ];
-
-    stages.forEach((stage, index) => {
-      setTimeout(() => {
-        setUploadProgress(stage);
-        if (index === stages.length - 1) {
-          setUploading(false);
-          setUploadProgress(null);
-        }
-      }, index * 1000);
-    });
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    const currentState = fileImports.get(activeFileType);
+    if (!currentState || !currentState.file) return;
 
-    setUploading(true);
-    setImportResult(null);
-    simulateProgress();
+    setFileImports((prev) => {
+      const updated = new Map(prev);
+      const current = updated.get(activeFileType);
+      if (current) {
+        updated.set(activeFileType, {
+          ...current,
+          uploadStatus: 'uploading',
+          uploadProgress: 0,
+        });
+      }
+      return updated;
+    });
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      
+      formData.append('file', currentState.file!);
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setFileImports((prev) => {
+          const updated = new Map(prev);
+          const current = updated.get(activeFileType);
+          if (current && current.uploadProgress < 90) {
+            updated.set(activeFileType, {
+              ...current,
+              uploadProgress: current.uploadProgress + 10,
+            });
+          }
+          return updated;
+        });
+      }, 200);
+
       const result = await apiClient.uploadFile(formData);
-      setImportResult(result);
-      
-      if (result.success) {
-        await fetchStagingTables();
-        setShowPreview(false);
-        setActiveTab('staging');
-        
-        // Automatically show the uploaded data
-        if (result.stagingTableName) {
-          setCurrentUploadedTable(result.stagingTableName);
-          setSelectedTable(result.stagingTableName);
-          await fetchTableData(result.stagingTableName);
-          setShowStagingSubTable(true);
-        }
+      clearInterval(progressInterval);
+
+      if (result.success && result.stagingTableName) {
+        setFileImports((prev) => {
+          const updated = new Map(prev);
+          const current = updated.get(activeFileType);
+          if (current) {
+            updated.set(activeFileType, {
+              ...current,
+              uploadStatus: 'uploaded',
+              uploadProgress: 100,
+              stagingTableName: result.stagingTableName,
+              productionTableName: result.productionTableName,
+              recordCount: result.recordCount || 0,
+              currentStep: 'validate',
+            });
+          }
+          return updated;
+        });
+
+        // Load staging data
+        await loadStagingData(activeFileType, result.stagingTableName);
+      } else {
+        throw new Error(result.message || 'Upload failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
-      setImportResult({
-        success: false,
-        message: 'Upload failed. Please try again.'
+      setFileImports((prev) => {
+        const updated = new Map(prev);
+        const current = updated.get(activeFileType);
+        if (current) {
+          updated.set(activeFileType, {
+            ...current,
+            uploadStatus: 'error',
+            uploadProgress: 0,
+          });
+        }
+        return updated;
       });
+      alert(`Upload failed: ${error.message || 'Unknown error'}`);
     }
   };
 
-  // Fetch staging tables
-  const fetchStagingTables = async () => {
+  const loadStagingData = async (fileType: FileType, tableName: string) => {
     try {
-      const response = await apiClient.fetchStagingTables();
-      if (response.success) {
-        // Handle both response structures: stagingTables array or data array
-        const tableNames = response.stagingTables || response.data || [];
-        const tables = Array.isArray(tableNames) ? tableNames.map((tableName: string) => ({
-          tableName,
-          recordCount: 0
-        })) : [];
-        setStagingTables(tables);
-      } else {
-        console.error('Failed to fetch staging tables:', response.message);
-        setStagingTables([]);
+      const response = await apiClient.fetchStagingTableData(tableName, 100);
+      if (response.success && response.data) {
+        setFileImports((prev) => {
+          const updated = new Map(prev);
+          const current = updated.get(activeFileType);
+          if (current) {
+            updated.set(activeFileType, {
+              ...current,
+              stagingData: response.data,
+            });
+          }
+          return updated;
+        });
       }
     } catch (error) {
-      console.error('Error fetching staging tables:', error);
-      setStagingTables([]);
+      console.error('Error loading staging data:', error);
     }
   };
 
-  // Fetch production tables
-  const fetchProductionTables = async () => {
-    try {
-      const response = await apiClient.fetchProductionTables();
-      if (response.success) {
-        // Handle both response structures: productionTables array or data array
-        const tableNames = response.productionTables || response.data || [];
-        const tables = Array.isArray(tableNames) ? tableNames.map((tableName: string) => ({
-          tableName,
-          recordCount: 0
-        })) : [];
-        setProductionTables(tables);
-      } else {
-        console.error('Failed to fetch production tables:', response.message);
-        setProductionTables([]);
+  const handleProceedToStaging = () => {
+    setFileImports((prev) => {
+      const updated = new Map(prev);
+      const current = updated.get(activeFileType);
+      if (current) {
+        updated.set(activeFileType, {
+          ...current,
+          currentStep: 'staging',
+        });
       }
-    } catch (error) {
-      console.error('Error fetching production tables:', error);
-      setProductionTables([]);
-    }
+      return updated;
+    });
   };
 
-  // Fetch table data
-  const fetchTableData = async (tableName: string) => {
-    setLoading(true);
-    try {
-      console.log('Fetching data for table:', tableName);
-      const response = await apiClient.fetchStagingTableData(tableName, 1000);
-      console.log('API response:', response);
-      
-      if (response && response.success && response.data) {
-        console.log('Setting table data:', response.data);
-        setTableData(Array.isArray(response.data) ? response.data : []);
-      } else {
-        console.error('Failed to fetch table data:', response?.message || 'Unknown error');
-        setTableData([]);
+  const handleCancelImport = () => {
+    setFileImports((prev) => {
+      const updated = new Map(prev);
+      const current = updated.get(activeFileType);
+      if (current) {
+        updated.set(activeFileType, {
+          ...current,
+          file: null,
+          fileName: '',
+          uploadStatus: 'idle',
+          uploadProgress: 0,
+          fileColumns: [],
+          stagingTableName: null,
+          productionTableName: null,
+          recordCount: 0,
+          stagingData: [],
+          currentStep: 'upload',
+        });
       }
-    } catch (error) {
-      console.error('Error fetching table data:', error);
-      setTableData([]);
-    } finally {
-      setLoading(false);
-    }
+      return updated;
+    });
   };
 
-  // Handle table selection
-  const handleTableSelect = (tableName: string) => {
-    setSelectedTable(tableName);
-    fetchTableData(tableName);
-    setCurrentPage(1);
-    setShowStagingSubTable(true);
-  };
+  const handleApproveToProduction = async () => {
+    const currentState = fileImports.get(activeFileType);
+    if (!currentState?.stagingTableName || !currentState?.productionTableName) return;
 
-  // Handle production table selection
-  const handleProductionTableSelect = (tableName: string) => {
-    setSelectedProductionTable(tableName);
-    fetchProductionData(tableName);
-    setCurrentPage(1);
-  };
-
-  // Fetch production data
-  const fetchProductionData = async (tableName: string) => {
-    setLoading(true);
-    try {
-      console.log('Fetching production data for table:', tableName);
-      const response = await apiClient.fetchProductionTableData(tableName, 1000);
-      console.log('Production API response:', response);
-      
-      if (response && response.success && response.data) {
-        console.log('Setting production data:', response.data);
-        setProductionData(Array.isArray(response.data) ? response.data : []);
-      } else {
-        console.error('Failed to fetch production data:', response?.message || 'Unknown error');
-        setProductionData([]);
-      }
-    } catch (error) {
-      console.error('Error fetching production data:', error);
-      setProductionData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch normalized data
-  const fetchNormalizedData = async () => {
-    try {
-      const [overviewRes, pricingRes, acreageRes, unitRes] = await Promise.all([
-        apiClient.fetchNormalizedOverview(),
-        apiClient.fetchPricingSummary(),
-        apiClient.fetchAcreageSummary(),
-        apiClient.fetchUnitSummary()
-      ]);
-
-      if (overviewRes.success && Array.isArray(overviewRes.data)) {
-        setNormalizedOverview(overviewRes.data);
-      }
-      if (pricingRes.success && Array.isArray(pricingRes.data)) {
-        setPricingSummary(pricingRes.data);
-      }
-      if (acreageRes.success && Array.isArray(acreageRes.data)) {
-        setAcreageSummary(acreageRes.data);
-      }
-      if (unitRes.success && Array.isArray(unitRes.data)) {
-        setUnitSummary(unitRes.data);
-      }
-    } catch (error) {
-      console.error('Error fetching normalized data:', error);
-    }
-  };
-
-  // Sorting functionality
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  // Filter and sort data
-  const getFilteredAndSortedData = () => {
-    const dataToFilter = activeTab === 'production' ? productionData : tableData;
-    let filtered = dataToFilter;
-    
-    if (searchTerm) {
-      filtered = dataToFilter.filter(row =>
-        Object.values(row).some(value =>
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    }
-
-    if (sortConfig) {
-      filtered = [...filtered].sort((a, b) => {
-        const aVal = a[sortConfig.key];
-        const bVal = b[sortConfig.key];
-        
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
-  };
-
-  // Pagination
-  const getPaginatedData = () => {
-    const filtered = getFilteredAndSortedData();
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filtered.slice(startIndex, startIndex + itemsPerPage);
-  };
-
-  // Row selection
-  const handleRowSelect = (rowId: string) => {
-    const newSelected = new Set(selectedRows);
-    if (newSelected.has(rowId)) {
-      newSelected.delete(rowId);
-    } else {
-      newSelected.add(rowId);
-    }
-    setSelectedRows(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    const paginatedData = getPaginatedData();
-    if (selectedRows.size === paginatedData.length) {
-      setSelectedRows(new Set());
-    } else {
-      setSelectedRows(new Set(paginatedData.map((row: any) => row.id)));
-    }
-  };
-
-  // Edit functionality
-  const startEditing = (rowId: string, rowData: any) => {
-    setEditingRow(rowId);
-    setEditingData({ ...rowData });
-  };
-
-  const cancelEditing = () => {
-    setEditingRow(null);
-    setEditingData({});
-  };
-
-  const handleEditChange = (key: string, value: string) => {
-    setEditingData(prev => ({ ...prev, [key]: value }));
-  };
-
-  const saveEditing = async () => {
-    if (!editingRow) return;
-    
-    setSaving(true);
-    try {
-      await apiClient.updateStagingRecord(selectedTable, editingRow, editingData);
-      await fetchTableData(selectedTable);
-      setEditingRow(null);
-      setEditingData({});
-    } catch (error) {
-      console.error('Error updating record:', error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deleteRecord = async (rowId: string) => {
-    if (!confirm('Are you sure you want to delete this record?')) return;
-    
-    try {
-      await apiClient.deleteStagingRecord(selectedTable, rowId);
-      await fetchTableData(selectedTable);
-    } catch (error) {
-      console.error('Error deleting record:', error);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedRows.size} records?`)) return;
-    
-    try {
-      for (const rowId of selectedRows) {
-        await apiClient.deleteStagingRecord(selectedTable, rowId);
-      }
-      await fetchTableData(selectedTable);
-      setSelectedRows(new Set());
-    } catch (error) {
-      console.error('Error deleting records:', error);
-    }
-  };
-
-
-  const moveToProduction = async () => {
-    if (!selectedTable || !importResult?.productionTableName) {
-      alert('No staging table selected or production table not available');
-      return;
-    }
-    
     try {
       const result = await apiClient.approveImport(
-        selectedTable,
-        importResult.productionTableName
+        currentState.stagingTableName,
+        currentState.productionTableName
       );
-      
+
       if (result.success) {
-        // Refresh both staging and production tables
-        await fetchStagingTables();
-        await fetchProductionTables();
-        
-        // Switch to production tab and show the moved data
-        setActiveTab('production');
-        setCurrentProductionTable(importResult.productionTableName);
-        setSelectedProductionTable(importResult.productionTableName);
-        await fetchProductionData(importResult.productionTableName);
-        
-        // Clear staging selection
-        setSelectedTable('');
-        setTableData([]);
-        setShowStagingSubTable(false);
-        setCurrentUploadedTable('');
-        
-        alert('Data moved to production successfully!');
+        setFileImports((prev) => {
+          const updated = new Map(prev);
+          const current = updated.get(activeFileType);
+          if (current) {
+            updated.set(activeFileType, {
+              ...current,
+              currentStep: 'complete',
+            });
+          }
+          return updated;
+        });
+        alert('Import approved! Data moved to production.');
       } else {
-        alert('Failed to move to production: ' + result.message);
+        throw new Error(result.message || 'Approval failed');
       }
-    } catch (error) {
-      console.error('Error moving to production:', error);
-      alert('Error moving to production');
+    } catch (error: any) {
+      console.error('Error approving import:', error);
+      alert(`Failed to approve import: ${error.message || 'Unknown error'}`);
     }
   };
 
-  const deleteStagingTable = async (tableName: string) => {
-    if (!confirm(`Are you sure you want to delete staging table ${tableName}?`)) return;
-    
-    try {
-      await apiClient.deleteStagingTable(tableName);
-      await fetchStagingTables();
-      if (selectedTable === tableName) {
-        setSelectedTable('');
-        setTableData([]);
-        setShowStagingSubTable(false);
-      }
-      if (currentUploadedTable === tableName) {
-        setCurrentUploadedTable('');
-      }
-    } catch (error) {
-      console.error('Error deleting staging table:', error);
-    }
+  const getColumnDifferences = (fileType: FileType) => {
+    const currentState = fileImports.get(fileType);
+    if (!currentState) return { missing: [], new: [], matching: [] };
+
+    const fileCols = new Set(currentState.fileColumns.map((col) => col.toLowerCase()));
+    const existingCols = new Set(currentState.existingTableColumns.map((col) => col.toLowerCase()));
+
+    const missing = currentState.existingTableColumns.filter(
+      (col) => !fileCols.has(col.toLowerCase())
+    );
+    const newCols = currentState.fileColumns.filter(
+      (col) => !existingCols.has(col.toLowerCase())
+    );
+    const matching = currentState.fileColumns.filter((col) =>
+      existingCols.has(col.toLowerCase())
+    );
+
+    return { missing, new: newCols, matching };
   };
 
-  // Load tables on component mount
-  useEffect(() => {
-    fetchStagingTables();
-    fetchProductionTables();
-    fetchNormalizedData();
-  }, []);
-
-  const filteredData = getFilteredAndSortedData();
-  const paginatedData = getPaginatedData();
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const currentState = fileImports.get(activeFileType);
+  const columnDiff = currentState ? getColumnDifferences(activeFileType) : { missing: [], new: [], matching: [] };
 
   return (
-    <div className="data-import-container">
-      {/* Header */}
+    <div className="data-import-container p-6">
       <div className="import-header">
         <div className="header-content">
           <div className="header-icon">📊</div>
           <div className="header-text">
-            <h1>Data Import & Management</h1>
-            <p>Upload, preview, and manage your data imports with advanced editing capabilities</p>
-          </div>
-        </div>
-        <div className="header-stats">
-          <div className="stat-card">
-            <div className="stat-number">{stagingTables.length}</div>
-            <div className="stat-label">Staging Tables</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{tableData.length}</div>
-            <div className="stat-label">Current Records</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{filteredData.length}</div>
-            <div className="stat-label">Filtered Records</div>
+            <h1>Data Import Center</h1>
+            <p>Import and manage your data files with ease</p>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button 
-          className={`tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
-          onClick={() => setActiveTab('upload')}
-        >
-          📤 Upload
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'staging' ? 'active' : ''}`}
-          onClick={() => setActiveTab('staging')}
-        >
-          🗂️ Staging Tables ({stagingTables.length})
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'production' ? 'active' : ''}`}
-          onClick={() => setActiveTab('production')}
-        >
-          🏭 Production Tables ({productionTables.length})
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'normalized' ? 'active' : ''}`}
-          onClick={() => setActiveTab('normalized')}
-        >
-          📊 Normalized Data
-        </button>
+      {/* Main File Type Tabs */}
+      <div className="tab-navigation" style={{ marginBottom: '30px', position: 'relative' }}>
+        {(Object.keys(FILE_TYPE_CONFIG) as FileType[]).map((fileType) => {
+          const state = fileImports.get(fileType);
+          const isActive = activeFileType === fileType;
+          const hasActiveImport = state?.currentStep !== 'upload' && state?.currentStep !== 'complete';
+          const icons: Record<FileType, string> = {
+            acreage: '📋',
+            pricing: '💰',
+            units: '🏢',
+            custom: '📁',
+          };
+
+          return (
+            <button
+              key={fileType}
+              onClick={() => setActiveFileType(fileType)}
+              className={`tab-btn ${isActive ? 'active' : ''}`}
+              title={FILE_TYPE_CONFIG[fileType].displayName}
+              style={{
+                position: 'relative',
+                borderBottom: isActive ? '3px solid #667eea' : '3px solid transparent',
+                fontWeight: isActive ? '700' : '500',
+                transform: isActive ? 'translateY(-2px)' : 'none',
+                boxShadow: isActive ? '0 4px 12px rgba(102, 126, 234, 0.2)' : 'none',
+              }}
+            >
+              <span className="mr-2" style={{ fontSize: '1.2rem' }}>{icons[fileType]}</span>
+              {FILE_TYPE_CONFIG[fileType].displayName}
+              {hasActiveImport && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-30 text-white animate-pulse">
+                  ● Active
+                </span>
+              )}
+              {isActive && (
+                <>
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-50 text-white">
+                    ← Current
+                  </span>
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: '0',
+                      height: '0',
+                      borderLeft: '8px solid transparent',
+                      borderRight: '8px solid transparent',
+                      borderTop: '8px solid #667eea',
+                      marginTop: '-1px',
+                    }}
+                  />
+                </>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Upload Tab */}
-      {activeTab === 'upload' && (
-        <div className="tab-content">
-          {/* Help Guide Section */}
-          <div className="help-guide-section" style={{
+      {/* Current File Type Banner - More Prominent */}
+      {currentState && (
+        <div 
+          className="mb-6 p-5 rounded-lg"
+          style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '12px',
-            padding: '24px',
-            marginBottom: '24px',
-            color: 'white'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'start', gap: '16px' }}>
-              <div style={{ fontSize: '32px' }}>💡</div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ margin: '0 0 12px 0', fontSize: '20px', fontWeight: 'bold' }}>
-                  How Data Import Works
+            color: 'white',
+            boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <div 
+              style={{
+                fontSize: '2.5rem',
+                background: 'rgba(255, 255, 255, 0.2)',
+                padding: '12px',
+                borderRadius: '12px',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              {FILE_TYPE_CONFIG[activeFileType].displayName === 'Acreage Schedule' ? '📋' :
+               FILE_TYPE_CONFIG[activeFileType].displayName === 'Pricing Data' ? '💰' :
+               FILE_TYPE_CONFIG[activeFileType].displayName === 'Unit Summary' ? '🏢' : '📁'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700', color: 'white' }}>
+                  {FILE_TYPE_CONFIG[activeFileType].displayName}
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginTop: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>1️⃣ Upload Your File</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Upload a CSV or Excel file. The system will automatically detect your columns.</div>
+                <span 
+                  style={{
+                    padding: '4px 10px',
+                    background: 'rgba(255, 255, 255, 0.3)',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                  }}
+                >
+                  ACTIVE TAB
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '1rem', color: 'rgba(255, 255, 255, 0.9)' }}>
+                {currentState.currentStep === 'upload' && 'Ready to upload a new file'}
+                {currentState.currentStep === 'validate' && `Validating columns for ${currentState.fileName}`}
+                {currentState.currentStep === 'staging' && `Reviewing ${currentState.recordCount} records in staging`}
+                {currentState.currentStep === 'complete' && 'Import completed successfully'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File-Specific Content */}
+      {currentState && (
+        <div 
+          className="mt-6"
+          style={{
+            border: '2px solid #667eea',
+            borderRadius: '12px',
+            padding: '20px',
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)',
+            boxShadow: '0 4px 20px rgba(102, 126, 234, 0.1)',
+          }}
+        >
+          {/* Step Tabs within File Tab */}
+          <div className="tab-navigation mb-6">
+            <button
+              onClick={() => {
+                if (currentState.currentStep !== 'complete') {
+                  setFileImports((prev) => {
+                    const updated = new Map(prev);
+                    const current = updated.get(activeFileType);
+                    if (current) {
+                      updated.set(activeFileType, { ...current, currentStep: 'upload' });
+                    }
+                    return updated;
+                  });
+                }
+              }}
+              className={`tab-btn ${currentState.currentStep === 'upload' ? 'active' : ''}`}
+            >
+              <span className="mr-2">📤</span> Upload
+            </button>
+            {currentState.uploadStatus === 'uploaded' && (
+              <>
+                <button
+                  onClick={() => {
+                    setFileImports((prev) => {
+                      const updated = new Map(prev);
+                      const current = updated.get(activeFileType);
+                      if (current) {
+                        updated.set(activeFileType, { ...current, currentStep: 'validate' });
+                      }
+                      return updated;
+                    });
+                  }}
+                  className={`tab-btn ${currentState.currentStep === 'validate' ? 'active' : ''}`}
+                >
+                  <span className="mr-2">✓</span> Column Validation
+                </button>
+                <button
+                  onClick={() => {
+                    if (currentState.currentStep === 'staging' || currentState.currentStep === 'complete') {
+                      setFileImports((prev) => {
+                        const updated = new Map(prev);
+                        const current = updated.get(activeFileType);
+                        if (current) {
+                          updated.set(activeFileType, { ...current, currentStep: 'staging' });
+                        }
+                        return updated;
+                      });
+                    }
+                  }}
+                  className={`tab-btn ${currentState.currentStep === 'staging' ? 'active' : ''} ${currentState.currentStep === 'complete' ? 'text-green-600' : ''}`}
+                >
+                  <span className="mr-2">👁️</span> Staging Preview
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Upload Tab Content */}
+          {currentState.currentStep === 'upload' && (
+            <div className="tab-content">
+              <div className="section-title">
+                <h3>
+                  <span style={{ marginRight: '10px', fontSize: '1.5rem' }}>
+                    {FILE_TYPE_CONFIG[activeFileType].displayName === 'Acreage Schedule' ? '📋' :
+                     FILE_TYPE_CONFIG[activeFileType].displayName === 'Pricing Data' ? '💰' :
+                     FILE_TYPE_CONFIG[activeFileType].displayName === 'Unit Summary' ? '🏢' : '📁'}
+                  </span>
+                  Upload Your {FILE_TYPE_CONFIG[activeFileType].displayName} File
+                </h3>
+                <p>
+                  Select a CSV or Excel file for <strong>{FILE_TYPE_CONFIG[activeFileType].displayName}</strong> to begin the import process
+                </p>
+              </div>
+              <div className="upload-section">
+                <div
+                  ref={dropZoneRef}
+                  onDragEnter={handleDragIn}
+                  onDragLeave={handleDragOut}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  className={`drop-zone ${dragActive ? 'active' : ''} ${currentState.file ? 'has-file' : ''}`}
+                  style={{
+                    borderColor: dragActive ? '#667eea' : currentState.file ? '#28a745' : undefined,
+                    background: dragActive 
+                      ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)'
+                      : currentState.file
+                      ? 'linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%)'
+                      : undefined,
+                  }}
+                >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
+                  <div className="drop-content">
+                    {!currentState.file ? (
+                      <>
+                        <div className="drop-icon">📁</div>
+                        <div className="drop-text">
+                          <h3>Drag & Drop Your File</h3>
+                          <p>or click the button below to browse</p>
+                        </div>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="upload-btn primary"
+                        >
+                          <span>📂</span> Select File
+                        </button>
+                        <p className="supported-formats">CSV, XLS, XLSX up to 50MB</p>
+                      </>
+                    ) : (
+                      <div className="file-selected">
+                        <div className="file-icon">📄</div>
+                        <div className="file-info">
+                          <div className="file-name">{currentState.fileName}</div>
+                          <div className="file-size">
+                            {(currentState.file.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>2️⃣ Preview & Validate</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Review your data preview. Check for empty columns, formatting issues, or missing data.</div>
+              </div>
+
+                {currentState.file && (
+                  <div className="file-actions">
+                    <button
+                      onClick={() => {
+                        setFileImports((prev) => {
+                          const updated = new Map(prev);
+                          const current = updated.get(activeFileType);
+                          if (current) {
+                            updated.set(activeFileType, {
+                              ...current,
+                              file: null,
+                              fileName: '',
+                              fileColumns: [],
+                            });
+                          }
+                          return updated;
+                        });
+                      }}
+                      className="preview-btn"
+                    >
+                      <span>🗑️</span> Remove
+                    </button>
+                    <button
+                      onClick={handleUpload}
+                      disabled={currentState.uploadStatus === 'uploading'}
+                      className="upload-btn primary"
+                    >
+                      {currentState.uploadStatus === 'uploading' ? (
+                        <>
+                          <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></span>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <span>⬆️</span> Upload File
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>3️⃣ Import to Staging</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Your data goes to a staging area where you can review and edit before final import.</div>
+                )}
+
+                {currentState.uploadStatus === 'uploading' && (
+                  <div className="upload-progress">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="progress-text">Uploading your file...</span>
+                      <span className="progress-text font-bold">{currentState.uploadProgress}%</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${currentState.uploadProgress}%` }}
+                      />
+                    </div>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>4️⃣ Move to Production</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Once verified, move your data to production where it's ready to use.</div>
+                )}
+
+                {currentState.uploadStatus === 'uploaded' && (
+                  <div className="import-result success">
+                    <div className="result-icon">✅</div>
+                    <div className="result-content">
+                      <h4>Upload Successful!</h4>
+                      <p>
+                        {currentState.recordCount} records have been imported to staging.
+                        Proceed to column validation to review your data.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '14px' }}>
-                  <strong>💡 Tip:</strong> Column names in your file will be automatically cleaned (spaces → underscores, special characters removed). 
-                  Make sure your first row contains clear column headers. Empty columns will be preserved but may cause issues later.
-                </div>
+                )}
+
+                {currentState.uploadStatus === 'error' && (
+                  <div className="import-result error">
+                    <div className="result-icon">❌</div>
+                    <div className="result-content">
+                      <h4>Upload Failed</h4>
+                      <p>There was an error uploading your file. Please try again.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="upload-section">
-            <div className="section-title">
-              <h3>📤 File Upload</h3>
-              <p>Upload your data files to create staging tables</p>
-            </div>
-            
-            <div 
-              ref={dropZoneRef}
-              className={`drop-zone ${dragActive ? 'active' : ''} ${file ? 'has-file' : ''}`}
-              onDragEnter={handleDragIn}
-              onDragLeave={handleDragOut}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-              
-              {file ? (
-                <div className="file-selected">
-                  <div className="file-icon">📄</div>
-                  <div className="file-info">
-                    <div className="file-name">{file.name}</div>
-                    <div className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
-                  </div>
-                  <button 
-                    className="remove-file-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFile(null);
-                      setShowPreview(false);
-                    }}
+          {/* Column Validation Tab */}
+          {currentState.currentStep === 'validate' && (
+            <div className="tab-content">
+              <div className="section-title">
+                <h3>🔍 Column Validation</h3>
+                <p>Review how your file columns compare to the existing table structure</p>
+              </div>
+
+                <div className="space-y-6">
+                  {/* Missing Columns */}
+                  {columnDiff.missing.length > 0 && (
+                    <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">⚠️</span>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                            Missing Columns
+                            <span className="px-2 py-1 bg-yellow-200 rounded-full text-xs">
+                              {columnDiff.missing.length}
+                            </span>
+                          </h3>
+                          <p className="text-sm text-yellow-700 mb-3">
+                            These columns exist in the production table but are not in your file:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {columnDiff.missing.map((col) => (
+                              <span
+                                key={col}
+                                className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-md text-sm font-medium border border-yellow-300"
+                              >
+                                {col}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* New Columns */}
+                  {columnDiff.new.length > 0 && (
+                    <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">✨</span>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                            New Columns
+                            <span className="px-2 py-1 bg-blue-200 rounded-full text-xs">
+                              {columnDiff.new.length}
+                            </span>
+                          </h3>
+                          <p className="text-sm text-blue-700 mb-3">
+                            These columns are in your file but not in the production table:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {columnDiff.new.map((col) => (
+                              <span
+                                key={col}
+                                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm font-medium border border-blue-300"
+                              >
+                                {col}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Matching Columns */}
+                  {columnDiff.matching.length > 0 && (
+                    <div className="border border-green-200 bg-green-50 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">✅</span>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                            Matching Columns
+                            <span className="px-2 py-1 bg-green-200 rounded-full text-xs">
+                              {columnDiff.matching.length}
+                            </span>
+                          </h3>
+                          <p className="text-sm text-green-700 mb-3">
+                            These columns match between your file and the production table:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {columnDiff.matching.map((col) => (
+                              <span
+                                key={col}
+                                className="px-3 py-1 bg-green-100 text-green-800 rounded-md text-sm font-medium border border-green-300"
+                              >
+                                {col}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Differences */}
+                  {columnDiff.missing.length === 0 &&
+                    columnDiff.new.length === 0 &&
+                    currentState.existingTableColumns.length > 0 && (
+                      <div className="border border-green-200 bg-green-50 rounded-lg p-4">
+                        <p className="text-sm text-green-800">
+                          ✓ All columns match! Your file structure is compatible with the production table.
+                        </p>
+                      </div>
+                    )}
+
+                  {/* No Existing Table */}
+                  {currentState.existingTableColumns.length === 0 && (
+                    <div className="border border-gray-200 bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-700">
+                        No existing production table found. This will create a new table.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8 flex space-x-4 justify-end">
+                  <button
+                    onClick={handleCancelImport}
+                    className="px-6 py-3 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all"
                   >
-                    ✕
+                    <span className="mr-2">❌</span> Cancel Import
+                  </button>
+                  <button
+                    onClick={handleProceedToStaging}
+                    className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                  >
+                    <span className="mr-2">➡️</span> Proceed to Staging
                   </button>
                 </div>
+            </div>
+          )}
+
+          {/* Staging Preview Tab */}
+          {currentState.currentStep === 'staging' && (
+            <div className="tab-content">
+              <div className="section-header">
+                <div className="section-title">
+                  <h3>👁️ Staging Data Preview</h3>
+                  <p>
+                    Review your data before moving to production. 
+                    <strong className="ml-2 text-blue-600">{currentState.recordCount}</strong> records imported.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to move this data to production? This action cannot be undone.')) {
+                      handleApproveToProduction();
+                    }
+                  }}
+                  className="move-to-production-btn"
+                >
+                  <span>✅</span> Approve & Move to Production
+                </button>
+              </div>
+
+              {currentState.stagingData.length > 0 ? (
+                <div className="data-table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        {Object.keys(currentState.stagingData[0]).map((key) => (
+                          <th key={key}>
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentState.stagingData.slice(0, 50).map((row, idx) => (
+                        <tr key={idx}>
+                          {Object.values(row).map((value: any, colIdx) => (
+                            <td key={colIdx}>
+                              {value !== null && value !== undefined ? String(value) : <span className="text-gray-400">-</span>}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {currentState.stagingData.length > 50 && (
+                    <div className="text-center py-4 bg-gray-50 border-t">
+                      <p className="text-sm text-gray-600 font-medium">
+                        📊 Showing first 50 of <strong>{currentState.stagingData.length}</strong> records
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div className="drop-content">
-                  <div className="drop-icon">📁</div>
-                  <div className="drop-text">
-                    <h3>Drag & drop your file here</h3>
-                    <p>or click to browse</p>
-                    <div className="supported-formats">Supports: CSV, Excel (.xlsx, .xls)</div>
-                  </div>
+                <div className="no-data">
+                  <div className="no-tables-icon">📭</div>
+                  <p>No staging data available</p>
                 </div>
               )}
             </div>
+          )}
 
-            {file && (
-              <div className="file-actions">
-                <button 
-                  className="preview-btn"
-                  onClick={() => setShowPreview(!showPreview)}
-                >
-                  {showPreview ? '👁️‍🗨️ Hide Preview' : '👁️ Preview Data'}
-                </button>
-                <button 
-                  className="upload-btn primary"
-                  onClick={handleUpload}
-                  disabled={uploading}
-                >
-                  {uploading ? '⏳ Uploading...' : '🚀 Upload File'}
-                </button>
-              </div>
-            )}
-
-            {/* Upload Progress */}
-            {uploadProgress && (
-              <div className="upload-progress">
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${uploadProgress.progress}%` }}
-                  ></div>
-                </div>
-                <div className="progress-text">{uploadProgress.message}</div>
-              </div>
-            )}
-
-            {/* File Preview */}
-            {showPreview && previewData.length > 0 && (
-              <div className="file-preview">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h4>📋 Data Preview (First 5 rows)</h4>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
-                    {Object.keys(previewData[0] || {}).length} columns detected
-                  </div>
-                </div>
-                
-                {/* Column Validation Warnings */}
-                {(columnWarnings.emptyColumns.length > 0 || 
-                  columnWarnings.duplicateHeaders.length > 0 || 
-                  columnWarnings.specialChars.length > 0 ||
-                  columnWarnings.longNames.length > 0) && (
-                  <div style={{
-                    background: '#fff3cd',
-                    border: '1px solid #ffc107',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '16px'
-                  }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '12px', color: '#856404' }}>
-                      ⚠️ Column Validation Warnings
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#856404' }}>
-                      {columnWarnings.emptyColumns.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong>Empty Columns:</strong> {columnWarnings.emptyColumns.join(', ')}
-                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
-                            These columns appear to have no data. Consider removing them or checking your file.
-                          </div>
-                        </div>
-                      )}
-                      {columnWarnings.duplicateHeaders.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong>Duplicate Headers:</strong> {columnWarnings.duplicateHeaders.join(', ')}
-                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
-                            Duplicate column names will be renamed automatically (e.g., "Column_1", "Column_2").
-                          </div>
-                        </div>
-                      )}
-                      {columnWarnings.specialChars.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong>Special Characters:</strong> {columnWarnings.specialChars.join(', ')}
-                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
-                            Special characters in column names will be replaced with underscores automatically.
-                          </div>
-                        </div>
-                      )}
-                      {columnWarnings.longNames.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong>Long Column Names:</strong> {columnWarnings.longNames.length} column(s) exceed 50 characters
-                          <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
-                            Very long column names may be truncated. Consider using shorter names.
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Success message if no warnings */}
-                {columnWarnings.emptyColumns.length === 0 && 
-                 columnWarnings.duplicateHeaders.length === 0 && 
-                 columnWarnings.specialChars.length === 0 &&
-                 columnWarnings.longNames.length === 0 && (
-                  <div style={{
-                    background: '#d4edda',
-                    border: '1px solid #28a745',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    marginBottom: '16px',
-                    color: '#155724'
-                  }}>
-                    ✅ Your file looks good! All columns have data and headers are properly formatted.
-                  </div>
-                )}
-                
-                <div className="preview-table" style={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead style={{ position: 'sticky', top: 0, background: '#f8f9fa', zIndex: 10 }}>
-                      <tr>
-                        {Object.keys(previewData[0] || {}).map((header, idx) => {
-                          const isEmpty = columnWarnings.emptyColumns.includes(header);
-                          return (
-                            <th 
-                              key={header} 
-                              style={{
-                                padding: '8px',
-                                border: '1px solid #dee2e6',
-                                background: isEmpty ? '#fff3cd' : '#f8f9fa',
-                                fontWeight: 'bold',
-                                textAlign: 'left'
-                              }}
-                            >
-                              {header}
-                              {isEmpty && <span style={{ fontSize: '10px', color: '#856404', marginLeft: '4px' }}>⚠️</span>}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewData.map((row, index) => (
-                        <tr key={index}>
-                          {Object.entries(row).map(([key, value], cellIndex) => {
-                            const isEmpty = columnWarnings.emptyColumns.includes(key);
-                            return (
-                              <td 
-                                key={cellIndex}
-                                style={{
-                                  padding: '8px',
-                                  border: '1px solid #dee2e6',
-                                  background: isEmpty ? '#fff3cd' : 'white'
-                                }}
-                              >
-                                {String(value) || <span style={{ color: '#999', fontStyle: 'italic' }}>empty</span>}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{ marginTop: '12px', fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
-                  💡 Tip: Review the preview carefully. You can edit data after import in the Staging Tables tab.
-                </div>
-              </div>
-            )}
-
-            {/* Import Result */}
-            {importResult && (
-              <div className={`import-result ${importResult.success ? 'success' : 'error'}`}>
-                <div className="result-icon">
-                  {importResult.success ? '✅' : '❌'}
-                </div>
+          {/* Complete Tab */}
+          {currentState.currentStep === 'complete' && (
+            <div className="tab-content">
+              <div className="import-result success" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '60px 40px' }}>
+                <div className="result-icon" style={{ fontSize: '5rem', marginBottom: '20px' }}>🎉</div>
                 <div className="result-content">
-                  <h4>{importResult.success ? 'Import Successful!' : 'Import Failed'}</h4>
-                  <p>{importResult.message}</p>
-                  {importResult.recordCount && (
-                    <p>Records imported: {importResult.recordCount}</p>
-                  )}
-                  
-                  {/* Show missing/extra columns if validation failed */}
-                  {!importResult.success && (
-                    <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(255,0,0,0.1)', borderRadius: '8px' }}>
-                      {importResult.missingColumns && importResult.missingColumns.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong>Missing Required Columns:</strong>
-                          <ul style={{ marginTop: '4px', paddingLeft: '20px' }}>
-                            {importResult.missingColumns.map((col, idx) => (
-                              <li key={idx}>{col}</li>
-                            ))}
-                          </ul>
-                          <div style={{ fontSize: '12px', marginTop: '4px', color: '#666' }}>
-                            Your file must include these columns. Please add them to your file and try again.
-                          </div>
-                        </div>
-                      )}
-                      {importResult.extraColumns && importResult.extraColumns.length > 0 && (
-                        <div>
-                          <strong>Unexpected Columns:</strong>
-                          <ul style={{ marginTop: '4px', paddingLeft: '20px' }}>
-                            {importResult.extraColumns.map((col, idx) => (
-                              <li key={idx}>{col}</li>
-                            ))}
-                          </ul>
-                          <div style={{ fontSize: '12px', marginTop: '4px', color: '#666' }}>
-                            These columns are not expected. You can remove them or they will be ignored during import.
-                          </div>
-                        </div>
-                      )}
-                      <div style={{ marginTop: '12px', padding: '8px', background: 'rgba(255,255,255,0.5)', borderRadius: '4px' }}>
-                        <strong>How to Fix:</strong>
-                        <ol style={{ marginTop: '4px', paddingLeft: '20px', fontSize: '12px' }}>
-                          <li>Check your file's first row - it should contain column headers</li>
-                          <li>Make sure column names match exactly (case-sensitive)</li>
-                          <li>Remove any extra columns you don't need</li>
-                          <li>Add any missing required columns</li>
-                          <li>Save your file and try uploading again</li>
-                        </ol>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {importResult.success && (
-                    <div className="result-actions">
-                      <p className="next-step">✅ File uploaded successfully! Data is now displayed in the Staging Tables tab below.</p>
-                      <div style={{ marginTop: '12px', padding: '12px', background: '#e7f3ff', borderRadius: '8px', fontSize: '14px' }}>
-                        <strong>Next Steps:</strong>
-                        <ol style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                          <li>Go to the "Staging Tables" tab to review your data</li>
-                          <li>Edit any records that need correction</li>
-                          <li>Click "Move to Production" when you're ready</li>
-                        </ol>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Staging Tables Tab */}
-      {activeTab === 'staging' && (
-        <div className="tab-content">
-          <div className="staging-section">
-            <div className="section-header">
-              <div className="section-title">
-                <h3>🗂️ Staging Tables</h3>
-                <p>Review and edit your imported data before moving to production. Data from your latest upload is shown below.</p>
-              </div>
-              <button 
-                className="refresh-btn"
-                onClick={fetchStagingTables}
-              >
-                🔄 Refresh
-              </button>
-            </div>
-
-            {currentUploadedTable ? (
-              <div className="current-upload-section">
-                <div className="current-upload-card">
-                  <div className="table-icon">📊</div>
-                  <div className="table-info">
-                    <div className="table-name">{currentUploadedTable}</div>
-                    <div className="table-count">Current Upload</div>
-                  </div>
-                  <div className="table-actions">
-                    <button 
-                      className="action-btn view-btn"
-                      onClick={() => handleTableSelect(currentUploadedTable)}
-                      title="View & Edit Data"
-                    >
-                      ✏️
-                    </button>
-                    <button 
-                      className="action-btn delete-btn"
-                      onClick={() => deleteStagingTable(currentUploadedTable)}
-                      title="Delete Table"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="no-tables">
-                <div className="no-tables-icon">📭</div>
-                <p>No file uploaded yet. Upload a file to get started!</p>
-              </div>
-            )}
-
-            {/* Staging Data Sub-Table */}
-            {showStagingSubTable && selectedTable && (
-              <div className="staging-sub-table">
-                <div className="sub-table-header">
-                  <div className="sub-table-title">
-                    <h4>📋 {selectedTable} - Staging Data</h4>
-                    <p>Review and edit your data before moving to production</p>
-                  </div>
-                  <div className="sub-table-actions">
-                    <button 
-                      className="move-to-production-btn"
-                      onClick={moveToProduction}
-                      disabled={!importResult?.productionTableName}
-                    >
-                      🚀 Move to Production
-                    </button>
-                    <button 
-                      className="close-sub-table-btn"
-                      onClick={() => {
-                        setShowStagingSubTable(false);
-                        setSelectedTable('');
-                        setTableData([]);
-                      }}
-                    >
-                      ✕ Close
-                    </button>
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div className="loading-spinner">
-                    <div className="spinner"></div>
-                    <p>Loading data...</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="data-controls">
-                      <div className="search-box">
-                        <input
-                          type="text"
-                          placeholder="Search data..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <span className="search-icon">🔍</span>
-                      </div>
-                      <div className="bulk-actions">
-                        <button 
-                          className="bulk-btn delete-btn"
-                          onClick={handleBulkDelete}
-                          disabled={selectedRows.size === 0}
-                        >
-                          🗑️ Delete Selected ({selectedRows.size})
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="data-table-container">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th className="select-column">
-                              <input
-                                type="checkbox"
-                                checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
-                                onChange={handleSelectAll}
-                              />
-                            </th>
-                            {Object.keys(tableData[0] || {}).map(key => (
-                              <th 
-                                key={key}
-                                className={sortConfig?.key === key ? `sorted ${sortConfig.direction}` : ''}
-                                onClick={() => handleSort(key)}
-                              >
-                                {key}
-                                {sortConfig?.key === key && (
-                                  <span className="sort-indicator">
-                                    {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                  </span>
-                                )}
-                              </th>
-                            ))}
-                            <th className="actions-column">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginatedData.map((row, index) => (
-                            <tr 
-                              key={row.id || index}
-                              className={`${editingRow === row.id ? 'editing' : ''} ${selectedRows.has(row.id) ? 'selected' : ''}`}
-                            >
-                              <td className="select-column">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedRows.has(row.id)}
-                                  onChange={() => handleRowSelect(row.id)}
-                                />
-                              </td>
-                              {Object.entries(row).map(([key, value]) => {
-                                if (key === 'id' || key === 'created_at' || key === 'updated_at') {
-                                  return <td key={key} className="system-field">{String(value)}</td>;
-                                }
-                                if (editingRow === row.id) {
-                                  return (
-                                    <td key={key}>
-                                      <input
-                                        type="text"
-                                        value={editingData[key] || ''}
-                                        onChange={(e) => handleEditChange(key, e.target.value)}
-                                        className="edit-input"
-                                      />
-                                    </td>
-                                  );
-                                }
-                                return <td key={key}>{String(value)}</td>;
-                              })}
-                              <td className="actions-cell">
-                                {editingRow === row.id ? (
-                                  <div className="edit-actions">
-                                    <button 
-                                      onClick={saveEditing} 
-                                      disabled={saving} 
-                                      className="save-button"
-                                    >
-                                      {saving ? 'Saving...' : '💾'}
-                                    </button>
-                                    <button 
-                                      onClick={cancelEditing} 
-                                      disabled={saving} 
-                                      className="cancel-button"
-                                    >
-                                      ❌
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="row-actions">
-                                    <button 
-                                      onClick={() => startEditing(row.id, row)} 
-                                      className="edit-button"
-                                      title="Edit"
-                                    >
-                                      ✏️
-                                    </button>
-                                    <button 
-                                      onClick={() => deleteRecord(row.id)} 
-                                      className="delete-button"
-                                      title="Delete"
-                                    >
-                                      🗑️
-                                    </button>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                      <div className="pagination">
-                        <button 
-                          onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                        >
-                          ← Previous
-                        </button>
-                        <span className="page-info">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                        <button 
-                          onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                        >
-                          Next →
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Production Tables Tab */}
-      {activeTab === 'production' && (
-        <div className="tab-content">
-          <div className="production-section">
-            <div className="section-header">
-              <div className="section-title">
-                <h3>🏭 Production Data</h3>
-                <p>View the data that was recently moved from staging to production</p>
-              </div>
-              <button 
-                className="refresh-btn"
-                onClick={fetchProductionTables}
-              >
-                🔄 Refresh
-              </button>
-            </div>
-
-            {currentProductionTable ? (
-              <div className="current-production-section">
-                <div className="current-production-card">
-                  <div className="table-icon">🏭</div>
-                  <div className="table-info">
-                    <div className="table-name">{currentProductionTable}</div>
-                    <div className="table-count">Recently Moved to Production</div>
-                  </div>
-                  <div className="table-actions">
-                    <button 
-                      className="action-btn view-btn"
-                      onClick={() => handleProductionTableSelect(currentProductionTable)}
-                      title="View Data"
-                    >
-                      👁️
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="no-tables">
-                <div className="no-tables-icon">🏭</div>
-                <p>No data moved to production yet. Move data from staging to see it here!</p>
-              </div>
-            )}
-
-            {/* Production Data Display */}
-            {selectedProductionTable && (
-              <div className="production-data-display">
-                <div className="data-header">
-                  <h4>📊 {selectedProductionTable} - Production Data</h4>
-                  <p>This data has been moved from staging to production</p>
-                </div>
-
-                {loading ? (
-                  <div className="loading-spinner">
-                    <div className="spinner"></div>
-                    <p>Loading production data...</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="data-controls">
-                      <div className="search-box">
-                        <input
-                          type="text"
-                          placeholder="Search production data..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <span className="search-icon">🔍</span>
-                      </div>
-                    </div>
-                    
-                    <div className="data-table-container">
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            {Object.keys(productionData[0] || {}).map(key => (
-                              <th 
-                                key={key}
-                                className={sortConfig?.key === key ? `sorted ${sortConfig.direction}` : ''}
-                                onClick={() => handleSort(key)}
-                              >
-                                {key}
-                                {sortConfig?.key === key && (
-                                  <span className="sort-indicator">
-                                    {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                  </span>
-                                )}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paginatedData.map((row, index) => (
-                            <tr key={row.id || index}>
-                              {Object.entries(row).map(([key, value]) => {
-                                if (key === 'id' || key === 'created_at' || key === 'updated_at') {
-                                  return <td key={key} className="system-field">{String(value)}</td>;
-                                }
-                                return <td key={key}>{String(value)}</td>;
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Pagination for Production Data */}
-                    {totalPages > 1 && (
-                      <div className="pagination">
-                        <button 
-                          onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                        >
-                          ← Previous
-                        </button>
-                        <span className="page-info">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                        <button 
-                          onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                        >
-                          Next →
-                        </button>
-                      </div>
-                    )}
-
-                    {productionData.length === 0 && (
-                      <div className="no-data">
-                        <p>No production data available for this table.</p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Normalized Data Tab */}
-      {activeTab === 'normalized' && (
-        <div className="tab-content">
-          <div className="normalized-section">
-            <div className="section-header">
-              <div className="section-title">
-                <h3>📊 Normalized Data Overview</h3>
-                <p>View the 3NF normalized data structure and summaries</p>
-              </div>
-              <button 
-                className="refresh-btn"
-                onClick={fetchNormalizedData}
-              >
-                🔄 Refresh
-              </button>
-            </div>
-
-            {/* Data Overview */}
-            <div className="data-overview-grid">
-              <div className="overview-card">
-                <h4>📈 Data Overview</h4>
-                <div className="overview-stats">
-                  {Array.isArray(normalizedOverview) && normalizedOverview.map((item, index) => (
-                    <div key={index} className="stat-item">
-                      <span className="stat-label">{item.table_name}:</span>
-                      <span className="stat-value">{item.record_count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pricing Summary */}
-              <div className="overview-card">
-                <h4>💰 Pricing Summary</h4>
-                <div className="summary-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Formation</th>
-                        <th>Records</th>
-                        <th>Avg Price</th>
-                        <th>Min Price</th>
-                        <th>Max Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(pricingSummary) && pricingSummary.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.formation}</td>
-                          <td>{item.pricing_records}</td>
-                          <td>${parseFloat(item.avg_price).toLocaleString()}</td>
-                          <td>${parseFloat(item.min_price).toLocaleString()}</td>
-                          <td>${parseFloat(item.max_price).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Acreage Summary */}
-              <div className="overview-card">
-                <h4>🏞️ Acreage Summary</h4>
-                <div className="summary-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>County</th>
-                        <th>Owners</th>
-                        <th>Interests</th>
-                        <th>Total Acres</th>
-                        <th>Avg Interest</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(acreageSummary) && acreageSummary.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.county}</td>
-                          <td>{item.unique_owners}</td>
-                          <td>{item.mineral_interests}</td>
-                          <td>{parseFloat(item.total_acres).toLocaleString()}</td>
-                          <td>{parseFloat(item.avg_interest).toFixed(2)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Unit Summary */}
-              <div className="overview-card">
-                <h4>⛽ Unit Summary</h4>
-                <div className="summary-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Operator</th>
-                        <th>Units</th>
-                        <th>Wells</th>
-                        <th>Avg Allocation</th>
-                        <th>Avg Pricing</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(unitSummary) && unitSummary.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.operator}</td>
-                          <td>{item.total_units}</td>
-                          <td>{item.total_wells}</td>
-                          <td>{parseFloat(item.avg_allocation).toFixed(2)}%</td>
-                          <td>${parseFloat(item.avg_pricing).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <h2 style={{ fontSize: '2rem', marginBottom: '15px', color: '#155724' }}>Import Complete!</h2>
+                  <p style={{ fontSize: '1.1rem', marginBottom: '30px', color: '#155724' }}>
+                    Your data has been successfully moved to production. 
+                    <br />
+                    <strong>{currentState.recordCount}</strong> records are now available in the production table.
+                  </p>
+                  <button
+                    onClick={handleCancelImport}
+                    className="approve-btn"
+                    style={{ padding: '12px 24px', fontSize: '1rem' }}
+                  >
+                    <span className="mr-2">🔄</span> Start New Import
+                  </button>
                 </div>
               </div>
             </div>
-
-            {/* Query Information */}
-            <div className="query-info">
-              <h4>🔍 Available Queries</h4>
-              <p>Use the SQL queries in <code>database/normalized_data_queries.sql</code> to explore the normalized data in detail.</p>
-              <div className="query-examples">
-                <h5>Example Queries:</h5>
-                <ul>
-                  <li><strong>Pricing by Formation:</strong> View pricing data grouped by geological formations</li>
-                  <li><strong>Mineral Interests by County:</strong> See ownership distribution across counties</li>
-                  <li><strong>Unit Performance by Operator:</strong> Compare operator performance metrics</li>
-                  <li><strong>Cross-Reference Analysis:</strong> Find properties with both pricing and mineral interest data</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

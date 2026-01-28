@@ -69,6 +69,7 @@ const UnitDetailPage: React.FC = () => {
   const [sectionSearchTerm, setSectionSearchTerm] = useState('');
   const [sectionSortBy, setSectionSortBy] = useState('sectionName');
   const [sectionFilterStatus, setSectionFilterStatus] = useState('');
+  const [sectionSortDirection, setSectionSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showAcreageScheduleModal, setShowAcreageScheduleModal] = useState(false);
   const [acreageScheduleRecords, setAcreageScheduleRecords] = useState<any[]>([]);
   const [unitTrackerRecords, setUnitTrackerRecords] = useState<any[]>([]);
@@ -392,12 +393,20 @@ const UnitDetailPage: React.FC = () => {
       const aTitleStatus = a.titleStatus || a.section?.titleStatus || '';
       const bTitleStatus = b.titleStatus || b.section?.titleStatus || '';
       
-      if (sectionSortBy === 'sectionName') return aSectionName.localeCompare(bSectionName);
-      if (sectionSortBy === 'grossAcres') return bGrossAcres - aGrossAcres;
-      if (sectionSortBy === 'netMineralAcres') return bNetAcres - aNetAcres;
-      if (sectionSortBy === 'titleStatus') return aTitleStatus.localeCompare(bTitleStatus);
-      if (sectionSortBy === 'lastActivity') return new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime();
-      return 0;
+      let result = 0;
+      if (sectionSortBy === 'sectionName') {
+        result = aSectionName.localeCompare(bSectionName);
+      } else if (sectionSortBy === 'grossAcres') {
+        result = aGrossAcres - bGrossAcres;
+      } else if (sectionSortBy === 'netMineralAcres') {
+        result = aNetAcres - bNetAcres;
+      } else if (sectionSortBy === 'titleStatus') {
+        result = aTitleStatus.localeCompare(bTitleStatus);
+      } else if (sectionSortBy === 'lastActivity') {
+        result = new Date(a.lastActivity || 0).getTime() - new Date(b.lastActivity || 0).getTime();
+      }
+      
+      return sectionSortDirection === 'asc' ? result : -result;
     });
 
   const handleViewTitleChain = (section: UnitSectionEnhanced) => {
@@ -768,15 +777,25 @@ const UnitDetailPage: React.FC = () => {
                     </div>
                     <select
                       value={sectionSortBy}
-                      onChange={(e) => setSectionSortBy(e.target.value)}
+                      onChange={(e) => {
+                        setSectionSortBy(e.target.value);
+                        setSectionSortDirection('asc');
+                      }}
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                     >
                       <option value="sectionName">Sort by Section Name</option>
-                      <option value="grossAcres">Sort by Net Acres</option>
+                      <option value="grossAcres">Sort by Gross Acres</option>
                       <option value="netMineralAcres">Sort by Net Acres</option>
                       <option value="titleStatus">Sort by Title Status</option>
                       <option value="lastActivity">Sort by Last Activity</option>
                     </select>
+                    <button
+                      onClick={() => setSectionSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sc-blue"
+                      title={`Sort ${sectionSortDirection === 'asc' ? 'Descending' : 'Ascending'}`}
+                    >
+                      {sectionSortDirection === 'asc' ? '↑' : '↓'}
+                    </button>
                     <select
                       value={sectionFilterStatus}
                       onChange={(e) => setSectionFilterStatus(e.target.value)}
@@ -799,20 +818,92 @@ const UnitDetailPage: React.FC = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            STR
+                          <th 
+                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                              sectionSortBy === 'sectionName' ? 'bg-gray-100' : ''
+                            }`}
+                            onClick={() => {
+                              setSectionSortBy('sectionName');
+                              setSectionSortDirection(prev => sectionSortBy === 'sectionName' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
+                            }}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>STR</span>
+                              {sectionSortBy === 'sectionName' && (
+                                <span className="text-gray-400">
+                                  {sectionSortDirection === 'asc' ? '↑' : '↓'}
+                                </span>
+                              )}
+                              {sectionSortBy !== 'sectionName' && (
+                                <span className="opacity-30 text-xs">⇅</span>
+                              )}
+                            </div>
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Net Acres
+                          <th 
+                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                              sectionSortBy === 'grossAcres' ? 'bg-gray-100' : ''
+                            }`}
+                            onClick={() => {
+                              setSectionSortBy('grossAcres');
+                              setSectionSortDirection(prev => sectionSortBy === 'grossAcres' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
+                            }}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>Net Acres</span>
+                              {sectionSortBy === 'grossAcres' && (
+                                <span className="text-gray-400">
+                                  {sectionSortDirection === 'asc' ? '↑' : '↓'}
+                                </span>
+                              )}
+                              {sectionSortBy !== 'grossAcres' && (
+                                <span className="opacity-30 text-xs">⇅</span>
+                              )}
+                            </div>
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Net Acres (NMA)
+                          <th 
+                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                              sectionSortBy === 'netMineralAcres' ? 'bg-gray-100' : ''
+                            }`}
+                            onClick={() => {
+                              setSectionSortBy('netMineralAcres');
+                              setSectionSortDirection(prev => sectionSortBy === 'netMineralAcres' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
+                            }}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>Net Acres (NMA)</span>
+                              {sectionSortBy === 'netMineralAcres' && (
+                                <span className="text-gray-400">
+                                  {sectionSortDirection === 'asc' ? '↑' : '↓'}
+                                </span>
+                              )}
+                              {sectionSortBy !== 'netMineralAcres' && (
+                                <span className="opacity-30 text-xs">⇅</span>
+                              )}
+                            </div>
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Assigned Buyers
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Last Activity
+                          <th 
+                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                              sectionSortBy === 'lastActivity' ? 'bg-gray-100' : ''
+                            }`}
+                            onClick={() => {
+                              setSectionSortBy('lastActivity');
+                              setSectionSortDirection(prev => sectionSortBy === 'lastActivity' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
+                            }}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>Last Activity</span>
+                              {sectionSortBy === 'lastActivity' && (
+                                <span className="text-gray-400">
+                                  {sectionSortDirection === 'asc' ? '↑' : '↓'}
+                                </span>
+                              )}
+                              {sectionSortBy !== 'lastActivity' && (
+                                <span className="opacity-30 text-xs">⇅</span>
+                              )}
+                            </div>
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Quick Links
