@@ -490,6 +490,161 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
     }
   });
 
+  // Get lead email activities
+  router.get('/api/leads/:id/email-activities', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { id } = req.params;
+      
+      // Query the communications table for email activities linked to this lead
+      // Note: If communications table doesn't have data yet, return empty array
+      const query = `
+        SELECT 
+          c.id,
+          c.lead_id as leadId,
+          c.timestamp as emailDate,
+          c.direction,
+          c.subject,
+          c.full_message as body,
+          c.email_address as recipientEmail,
+          c.outcome as status,
+          c.message_snippet as notes,
+          c.user_id as loggedById,
+          u.name as logged_by_name,
+          u.email as logged_by_email
+        FROM communications c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.lead_id = ? 
+          AND c.method = 'Email'
+        ORDER BY c.timestamp DESC
+      `;
+
+      const rows = await executeQuery(dbPool, query, [id]).catch(() => []);
+      
+      const emailActivities = rows.map((row: any) => ({
+        id: row.id,
+        leadId: row.leadId,
+        emailDate: row.emailDate,
+        direction: row.direction === 'Outbound' ? 'Sent' : 'Received',
+        subject: row.subject,
+        body: row.body,
+        recipientEmail: row.direction === 'Outbound' ? row.recipientEmail : null,
+        senderEmail: row.direction === 'Inbound' ? row.recipientEmail : null,
+        status: row.status,
+        notes: row.notes,
+        loggedById: row.loggedById,
+        loggedBy: row.logged_by_name ? {
+          id: row.loggedById,
+          name: row.logged_by_name,
+          email: row.logged_by_email
+        } : undefined
+      }));
+      
+      res.json(emailActivities);
+    } catch (error: any) {
+      console.error('Error fetching lead email activities:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching lead email activities', 
+        error: error.message 
+      });
+    }
+  });
+
+  // Create lead email activity
+  router.post('/api/leads/:id/email-activities', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { id } = req.params;
+      const { direction, subject, body, recipientEmail, senderEmail, status, notes } = req.body;
+      
+      // Get current user from session/request (you may need to adjust this based on your auth setup)
+      const userId = (req as any).user?.id || 'system';
+      
+      const emailActivityId = `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Insert into communications table
+      const insertQuery = `
+        INSERT INTO communications (
+          id, user_id, lead_id, method, direction, subject, 
+          full_message, email_address, outcome, message_snippet, timestamp
+        ) VALUES (?, ?, ?, 'Email', ?, ?, ?, ?, ?, ?, NOW())
+      `;
+      
+      const emailAddress = direction === 'Sent' ? recipientEmail : senderEmail;
+      const commDirection = direction === 'Sent' ? 'Outbound' : 'Inbound';
+      const commStatus = status || (direction === 'Sent' ? 'Sent' : 'Delivered');
+      
+      await executeQuery(dbPool, insertQuery, [
+        emailActivityId,
+        userId,
+        id,
+        commDirection,
+        subject || '',
+        body || '',
+        emailAddress,
+        commStatus,
+        notes || ''
+      ]);
+      
+      // Fetch the created record
+      const fetchQuery = `
+        SELECT 
+          c.id,
+          c.lead_id as leadId,
+          c.timestamp as emailDate,
+          c.direction,
+          c.subject,
+          c.full_message as body,
+          c.email_address as recipientEmail,
+          c.outcome as status,
+          c.message_snippet as notes,
+          c.user_id as loggedById,
+          u.name as logged_by_name,
+          u.email as logged_by_email
+        FROM communications c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.id = ?
+      `;
+      
+      const [createdRow] = await executeQuery(dbPool, fetchQuery, [emailActivityId]);
+      
+      const emailActivity = {
+        id: createdRow.id,
+        leadId: createdRow.leadId,
+        emailDate: createdRow.emailDate,
+        direction: createdRow.direction === 'Outbound' ? 'Sent' : 'Received',
+        subject: createdRow.subject,
+        body: createdRow.body,
+        recipientEmail: createdRow.direction === 'Outbound' ? createdRow.recipientEmail : null,
+        senderEmail: createdRow.direction === 'Inbound' ? createdRow.recipientEmail : null,
+        status: createdRow.status,
+        notes: createdRow.notes,
+        loggedById: createdRow.loggedById,
+        loggedBy: createdRow.logged_by_name ? {
+          id: createdRow.loggedById,
+          name: createdRow.logged_by_name,
+          email: createdRow.logged_by_email
+        } : undefined
+      };
+      
+      res.json(emailActivity);
+    } catch (error: any) {
+      console.error('Error creating lead email activity:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error creating lead email activity', 
+        error: error.message 
+      });
+    }
+  });
+
   return router;
 };
 
