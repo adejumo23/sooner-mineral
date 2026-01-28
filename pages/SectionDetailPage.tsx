@@ -490,15 +490,54 @@ const SectionDetailPage: React.FC = () => {
       <div className="mt-6">
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Quick Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-4">
+                <div className="text-blue-600 text-sm font-medium mb-1">Net Mineral Acres</div>
+                <div className="text-2xl font-bold text-blue-900">{formatNMA(section.netMineralAcres)}</div>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-4">
+                <div className="text-green-600 text-sm font-medium mb-1">Closed Deals</div>
+                <div className="text-2xl font-bold text-green-900">{section.closedDealsCount || 0}</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-4">
+                <div className="text-purple-600 text-sm font-medium mb-1">Acres Acquired</div>
+                <div className="text-2xl font-bold text-purple-900">{formatNMA(section.netMineralAcresAcquired)}</div>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200 p-4">
+                <div className="text-orange-600 text-sm font-medium mb-1">Status</div>
+                <div className="text-lg font-bold text-orange-900">
+                  {section.status === 'assigned' ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      Assigned
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                      Unassigned
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Basic Information */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div 
-                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="p-5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
                 onClick={() => toggleCardCollapse('basicInfo')}
               >
-                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                </div>
                 <svg 
-                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.basicInfo ? 'rotate-180' : ''}`}
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${collapsedCards.basicInfo ? 'rotate-180' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -507,28 +546,32 @@ const SectionDetailPage: React.FC = () => {
                 </svg>
               </div>
               {!collapsedCards.basicInfo && (
-                <div className="px-6 pb-6">
+                <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <span className="text-gray-600 text-sm">Section Name</span>
-                  <div className="text-gray-900 font-medium">{section.sectionName}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">State</span>
-                  <div className="text-gray-900 font-medium">{section.state}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">County</span>
-                  <div className="text-gray-900 font-medium">{section.county}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Assigned Buyer</span>
-                  <div className="text-gray-900 font-medium">{section.assignedBuyer?.name || 'Unassigned'}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Source Channel</span>
-                  <div className="text-gray-900 font-medium">{section.sourceChannel || 'N/A'}</div>
-                </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Section Name</span>
+                      <div className="text-gray-900 font-semibold text-base">{section.sectionName}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">State</span>
+                      <div className="text-gray-900 font-semibold text-base">{section.state}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">County</span>
+                      <div className="text-gray-900 font-semibold text-base">{section.county}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Assigned Buyer</span>
+                      <div className={`font-semibold text-base ${section.assignedBuyer?.name ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {section.assignedBuyer?.name || 'Unassigned'}
+                      </div>
+                    </div>
+                    {section.sourceChannel && (
+                      <div className="space-y-1">
+                        <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Source Channel</span>
+                        <div className="text-gray-900 font-semibold text-base">{section.sourceChannel}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -537,12 +580,19 @@ const SectionDetailPage: React.FC = () => {
             {/* Legal Information */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div 
-                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="p-5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
                 onClick={() => toggleCardCollapse('legalInfo')}
               >
-                <h3 className="text-lg font-semibold text-gray-900">Legal Information</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Legal Information</h3>
+                </div>
                 <svg 
-                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.legalInfo ? 'rotate-180' : ''}`}
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${collapsedCards.legalInfo ? 'rotate-180' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -551,22 +601,26 @@ const SectionDetailPage: React.FC = () => {
                 </svg>
               </div>
               {!collapsedCards.legalInfo && (
-                <div className="px-6 pb-6">
-                  <div className="space-y-4">
-                <div>
-                  <span className="text-gray-600 text-sm">Legal Description</span>
-                  <div className="text-gray-900 mt-1 whitespace-pre-line">{section.legalDescription}</div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-gray-600 text-sm">STR (Combined)</span>
-                    <div className="text-gray-900 font-medium">{section.str || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 text-sm">ANUM</span>
-                    <div className="text-gray-900 font-medium">{section.anum || 'N/A'}</div>
-                  </div>
-                </div>
+                <div className="p-6">
+                  <div className="space-y-5">
+                    <div>
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-2 block">Legal Description</span>
+                      <div className="text-gray-900 mt-1 whitespace-pre-line leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        {section.legalDescription}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-1">
+                        <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">STR (Combined)</span>
+                        <div className="text-gray-900 font-semibold text-base font-mono">{section.str || 'N/A'}</div>
+                      </div>
+                      {section.anum && (
+                        <div className="space-y-1">
+                          <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">ANUM</span>
+                          <div className="text-gray-900 font-semibold text-base">{section.anum}</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -575,12 +629,19 @@ const SectionDetailPage: React.FC = () => {
             {/* Unit Information */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div 
-                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="p-5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
                 onClick={() => toggleCardCollapse('unitInfo')}
               >
-                <h3 className="text-lg font-semibold text-gray-900">Unit Information</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Unit Information</h3>
+                </div>
                 <svg 
-                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.unitInfo ? 'rotate-180' : ''}`}
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${collapsedCards.unitInfo ? 'rotate-180' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -589,15 +650,41 @@ const SectionDetailPage: React.FC = () => {
                 </svg>
               </div>
               {!collapsedCards.unitInfo && (
-                <div className="px-6 pb-6">
+                <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <span className="text-gray-600 text-sm">Current Unit</span>
-                      <div className="text-gray-900 font-medium whitespace-pre-line">{section.current_unit || 'N/A'}</div>
+                    <div className="bg-blue-50 rounded-lg p-5 border border-blue-100">
+                      <h4 className="text-sm font-semibold text-blue-900 mb-4 uppercase tracking-wide">Current Unit</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Unit Name</span>
+                          <div className="text-blue-900 font-semibold text-sm whitespace-pre-line">{section.current_unit || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC_TYPE</span>
+                          <div className="text-blue-900 font-semibold text-sm">{section.new_occ_type || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">ALLO_%</span>
+                          <div className="text-blue-900 font-semibold text-sm">{section.allo_percent || 'N/A'}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-600 text-sm">New Unit</span>
-                      <div className="text-gray-900 font-medium whitespace-pre-line">{section.new_unit || 'N/A'}</div>
+                    <div className="bg-green-50 rounded-lg p-5 border border-green-100">
+                      <h4 className="text-sm font-semibold text-green-900 mb-4 uppercase tracking-wide">New Unit</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">Unit Name</span>
+                          <div className="text-green-900 font-semibold text-sm whitespace-pre-line">{section.new_unit_name || section.new_unit || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC_TYPE</span>
+                          <div className="text-green-900 font-semibold text-sm">{section.new_occ_type || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">ALLO_%</span>
+                          <div className="text-green-900 font-semibold text-sm">{section.allo_percent || 'N/A'}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -607,12 +694,19 @@ const SectionDetailPage: React.FC = () => {
             {/* Acreage & Financial */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div 
-                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="p-5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
                 onClick={() => toggleCardCollapse('acreageFinancial')}
               >
-                <h3 className="text-lg font-semibold text-gray-900">Acreage & Financial</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Acreage & Financial</h3>
+                </div>
                 <svg 
-                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.acreageFinancial ? 'rotate-180' : ''}`}
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${collapsedCards.acreageFinancial ? 'rotate-180' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -621,34 +715,42 @@ const SectionDetailPage: React.FC = () => {
                 </svg>
               </div>
               {!collapsedCards.acreageFinancial && (
-                <div className="px-6 pb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div>
-                  <span className="text-gray-600 text-sm">Gross Acres</span>
-                  <div className="text-gray-900 font-medium">{formatAcres(section.grossAcres)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Net Mineral Acres</span>
-                  <div className="text-gray-900 font-medium">{formatNMA(section.netMineralAcres)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Royalty %</span>
-                  <div className="text-gray-900 font-medium">{formatPercentage(section.royalty)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Ownership %</span>
-                  <div className="text-gray-900 font-medium">{formatPercentage(section.ownershipPercentage)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">NRA (1/8 normalized)</span>
-                  <div className="text-gray-900 font-medium">{formatAcres(section.nra)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">$/NRA Cap</span>
-                  <div className="text-gray-900 font-medium">
-                    {section.nraCapUsd ? `$${section.nraCapUsd.toLocaleString()}` : 'N/A'}
-                  </div>
-                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Gross Acres</span>
+                      <div className="text-gray-900 font-semibold text-lg">{formatAcres(section.grossAcres)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Net Mineral Acres</span>
+                      <div className="text-gray-900 font-semibold text-lg">{formatNMA(section.netMineralAcres)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Royalty %</span>
+                      <div className="text-gray-900 font-semibold text-lg">{formatPercentage(section.royalty)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Ownership %</span>
+                      <div className="text-gray-900 font-semibold text-lg">{formatPercentage(section.ownershipPercentage)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NRA (1/8 normalized)</span>
+                      <div className="text-gray-900 font-semibold text-lg">{formatAcres(section.nra)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">$/NRA Cap</span>
+                      <div className="text-gray-900 font-semibold text-lg">
+                        {section.nraCapUsd ? `$${section.nraCapUsd.toLocaleString()}` : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Closed Deals</span>
+                      <div className="text-gray-900 font-semibold text-lg">{section.closedDealsCount || 0}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Acres Acquired</span>
+                      <div className="text-gray-900 font-semibold text-lg">{formatNMA(section.netMineralAcresAcquired)}</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -657,12 +759,19 @@ const SectionDetailPage: React.FC = () => {
             {/* Notes & Flags */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div 
-                className="p-6 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="p-5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
                 onClick={() => toggleCardCollapse('notesFlags')}
               >
-                <h3 className="text-lg font-semibold text-gray-900">Notes & Flags</h3>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Notes & Flags</h3>
+                </div>
                 <svg 
-                  className={`w-5 h-5 text-gray-500 transform transition-transform ${collapsedCards.notesFlags ? 'rotate-180' : ''}`}
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${collapsedCards.notesFlags ? 'rotate-180' : ''}`}
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -671,32 +780,30 @@ const SectionDetailPage: React.FC = () => {
                 </svg>
               </div>
               {!collapsedCards.notesFlags && (
-                <div className="px-6 pb-6">
-                  <div className="space-y-4">
-                <div>
-                  <span className="text-gray-600 text-sm">Routing Notes</span>
-                  <div className="text-gray-900 mt-1">{section.routingNotes || 'No notes'}</div>
-                </div>
-                <div className="flex space-x-6">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={section.heldByFund} 
-                      disabled 
-                      className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600" 
-                    />
-                    <span className="text-sm text-gray-600">Held by Fund</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={section.isLocked} 
-                      disabled 
-                      className="h-4 w-4 rounded border-gray-300 text-gray-600 focus:ring-gray-600" 
-                    />
-                    <span className="text-sm text-gray-600">Lock Flag</span>
-                  </label>
-                </div>
+                <div className="p-6">
+                  <div className="space-y-5">
+                    {section.routingNotes && (
+                      <div>
+                        <span className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-2 block">Routing Notes</span>
+                        <div className="text-gray-900 mt-1 bg-gray-50 p-4 rounded-lg border border-gray-200 leading-relaxed">
+                          {section.routingNotes}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-4">
+                      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${section.heldByFund ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
+                        <div className={`w-3 h-3 rounded-full ${section.heldByFund ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                        <span className={`text-sm font-medium ${section.heldByFund ? 'text-green-700' : 'text-gray-600'}`}>
+                          Held by Fund
+                        </span>
+                      </div>
+                      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${section.isLocked ? 'bg-red-50 border border-red-200' : 'bg-gray-50 border border-gray-200'}`}>
+                        <div className={`w-3 h-3 rounded-full ${section.isLocked ? 'bg-red-500' : 'bg-gray-300'}`}></div>
+                        <span className={`text-sm font-medium ${section.isLocked ? 'text-red-700' : 'text-gray-600'}`}>
+                          Lock Flag
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

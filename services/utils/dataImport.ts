@@ -40,7 +40,8 @@ export async function createStagingTable(
 ): Promise<{ originalColumns: string[]; sanitizedColumns: string[] }> {
   const uniqueColumns = [...new Set(columns)];
   const sanitizedColumns = uniqueColumns.map((col, index) => {
-    let sanitized = col.replace(/[^a-zA-Z0-9_]/g, '_').replace(/_+/g, '_');
+    // Allow dollar signs and percentage signs in column names - MySQL supports them when escaped with backticks
+    let sanitized = col.replace(/[^a-zA-Z0-9_$%]/g, '_').replace(/_+/g, '_');
     if (sanitized === '' || sanitized.startsWith('_')) {
       sanitized = `column_${index}`;
     }
@@ -58,7 +59,8 @@ export async function createStagingTable(
   `;
   await executeQuery(dbPool, query);
   
-  return { originalColumns: columns, sanitizedColumns };
+  // Return unique columns (not the original which may have duplicates) for proper mapping
+  return { originalColumns: uniqueColumns, sanitizedColumns };
 }
 
 export async function createProductionTable(
@@ -85,7 +87,8 @@ export async function createProductionTable(
 
   const uniqueColumns = [...new Set(columns)];
   const sanitizedColumns = uniqueColumns.map((col, index) => {
-    let sanitized = col.replace(/[^a-zA-Z0-9_]/g, '_').replace(/_+/g, '_');
+    // Allow dollar signs and percentage signs in column names - MySQL supports them when escaped with backticks
+    let sanitized = col.replace(/[^a-zA-Z0-9_$%]/g, '_').replace(/_+/g, '_');
     if (sanitized === '' || sanitized.startsWith('_')) {
       sanitized = `column_${index}`;
     }
@@ -103,20 +106,28 @@ export async function createProductionTable(
   `;
   await executeQuery(dbPool, query);
   
-  return { originalColumns: columns, sanitizedColumns };
+  // Return unique columns (not the original which may have duplicates) for proper mapping
+  return { originalColumns: uniqueColumns, sanitizedColumns };
 }
 
 export async function importDataToStaging(
   dbPool: Pool | null,
   filePath: string,
   tableName: string,
-  columns: string[],
+  originalColumns: string[],
+  sanitizedColumns: string[],
   fileExtension: string
 ): Promise<number> {
+  // Create mapping from original column names to sanitized column names
+  const columnMapping = new Map<string, string>();
+  originalColumns.forEach((original, index) => {
+    columnMapping.set(original, sanitizedColumns[index] || original);
+  });
+
   if (fileExtension === '.csv') {
-    return await importDataFromCSV(dbPool, filePath, tableName, columns);
+    return await importDataFromCSV(dbPool, filePath, tableName, sanitizedColumns, columnMapping);
   } else if (fileExtension === '.xlsx' || fileExtension === '.xls') {
-    return await importDataFromExcel(dbPool, filePath, tableName, columns);
+    return await importDataFromExcel(dbPool, filePath, tableName, sanitizedColumns, columnMapping);
   }
   throw new Error(`Unsupported file format: ${fileExtension}`);
 }
@@ -125,7 +136,8 @@ async function importDataFromCSV(
   dbPool: Pool | null,
   filePath: string,
   tableName: string,
-  sanitizedColumns: string[]
+  sanitizedColumns: string[],
+  columnMapping: Map<string, string>
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     let recordCount = 0;
@@ -135,10 +147,13 @@ async function importDataFromCSV(
       .pipe(csv())
       .on('data', async (data: any) => {
         const mappedRecord: any = {};
-        sanitizedColumns.forEach((sanitizedCol, index) => {
-          const originalCol = Object.keys(data)[index];
-          const value = data[originalCol];
-          mappedRecord[sanitizedCol] = (value && String(value).trim() !== '') ? value : null;
+        // Map original column names (which may contain dollar signs) to sanitized column names
+        Object.keys(data).forEach((originalCol) => {
+          const sanitizedCol = columnMapping.get(originalCol);
+          if (sanitizedCol) {
+            const value = data[originalCol];
+            mappedRecord[sanitizedCol] = (value && String(value).trim() !== '') ? value : null;
+          }
         });
         
         const hasData = Object.values(mappedRecord).some(value => value !== null);
@@ -172,7 +187,8 @@ async function importDataFromExcel(
   dbPool: Pool | null,
   filePath: string,
   tableName: string,
-  sanitizedColumns: string[]
+  sanitizedColumns: string[],
+  columnMapping: Map<string, string>
 ): Promise<number> {
   const fileBuffer = fs.readFileSync(filePath);
   const workbook = XLSX.read(fileBuffer, { type: 'buffer' });

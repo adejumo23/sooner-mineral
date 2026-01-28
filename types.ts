@@ -49,6 +49,12 @@ export interface Section {
   isLocked: boolean;
   current_unit?: string;
   new_unit?: string;
+  allo_percent?: string; // ALLO_% column from prod_acreage_schedule
+  new_unit_name?: string; // NEW_UNIT_NAME column from prod_acreage_schedule
+  new_occ_type?: string; // NEW_OCC_TYPE column from prod_acreage_schedule
+  dollar_nra?: string; // $_NRA column from prod_acreage_schedule (as string for GROUP_CONCAT result)
+  closedDealsCount?: number; // Number of records with STATUS = 'closed' for this section
+  netMineralAcresAcquired?: number; // Sum of NMA where STATUS = 'closed' for this section
   
   // ESG Tracking Fields
   esgProfileId?: string;

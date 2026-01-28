@@ -260,6 +260,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
                   latitude,
                   longitude,
                   COALESCE(status, 'Unknown') as status,
+                  welltype as wellType,
                   created_at as createdAt,
                   updated_at as updatedAt
                 FROM producing_wells
@@ -328,6 +329,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
                 latitude,
                 longitude,
                 COALESCE(status, 'Unknown') as status,
+                welltype as wellType,
                 created_at as createdAt,
                 updated_at as updatedAt
               FROM producing_wells
@@ -376,6 +378,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
               latitude,
               longitude,
               COALESCE(status, 'Unknown') as status,
+              welltype as wellType,
               created_at as createdAt,
               updated_at as updatedAt
             FROM producing_wells
@@ -457,6 +460,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
                   latitude,
                   longitude,
                   COALESCE(status, 'Unknown') as status,
+                  welltype as wellType,
                   created_at as createdAt,
                   updated_at as updatedAt
                 FROM producing_wells
@@ -497,6 +501,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
                   latitude,
                   longitude,
                   COALESCE(status, 'Unknown') as status,
+                  welltype as wellType,
                   created_at as createdAt,
                   updated_at as updatedAt
                 FROM producing_wells
@@ -539,6 +544,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
                 latitude,
                 longitude,
                 COALESCE(status, 'Unknown') as status,
+                welltype as wellType,
                 created_at as createdAt,
                 updated_at as updatedAt
               FROM producing_wells
@@ -570,6 +576,7 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
         latitude: parseFloat(well.latitude) || 0,
         longitude: parseFloat(well.longitude) || 0,
         status: well.status || 'Unknown',
+        wellType: well.wellType || well.welltype || null,
         spudDate: null, // Not in new table structure
         completionDate: null, // Not in new table structure
         totalDepth: null, // Not in new table structure

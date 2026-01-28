@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { User, Role } from '../types';
 import * as api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -18,6 +18,38 @@ const UsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [sortField, setSortField] = useState<keyof User | string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  
+  // Initialize column visibility from localStorage
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('users-column-visibility');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
+
+  // Column width state and resizing
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('users-column-widths');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const fetchUsersAndRoles = useCallback(async () => {
     setIsLoading(true);
@@ -140,10 +172,55 @@ const UsersPage: React.FC = () => {
     return matchesSearch && matchesRole;
   });
 
-  const columns = [
+  const handleSort = (field: keyof User | string) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort users based on current sort field and direction
+  const sortedUsers = useMemo(() => {
+    return [...filteredUsers].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.name || '';
+          bValue = b.name || '';
+          break;
+        case 'email':
+          aValue = a.email || '';
+          bValue = b.email || '';
+          break;
+        case 'role':
+          aValue = a.role?.name || '';
+          bValue = b.role?.name || '';
+          break;
+        default:
+          aValue = a[sortField as keyof User] ?? '';
+          bValue = b[sortField as keyof User] ?? '';
+      }
+
+      // Handle comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      if (aStr < bStr) return sortDirection === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredUsers, sortField, sortDirection]);
+
+  const allColumns = [
     {
       header: 'Name',
       accessor: 'name',
+      alwaysVisible: false,
       cell: (user: User) => (
         <span className="text-sm font-medium text-gray-900">{user.name}</span>
       )
@@ -167,6 +244,7 @@ const UsersPage: React.FC = () => {
     {
       header: 'Actions',
       accessor: 'actions',
+      alwaysVisible: true,
       cell: (user: User) => (
         <div className="flex space-x-2">
           <Button variant="secondary" onClick={() => handleOpenModal(user)}>Edit</Button>
@@ -175,6 +253,87 @@ const UsersPage: React.FC = () => {
       )
     }
   ];
+
+  // Filter columns based on visibility
+  const columns = useMemo(() => {
+    return allColumns.filter(col => {
+      const accessor = col.accessor as string;
+      if (col.alwaysVisible) return true;
+      return visibleColumns.size === 0 || visibleColumns.has(accessor);
+    });
+  }, [visibleColumns]);
+
+  // Initialize visible columns on mount if not set
+  useEffect(() => {
+    if (visibleColumns.size === 0) {
+      const allAccessors = allColumns.map(col => col.accessor as string);
+      setVisibleColumns(new Set(allAccessors));
+      localStorage.setItem('users-column-visibility', JSON.stringify(Array.from(allAccessors)));
+    }
+  }, []);
+
+  const toggleColumnVisibility = (accessor: string) => {
+    const newVisible = new Set(visibleColumns);
+    if (newVisible.has(accessor)) {
+      newVisible.delete(accessor);
+    } else {
+      newVisible.add(accessor);
+    }
+    setVisibleColumns(newVisible);
+    localStorage.setItem('users-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const showAllColumns = () => {
+    const allAccessors = allColumns.map(col => col.accessor as string);
+    const newVisible = new Set(allAccessors);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('users-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const hideAllColumns = () => {
+    const newVisible = new Set(['actions']);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('users-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  // Column resizing handlers
+  const handleResizeStart = (e: React.MouseEvent, accessor: string, currentWidth: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(accessor);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(currentWidth);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(100, resizeStartWidth + diff);
+      setColumnWidths(prev => {
+        const updated = { ...prev, [resizingColumn]: newWidth };
+        localStorage.setItem('users-column-widths', JSON.stringify(updated));
+        return updated;
+      });
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+
+  const getColumnWidth = (accessor: string): number => {
+    return columnWidths[accessor] || 150;
+  };
 
   return (
     <div className="space-y-6">
@@ -225,8 +384,134 @@ const UsersPage: React.FC = () => {
                   <option key={role.id} value={role.id}>{role.name}</option>
                 ))}
               </select>
+              
+              {/* Column Visibility Toggle */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2 border border-gray-300"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <span>Columns</span>
+                  <svg className={`w-4 h-4 transition-transform ${isColumnMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {isColumnMenuOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsColumnMenuOpen(false)}
+                    ></div>
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+                      <div className="p-3 border-b border-gray-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-sm font-semibold text-gray-900">Column Visibility</h3>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={showAllColumns}
+                              className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              Show All
+                            </button>
+                            <button
+                              onClick={hideAllColumns}
+                              className="text-xs text-gray-600 hover:text-gray-800"
+                            >
+                              Hide All
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2">
+                        {allColumns.map((column) => {
+                          const accessor = column.accessor as string;
+                          const isVisible = column.alwaysVisible || visibleColumns.size === 0 || visibleColumns.has(accessor);
+                          const isDisabled = column.alwaysVisible;
+                          
+                          return (
+                            <div key={accessor} className="p-2 rounded hover:bg-gray-50">
+                              <label
+                                className={`flex items-center space-x-2 cursor-pointer ${
+                                  isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isVisible}
+                                  onChange={() => !isDisabled && toggleColumnVisibility(accessor)}
+                                  disabled={isDisabled}
+                                  className="h-4 w-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm text-gray-700 flex-1">{column.header}</span>
+                                {isDisabled && (
+                                  <span className="text-xs text-gray-400">Required</span>
+                                )}
+                              </label>
+                              {!isDisabled && (
+                                <div className="mt-1 flex items-center space-x-2">
+                                  <span className="text-xs text-gray-500">Width: {getColumnWidth(accessor)}px</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newWidth = getColumnWidth(accessor) + 50;
+                                      setColumnWidths(prev => {
+                                        const updated = { ...prev, [accessor]: newWidth };
+                                        localStorage.setItem('users-column-widths', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                    title="Increase width by 50px"
+                                  >
+                                    +50
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newWidth = Math.max(100, getColumnWidth(accessor) - 50);
+                                      setColumnWidths(prev => {
+                                        const updated = { ...prev, [accessor]: newWidth };
+                                        localStorage.setItem('users-column-widths', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                    title="Decrease width by 50px"
+                                  >
+                                    -50
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setColumnWidths(prev => {
+                                        const updated = { ...prev };
+                                        delete updated[accessor];
+                                        localStorage.setItem('users-column-widths', JSON.stringify(updated));
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-xs text-gray-600 hover:text-gray-800 px-2 py-0.5 rounded hover:bg-gray-100"
+                                    title="Reset to default width"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              
               <div className="text-sm text-gray-500 flex items-center px-3">
-                {filteredUsers.length} of {users.length} users
+                {sortedUsers.length} of {users.length} users
               </div>
             </div>
           </div>
@@ -243,61 +528,200 @@ const UsersPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  {columns.find(col => col.accessor === 'name') && (
+                    <th 
+                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                        sortField === 'name' ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Name</span>
+                        {sortField === 'name' && (
+                          <span className="text-gray-400">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                        {sortField !== 'name' && (
+                          <span className="opacity-30 text-xs">⇅</span>
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  {columns.find(col => col.accessor === 'email') && (() => {
+                    const accessor = 'email';
+                    const width = getColumnWidth(accessor);
+                    const isResizing = resizingColumn === accessor;
+                    return (
+                      <th 
+                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative ${
+                          sortField === 'email' ? 'bg-gray-100' : ''
+                        }`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                            return;
+                          }
+                          handleSort('email');
+                        }}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Email</span>
+                          {sortField === 'email' && (
+                            <span className="text-gray-400">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                          {sortField !== 'email' && (
+                            <span className="opacity-30 text-xs">⇅</span>
+                          )}
+                        </div>
+                        <div
+                          className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                            isResizing ? 'bg-blue-500' : 'bg-transparent'
+                          }`}
+                          onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                          style={{ userSelect: 'none' }}
+                        />
+                      </th>
+                    );
+                  })()}
+                  {columns.find(col => col.accessor === 'role') && (() => {
+                    const accessor = 'role';
+                    const width = getColumnWidth(accessor);
+                    const isResizing = resizingColumn === accessor;
+                    return (
+                      <th 
+                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative ${
+                          sortField === 'role' ? 'bg-gray-100' : ''
+                        }`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                            return;
+                          }
+                          handleSort('role');
+                        }}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Role</span>
+                          {sortField === 'role' && (
+                            <span className="text-gray-400">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                          {sortField !== 'role' && (
+                            <span className="opacity-30 text-xs">⇅</span>
+                          )}
+                        </div>
+                        <div
+                          className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                            isResizing ? 'bg-blue-500' : 'bg-transparent'
+                          }`}
+                          onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                          style={{ userSelect: 'none' }}
+                        />
+                      </th>
+                    );
+                  })()}
+                  {(() => {
+                    const accessor = 'status';
+                    const width = getColumnWidth(accessor);
+                    const isResizing = resizingColumn === accessor;
+                    return (
+                      <th 
+                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                      >
+                        Status
+                        <div
+                          className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                            isResizing ? 'bg-blue-500' : 'bg-transparent'
+                          }`}
+                          onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                          style={{ userSelect: 'none' }}
+                        />
+                      </th>
+                    );
+                  })()}
+                  {columns.find(col => col.accessor === 'actions') && (() => {
+                    const accessor = 'actions';
+                    const width = getColumnWidth(accessor);
+                    const isResizing = resizingColumn === accessor;
+                    return (
+                      <th 
+                        style={{ width: `${width}px`, minWidth: `${width}px` }}
+                        className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                      >
+                        Actions
+                        <div
+                          className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                            isResizing ? 'bg-blue-500' : 'bg-transparent'
+                          }`}
+                          onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                          style={{ userSelect: 'none' }}
+                        />
+                      </th>
+                    );
+                  })()}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {sortedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-indigo-600">
-                              {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                            </span>
+                    {columns.find(col => col.accessor === 'name') && (
+                      <td style={{ width: `${getColumnWidth('name')}px`, minWidth: `${getColumnWidth('name')}px` }} className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <span className="text-sm font-medium text-indigo-600">
+                                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                        {user.role.name}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                      </td>
+                    )}
+                    {columns.find(col => col.accessor === 'email') && (
+                      <td style={{ width: `${getColumnWidth('email')}px`, minWidth: `${getColumnWidth('email')}px` }} className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{user.email}</div>
+                      </td>
+                    )}
+                    {columns.find(col => col.accessor === 'role') && (
+                      <td style={{ width: `${getColumnWidth('role')}px`, minWidth: `${getColumnWidth('role')}px` }} className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                          {user.role.name}
+                        </span>
+                      </td>
+                    )}
+                    <td style={{ width: `${getColumnWidth('status')}px`, minWidth: `${getColumnWidth('status')}px` }} className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                         Active
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <Button 
-                          variant="secondary" 
-                          onClick={() => handleOpenModal(user)}
-                          className="text-sm"
-                        >
-                          Edit
-                        </Button>
-                        <Button 
-                          variant="danger" 
-                          onClick={() => handleDelete(user.id)}
-                          className="text-sm"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
+                    {columns.find(col => col.accessor === 'actions') && (
+                      <td style={{ width: `${getColumnWidth('actions')}px`, minWidth: `${getColumnWidth('actions')}px` }} className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="secondary" 
+                            onClick={() => handleOpenModal(user)}
+                            className="text-sm"
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="danger" 
+                            onClick={() => handleDelete(user.id)}
+                            className="text-sm"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -306,7 +730,7 @@ const UsersPage: React.FC = () => {
         </Card>
       )}
 
-      {filteredUsers.length === 0 && !isLoading && (
+      {sortedUsers.length === 0 && !isLoading && (
         <Card>
           <div className="text-center py-8">
             <div className="text-gray-500 text-lg">No users found</div>

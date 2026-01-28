@@ -180,7 +180,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           updatedAt: row.updated_at,
           linkedContact: {
             id: `contact-${offset + index}`,
-            name: row.name,
+            name: row.contact || row.name,
             city: row.city,
             state: row.state,
             street: row.street,
@@ -235,7 +235,47 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
     }
   });
 
-  // Get single lead by ID
+  // Get lead call logs - MUST be before /api/leads/:id route
+  router.get('/api/leads/:id/call-logs', async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`[LEADS] GET /api/leads/${id}/call-logs requested`);
+      
+      if (!dbPool) {
+        console.log(`[LEADS] Database pool not initialized, returning empty array`);
+        return res.json([]);
+      }
+
+      // For now, return empty array - call logs can be implemented later
+      console.log(`[LEADS] Returning empty call logs array for lead ${id}`);
+      res.json([]);
+    } catch (error: any) {
+      console.error('[LEADS] Error fetching lead call logs:', error);
+      res.status(500).json({ error: 'Failed to fetch lead call logs' });
+    }
+  });
+
+  // Get lead notes - MUST be before /api/leads/:id route
+  router.get('/api/leads/:id/notes', async (req, res) => {
+    try {
+      const { id } = req.params;
+      console.log(`[LEADS] GET /api/leads/${id}/notes requested`);
+      
+      if (!dbPool) {
+        console.log(`[LEADS] Database pool not initialized, returning empty array`);
+        return res.json([]);
+      }
+
+      // For now, return empty array - notes can be implemented later
+      console.log(`[LEADS] Returning empty notes array for lead ${id}`);
+      res.json([]);
+    } catch (error: any) {
+      console.error('[LEADS] Error fetching lead notes:', error);
+      res.status(500).json({ error: 'Failed to fetch lead notes' });
+    }
+  });
+
+  // Get single lead by ID - MUST be last (after all specific routes)
   router.get('/api/leads/:id', async (req, res) => {
     try {
       if (!dbPool) {
@@ -321,7 +361,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         updatedAt: row.updated_at,
         linkedContact: {
           id: `contact-${leadIndex}`,
-          name: row.name,
+          name: row.contact || row.name,
           city: row.city,
           state: row.state,
           street: row.street,
@@ -354,237 +394,6 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
       res.status(500).json({ 
         success: false, 
         message: 'Error fetching lead', 
-        error: error.message 
-      });
-    }
-  });
-
-  // Get lead sections
-  router.get('/api/leads/:id/sections', async (req, res) => {
-    try {
-      if (!dbPool) {
-        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
-      }
-
-      const { id } = req.params;
-      const leadIndex = parseInt(id.replace('lead-', ''));
-      
-      const leadQuery = `
-        SELECT DISTINCT
-          OWNER as name,
-          CURRENT_UNIT_NAME as unitName,
-          BUYER as buyer,
-          STATUS as status,
-          created_at,
-          updated_at
-        FROM prod_acreage_schedule
-        WHERE OWNER IS NOT NULL AND OWNER != ''
-        ORDER BY OWNER
-        LIMIT 1 OFFSET ${leadIndex}
-      `;
-
-      const leadRows = await executeQuery(dbPool, leadQuery);
-      
-      if (leadRows.length === 0) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Lead not found' 
-        });
-      }
-
-      const leadRow = leadRows[0];
-      
-      const sectionsQuery = `
-        SELECT DISTINCT
-          CURRENT_UNIT_NAME as sectionName,
-          COUNTY as county,
-          ST as state,
-          S_T_R as str,
-          NMA as grossAcres,
-          NMA as netMineralAcres,
-          ROY as royalty,
-          BUYER as assignedBuyerId,
-          STATUS as status,
-          created_at,
-          updated_at
-        FROM prod_acreage_schedule
-        WHERE OWNER = ? 
-          AND CURRENT_UNIT_NAME IS NOT NULL 
-          AND CURRENT_UNIT_NAME != ''
-        ORDER BY CURRENT_UNIT_NAME
-      `;
-
-      const sectionRows = await executeQuery(dbPool, sectionsQuery, [leadRow.name]);
-      
-      const sections = sectionRows.map((row: any, index: number) => ({
-        id: `section-${leadIndex}-${index}`,
-        sectionName: row.sectionName,
-        county: row.county,
-        state: row.state || 'OK',
-        str: row.str,
-        legalDescription: row.sectionName || '',
-        grossAcres: parseFloat(row.grossAcres) || 0,
-        netMineralAcres: parseFloat(row.netMineralAcres) || 0,
-        royalty: parseFloat(row.royalty) || 0,
-        assignedBuyerId: row.assignedBuyerId?.toLowerCase() || 'unassigned',
-        assignedBuyerName: row.assignedBuyerId || 'Unassigned',
-        titleStatus: 'Not Verified',
-        heldByFund: false,
-        isLocked: false,
-        status: row.status === 'DROPPED' ? 'Inactive' : 
-                row.status === 'LVM/TXT/EMAIL' ? 'Active' :
-                row.status === 'NEW' ? 'Pending' :
-                row.status === 'WTL' ? 'Under Review' : 'Pending',
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      }));
-      
-      res.json(sections);
-    } catch (error: any) {
-      console.error('Error fetching lead sections:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Error fetching lead sections', 
-        error: error.message 
-      });
-    }
-  });
-
-  // Get lead notes
-  router.get('/api/leads/:id/notes', async (req, res) => {
-    try {
-      if (!dbPool) {
-        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
-      }
-
-      const { id } = req.params;
-      const leadIndex = parseInt(id.replace('lead-', ''));
-      
-      const leadQuery = `
-        SELECT DISTINCT
-          OWNER as name,
-          CURRENT_UNIT_NAME as unitName,
-          BUYER as buyer,
-          STATUS as status,
-          created_at,
-          updated_at
-        FROM prod_acreage_schedule
-        WHERE OWNER IS NOT NULL AND OWNER != ''
-        ORDER BY OWNER
-        LIMIT 1 OFFSET ${leadIndex}
-      `;
-
-      const leadRows = await executeQuery(dbPool, leadQuery);
-      
-      if (leadRows.length === 0) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Lead not found' 
-        });
-      }
-
-      const notesQuery = `
-        SELECT 
-          ln.id,
-          ln.lead_id,
-          ln.note_text,
-          ln.note_type,
-          ln.created_by_id,
-          ln.created_at,
-          u.name as created_by_name,
-          u.email as created_by_email
-        FROM lead_notes ln
-        LEFT JOIN users u ON ln.created_by_id = u.id
-        WHERE ln.lead_id = ?
-        ORDER BY ln.created_at DESC
-      `;
-
-      const notesRows = await executeQuery(dbPool, notesQuery, [`lead${leadIndex + 1}`]);
-      
-      const notes = notesRows.map((row: any, index: number) => ({
-        id: row.id,
-        leadId: row.lead_id,
-        noteText: row.note_text,
-        noteType: row.note_type || 'General',
-        createdBy: row.created_by_id,
-        createdAt: row.created_at,
-        createdByUser: {
-          id: row.created_by_id,
-          name: row.created_by_name || 'Unknown User',
-          email: row.created_by_email || 'unknown@company.com'
-        }
-      }));
-      
-      res.json(notes);
-    } catch (error: any) {
-      console.error('Error fetching lead notes:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Error fetching lead notes', 
-        error: error.message 
-      });
-    }
-  });
-
-  // Get lead email activities
-  router.get('/api/leads/:id/email-activities', async (req, res) => {
-    try {
-      if (!dbPool) {
-        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
-      }
-
-      const { id } = req.params;
-      
-      // Query the communications table for email activities linked to this lead
-      // Note: If communications table doesn't have data yet, return empty array
-      const query = `
-        SELECT 
-          c.id,
-          c.lead_id as leadId,
-          c.timestamp as emailDate,
-          c.direction,
-          c.subject,
-          c.full_message as body,
-          c.email_address as recipientEmail,
-          c.outcome as status,
-          c.message_snippet as notes,
-          c.user_id as loggedById,
-          u.name as logged_by_name,
-          u.email as logged_by_email
-        FROM communications c
-        LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.lead_id = ? 
-          AND c.method = 'Email'
-        ORDER BY c.timestamp DESC
-      `;
-
-      const rows = await executeQuery(dbPool, query, [id]).catch(() => []);
-      
-      const emailActivities = rows.map((row: any) => ({
-        id: row.id,
-        leadId: row.leadId,
-        emailDate: row.emailDate,
-        direction: row.direction === 'Outbound' ? 'Sent' : 'Received',
-        subject: row.subject,
-        body: row.body,
-        recipientEmail: row.direction === 'Outbound' ? row.recipientEmail : null,
-        senderEmail: row.direction === 'Inbound' ? row.recipientEmail : null,
-        status: row.status,
-        notes: row.notes,
-        loggedById: row.loggedById,
-        loggedBy: row.logged_by_name ? {
-          id: row.loggedById,
-          name: row.logged_by_name,
-          email: row.logged_by_email
-        } : undefined
-      }));
-      
-      res.json(emailActivities);
-    } catch (error: any) {
-      console.error('Error fetching lead email activities:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Error fetching lead email activities', 
         error: error.message 
       });
     }

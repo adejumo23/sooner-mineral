@@ -41,6 +41,127 @@ const ContactsPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'totalNMA' | 'totalNRA' | 'lastContactedDate' | 'riskLevel'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  
+  // Initialize column visibility from localStorage
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('contacts-column-visibility');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
+
+  // Column width state and resizing
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('contacts-column-widths');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
+
+  const handleColumnSort = (field: 'name' | 'totalNMA' | 'totalNRA' | 'lastContactedDate' | 'riskLevel') => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const allColumns = [
+    { header: 'Contact', accessor: 'contact', alwaysVisible: false },
+    { header: 'Role & Type', accessor: 'roleType', alwaysVisible: false },
+    { header: 'Total Acres', accessor: 'totalAcres', alwaysVisible: false },
+    { header: 'Distress Signals', accessor: 'distressSignals', alwaysVisible: false },
+    { header: 'Last Contact', accessor: 'lastContact', alwaysVisible: false },
+    { header: 'Status', accessor: 'status', alwaysVisible: false },
+    { header: 'Actions', accessor: 'actions', alwaysVisible: true },
+  ];
+
+  // Initialize visible columns on mount if not set
+  useEffect(() => {
+    if (visibleColumns.size === 0) {
+      const allAccessors = allColumns.map(col => col.accessor);
+      setVisibleColumns(new Set(allAccessors));
+      localStorage.setItem('contacts-column-visibility', JSON.stringify(Array.from(allAccessors)));
+    }
+  }, []);
+
+  const toggleColumnVisibility = (accessor: string) => {
+    const newVisible = new Set(visibleColumns);
+    if (newVisible.has(accessor)) {
+      newVisible.delete(accessor);
+    } else {
+      newVisible.add(accessor);
+    }
+    setVisibleColumns(newVisible);
+    localStorage.setItem('contacts-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const showAllColumns = () => {
+    const allAccessors = allColumns.map(col => col.accessor);
+    const newVisible = new Set(allAccessors);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('contacts-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const hideAllColumns = () => {
+    const newVisible = new Set(['actions']);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('contacts-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  // Column resizing handlers
+  const handleResizeStart = (e: React.MouseEvent, accessor: string, currentWidth: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(accessor);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(currentWidth);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(100, resizeStartWidth + diff);
+      setColumnWidths(prev => {
+        const updated = { ...prev, [resizingColumn]: newWidth };
+        localStorage.setItem('contacts-column-widths', JSON.stringify(updated));
+        return updated;
+      });
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+
+  const getColumnWidth = (accessor: string): number => {
+    return columnWidths[accessor] || 150;
+  };
 
   useEffect(() => {
     loadContacts();
@@ -274,6 +395,131 @@ const ContactsPage: React.FC = () => {
               <option value="asc">Ascending</option>
               <option value="desc">Descending</option>
             </select>
+
+            {/* Column Visibility Toggle */}
+            <div className="relative">
+              <button
+                onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2 border border-gray-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <span>Columns</span>
+                <svg className={`w-4 h-4 transition-transform ${isColumnMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {isColumnMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setIsColumnMenuOpen(false)}
+                  ></div>
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-sm font-semibold text-gray-900">Column Visibility</h3>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={showAllColumns}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            Show All
+                          </button>
+                          <button
+                            onClick={hideAllColumns}
+                            className="text-xs text-gray-600 hover:text-gray-800"
+                          >
+                            Hide All
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      {allColumns.map((column) => {
+                        const accessor = column.accessor;
+                        const isVisible = column.alwaysVisible || visibleColumns.size === 0 || visibleColumns.has(accessor);
+                        const isDisabled = column.alwaysVisible;
+                        
+                        return (
+                          <div key={accessor} className="p-2 rounded hover:bg-gray-50">
+                            <label
+                              className={`flex items-center space-x-2 cursor-pointer ${
+                                isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isVisible}
+                                onChange={() => !isDisabled && toggleColumnVisibility(accessor)}
+                                disabled={isDisabled}
+                                className="h-4 w-4 rounded border-gray-300 text-teal-500 focus:ring-teal-500"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{column.header}</span>
+                              {isDisabled && (
+                                <span className="text-xs text-gray-400">Required</span>
+                              )}
+                            </label>
+                            {!isDisabled && (
+                              <div className="mt-1 flex items-center space-x-2">
+                                <span className="text-xs text-gray-500">Width: {getColumnWidth(accessor)}px</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newWidth = getColumnWidth(accessor) + 50;
+                                    setColumnWidths(prev => {
+                                      const updated = { ...prev, [accessor]: newWidth };
+                                      localStorage.setItem('contacts-column-widths', JSON.stringify(updated));
+                                      return updated;
+                                    });
+                                  }}
+                                  className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                  title="Increase width by 50px"
+                                >
+                                  +50
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newWidth = Math.max(100, getColumnWidth(accessor) - 50);
+                                    setColumnWidths(prev => {
+                                      const updated = { ...prev, [accessor]: newWidth };
+                                      localStorage.setItem('contacts-column-widths', JSON.stringify(updated));
+                                      return updated;
+                                    });
+                                  }}
+                                  className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50"
+                                  title="Decrease width by 50px"
+                                >
+                                  -50
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setColumnWidths(prev => {
+                                      const updated = { ...prev };
+                                      delete updated[accessor];
+                                      localStorage.setItem('contacts-column-widths', JSON.stringify(updated));
+                                      return updated;
+                                    });
+                                  }}
+                                  className="text-xs text-gray-600 hover:text-gray-800 px-2 py-0.5 rounded hover:bg-gray-100"
+                                  title="Reset to default width"
+                                >
+                                  Reset
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Advanced Filters */}
@@ -406,130 +652,317 @@ const ContactsPage: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role & Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Acres
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Distress Signals
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {visibleColumns.has('contact') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'contact';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative ${
+                        sortBy === 'name' ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                          return;
+                        }
+                        handleColumnSort('name');
+                      }}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Contact</span>
+                        {sortBy === 'name' && (
+                          <span className="text-gray-400">
+                            {sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                        {sortBy !== 'name' && (
+                          <span className="opacity-30 text-xs">⇅</span>
+                        )}
+                      </div>
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
+                {visibleColumns.has('roleType') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'roleType';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                    >
+                      Role & Type
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
+                {visibleColumns.has('totalAcres') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'totalAcres';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative ${
+                        sortBy === 'totalNMA' || sortBy === 'totalNRA' ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                          return;
+                        }
+                        handleColumnSort('totalNMA');
+                      }}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Total Acres</span>
+                        {(sortBy === 'totalNMA' || sortBy === 'totalNRA') && (
+                          <span className="text-gray-400">
+                            {sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                        {sortBy !== 'totalNMA' && sortBy !== 'totalNRA' && (
+                          <span className="opacity-30 text-xs">⇅</span>
+                        )}
+                      </div>
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
+                {visibleColumns.has('distressSignals') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'distressSignals';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                    >
+                      Distress Signals
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
+                {visibleColumns.has('lastContact') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'lastContact';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative ${
+                        sortBy === 'lastContactedDate' ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).classList.contains('column-resizer')) {
+                          return;
+                        }
+                        handleColumnSort('lastContactedDate');
+                      }}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Last Contact</span>
+                        {sortBy === 'lastContactedDate' && (
+                          <span className="text-gray-400">
+                            {sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                        {sortBy !== 'lastContactedDate' && (
+                          <span className="opacity-30 text-xs">⇅</span>
+                        )}
+                      </div>
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
+                {visibleColumns.has('status') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'status';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                    >
+                      Status
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
+                {visibleColumns.has('actions') || visibleColumns.size === 0 ? (() => {
+                  const accessor = 'actions';
+                  const width = getColumnWidth(accessor);
+                  const isResizing = resizingColumn === accessor;
+                  return (
+                    <th 
+                      style={{ width: `${width}px`, minWidth: `${width}px` }}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                    >
+                      Actions
+                      <div
+                        className={`column-resizer absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 ${
+                          isResizing ? 'bg-blue-500' : 'bg-transparent'
+                        }`}
+                        onMouseDown={(e) => handleResizeStart(e, accessor, width)}
+                        style={{ userSelect: 'none' }}
+                      />
+                    </th>
+                  );
+                })() : null}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredContacts.map((contact) => (
                 <tr key={contact.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          <UserIcon className="h-5 w-5 text-gray-700" />
+                  {(visibleColumns.has('contact') || visibleColumns.size === 0) && (
+                    <td style={{ width: `${getColumnWidth('contact')}px`, minWidth: `${getColumnWidth('contact')}px` }} className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                            <UserIcon className="h-5 w-5 text-gray-700" />
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            <Link 
+                              to={`/contacts/${contact.id}`}
+                              className="text-sc-blue hover:text-sc-blue-600"
+                            >
+                              {contact.name}
+                            </Link>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {contact.city}, {contact.state}
+                          </div>
+                          {contact.email && (
+                            <div className="text-xs text-gray-400">
+                              {contact.email}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          <Link 
-                            to={`/contacts/${contact.id}`}
-                            className="text-sc-blue hover:text-sc-blue-600"
-                          >
-                            {contact.name}
-                          </Link>
+                    </td>
+                  )}
+                  {(visibleColumns.has('roleType') || visibleColumns.size === 0) && (
+                    <td style={{ width: `${getColumnWidth('roleType')}px`, minWidth: `${getColumnWidth('roleType')}px` }} className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="font-medium">{contact.role}</div>
+                        <div className="text-gray-500">{contact.ownershipType}</div>
+                        <div className="text-xs text-gray-400">{contact.contactType}</div>
+                      </div>
+                    </td>
+                  )}
+                  {(visibleColumns.has('totalAcres') || visibleColumns.size === 0) && (
+                    <td style={{ width: `${getColumnWidth('totalAcres')}px`, minWidth: `${getColumnWidth('totalAcres')}px` }} className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        <div className="font-medium">
+                          {contact.totalNMA ? contact.totalNMA.toLocaleString() : '0'} NMA
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {contact.city}, {contact.state}
+                        <div className="text-gray-500">
+                          {contact.totalNRA ? contact.totalNRA.toLocaleString() : '0'} NRA
                         </div>
-                        {contact.email && (
-                          <div className="text-xs text-gray-400">
-                            {contact.email}
-                          </div>
+                        <div className="text-xs text-gray-400">
+                          {contact.linkedTractCount} tracts
+                        </div>
+                      </div>
+                    </td>
+                  )}
+                  {(visibleColumns.has('distressSignals') || visibleColumns.size === 0) && (
+                    <td style={{ width: `${getColumnWidth('distressSignals')}px`, minWidth: `${getColumnWidth('distressSignals')}px` }} className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        {getDistressSignalIcon(contact.distressSignals)}
+                        {contact.distressSignals.length > 0 && (
+                          <span className="text-sm text-gray-900">
+                            {contact.distressSignals.length} signal{contact.distressSignals.length !== 1 ? 's' : ''}
+                          </span>
                         )}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      <div className="font-medium">{contact.role}</div>
-                      <div className="text-gray-500">{contact.ownershipType}</div>
-                      <div className="text-xs text-gray-400">{contact.contactType}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      <div className="font-medium">
-                        {contact.totalNMA ? contact.totalNMA.toLocaleString() : '0'} NMA
+                    </td>
+                  )}
+                  {(visibleColumns.has('lastContact') || visibleColumns.size === 0) && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {contact.lastContactedDate ? (
+                          <span>{new Date(contact.lastContactedDate).toLocaleDateString()}</span>
+                        ) : (
+                          <span className="text-gray-400">Never contacted</span>
+                        )}
                       </div>
-                      <div className="text-gray-500">
-                        {contact.totalNRA ? contact.totalNRA.toLocaleString() : '0'} NRA
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {contact.linkedTractCount} tracts
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      {getDistressSignalIcon(contact.distressSignals)}
-                      {contact.distressSignals.length > 0 && (
-                        <span className="text-sm text-gray-900">
-                          {contact.distressSignals.length} signal{contact.distressSignals.length !== 1 ? 's' : ''}
+                    </td>
+                  )}
+                  {(visibleColumns.has('status') || visibleColumns.size === 0) && (
+                    <td style={{ width: `${getColumnWidth('status')}px`, minWidth: `${getColumnWidth('status')}px` }} className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col space-y-1">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          contact.preferredContactMethod === 'Do Not Contact' 
+                            ? 'bg-red-100 text-red-800'
+                            : contact.preferredContactMethod === 'Call'
+                            ? 'bg-blue-100 text-blue-800'
+                            : contact.preferredContactMethod === 'Email'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {contact.preferredContactMethod}
                         </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {contact.lastContactedDate ? (
-                        <span>{new Date(contact.lastContactedDate).toLocaleDateString()}</span>
-                      ) : (
-                        <span className="text-gray-400">Never contacted</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col space-y-1">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        contact.preferredContactMethod === 'Do Not Contact' 
-                          ? 'bg-red-100 text-red-800'
-                          : contact.preferredContactMethod === 'Call'
-                          ? 'bg-blue-100 text-blue-800'
-                          : contact.preferredContactMethod === 'Email'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {contact.preferredContactMethod}
-                      </span>
-                      {contact.activeLeadCount > 0 && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          {contact.activeLeadCount} active lead{contact.activeLeadCount !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <Link to={`/contacts/${contact.id}`}>
+                        {contact.activeLeadCount > 0 && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            {contact.activeLeadCount} active lead{contact.activeLeadCount !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                  {(visibleColumns.has('actions') || visibleColumns.size === 0) && (
+                    <td style={{ width: `${getColumnWidth('actions')}px`, minWidth: `${getColumnWidth('actions')}px` }} className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Link to={`/contacts/${contact.id}`}>
+                          <Button variant="outline" size="sm">
+                            View Profile
+                          </Button>
+                        </Link>
                         <Button variant="outline" size="sm">
-                          View Profile
+                          <PhoneIcon className="h-4 w-4" />
                         </Button>
-                      </Link>
-                      <Button variant="outline" size="sm">
-                        <PhoneIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

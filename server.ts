@@ -29,9 +29,9 @@ let dataImportService: DataImportService | null = null;
 // Request deduplication
 const pendingRequests = new Map<string, Promise<any>>();
 
-const createDatabasePool = () => {
+const createDatabasePool = async () => {
   try {
-    dbPool = mysql.createPool({
+    const dbConfig = {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.MYSQL_USER || 'soonermineral',
@@ -41,24 +41,56 @@ const createDatabasePool = () => {
       connectionLimit: 10,
       queueLimit: 0,
       idleTimeout: 300000, // 5 minutes
-    });
-    console.log('✅ Database connection pool created');
+    };
     
-    // Initialize data import service after database connection
+    console.log('🔌 Attempting to connect to database...');
+    console.log(`   Host: ${dbConfig.host}`);
+    console.log(`   Port: ${dbConfig.port}`);
+    console.log(`   Database: ${dbConfig.database}`);
+    console.log(`   User: ${dbConfig.user}`);
+    
+    dbPool = mysql.createPool(dbConfig);
+    
+    // Test the connection
     try {
-      dataImportService = new DataImportService(dbPool);
-      console.log('✅ Data import service initialized');
+      const connection = await dbPool.getConnection();
+      await connection.ping();
+      connection.release();
+      console.log('✅ Database connection pool created and tested successfully');
+      
+      // Initialize data import service after database connection
+      try {
+        dataImportService = new DataImportService(dbPool);
+        console.log('✅ Data import service initialized');
+      } catch (error: any) {
+        console.error('❌ Failed to initialize data import service:', error.message);
+        dbPool = null; // Mark as failed
+      }
     } catch (error: any) {
-      console.error('❌ Failed to initialize data import service:', error.message);
+      console.error('❌ Database connection test failed:', error.message);
+      console.error('   Error details:', error);
+      console.log('');
+      console.log('⚠️  Make sure:');
+      console.log('   1. MySQL database is running');
+      console.log('   2. Database credentials are correct in .env file');
+      console.log('   3. Database "' + dbConfig.database + '" exists');
+      console.log('   4. User "' + dbConfig.user + '" has proper permissions');
+      console.log('   5. Port ' + dbConfig.port + ' is accessible');
+      dbPool = null; // Mark as failed
     }
   } catch (error: any) {
     console.error('❌ Database pool creation failed:', error.message);
-    console.log('Make sure your MySQL database is running on port 3359');
+    console.error('   Error details:', error);
+    dbPool = null;
+    console.log('');
+    console.log('⚠️  Make sure your MySQL database is running and accessible');
   }
 };
 
 // Initialize database connection pool
-createDatabasePool();
+createDatabasePool().catch((error) => {
+  console.error('❌ Failed to initialize database pool:', error);
+});
 
 // Middleware
 app.use(cors());

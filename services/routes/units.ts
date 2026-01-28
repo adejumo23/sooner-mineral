@@ -321,7 +321,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          ALLO_ AS ALLOCATION_PERCENT,
+          \`ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
@@ -424,7 +424,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          ALLO_ AS ALLOCATION_PERCENT,
+          \`ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
@@ -616,7 +616,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          ALLO_ AS ALLOCATION_PERCENT,
+          \`ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
@@ -874,7 +874,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          ALLO_ AS ALLOCATION_PERCENT,
+          \`ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
@@ -977,7 +977,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          ALLO_ AS ALLOCATION_PERCENT,
+          \`ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
@@ -1367,15 +1367,15 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           PHONE_EMAIL as phoneEmail,
           NMA as nma,
           ROY as royalty,
-          ALLO_ as allocation,
+          \`ALLO_%\` as allocation,
           COUNT(*) as tractCount,
           SUM(CAST(NMA AS DECIMAL(10,2))) as totalNMA,
           AVG(CAST(ROY AS DECIMAL(5,2))) as avgRoyalty,
-          AVG(CAST(ALLO_ AS DECIMAL(5,2))) as avgAllocation
+          AVG(CAST(\`ALLO_%\` AS DECIMAL(5,2))) as avgAllocation
         FROM prod_acreage_schedule
         WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
           AND OWNER IS NOT NULL AND OWNER != ''
-        GROUP BY OWNER, CONTACT, STREET, CITY, ST, ZIP, PHONE_EMAIL, NMA, ROY, ALLO_
+        GROUP BY OWNER, CONTACT, STREET, CITY, ST, ZIP, PHONE_EMAIL, NMA, ROY, \`ALLO_%\`
         ORDER BY OWNER
       `;
 
@@ -1909,7 +1909,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          ALLO_ AS ALLOCATION_PERCENT,
+          \`ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
@@ -2503,8 +2503,8 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           CONTACT,
           INTEREST_TYPE,
           PAYSTUB_NRI,
-          ALLO_,
-          TOTAL_,
+          \`ALLO_%\` AS ALLO_,
+          \`TOTAL_\$\`,
           LAST_OGL,
           NEW_OCC_TYPE,
           created_at,

@@ -1,13 +1,18 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Section, User, TitleStatus } from '../types';
 import * as api from '../services/api';
+import * as arcgis from '../services/arcgis';
 import Table from '../components/ui/Table';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import { formatNMA } from '../utils/formatting';
+import { parsePLSS, calculatePLSSCoordinates, createPLSSPolygon, type ParsedPLSS } from '../utils/plssCoordinates';
+import Map from "@arcgis/core/Map";
+import MapView from "@arcgis/core/views/MapView";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 
 const titleStatuses: TitleStatus[] = ['In Progress', 'Verified', 'Verified with Curative Requirements', 'Failed', 'Unmapped'];
 
@@ -25,6 +30,14 @@ const SectionsPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchTerm, setSearchTerm] = useState('');
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'table' | 'map'>('table');
+  
+  // Map-related state
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapView, setMapView] = useState<any>(null);
+  const [arcgisLoaded, setArcgisLoaded] = useState(false);
+  const [sectionsLayer, setSectionsLayer] = useState<any>(null);
+  const [isMapLoading, setIsMapLoading] = useState(false);
   
   // Initialize column visibility from localStorage or default to all visible
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
@@ -302,6 +315,34 @@ const SectionsPage: React.FC = () => {
       )
     },
     {
+      header: 'ALLO_%',
+      accessor: 'allo_percent',
+      cell: (section: Section) => (
+        <div className="text-sm text-gray-900 whitespace-pre-line">{section.allo_percent || 'N/A'}</div>
+      )
+    },
+    {
+      header: 'NEW_UNIT_NAME',
+      accessor: 'new_unit_name',
+      cell: (section: Section) => (
+        <div className="text-sm text-gray-900 whitespace-pre-line">{section.new_unit_name || 'N/A'}</div>
+      )
+    },
+    {
+      header: 'NEW_OCC_TYPE',
+      accessor: 'new_occ_type',
+      cell: (section: Section) => (
+        <div className="text-sm text-gray-900 whitespace-pre-line">{section.new_occ_type || 'N/A'}</div>
+      )
+    },
+    {
+      header: '$_NRA',
+      accessor: 'dollar_nra',
+      cell: (section: Section) => (
+        <div className="text-sm text-gray-900 whitespace-pre-line">{section.dollar_nra || 'N/A'}</div>
+      )
+    },
+    {
       header: 'Status',
       accessor: 'status',
       cell: (section: Section) => {
@@ -460,9 +501,36 @@ const SectionsPage: React.FC = () => {
             Add Section
           </button>
         </div>
+        
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 mt-4">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('table')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'table'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Table View
+            </button>
+            <button
+              onClick={() => setActiveTab('map')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'map'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Map View
+            </button>
+          </nav>
+        </div>
       </div>
 
-      {/* Search Bar and Column Controls */}
+      {/* Search Bar and Column Controls - Only show in table view */}
+      {activeTab === 'table' && (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="flex items-center space-x-4 mb-4">
           <div className="flex-1 relative">
@@ -619,9 +687,22 @@ const SectionsPage: React.FC = () => {
           </p>
         )}
       </div>
+      )}
 
       {isLoading ? (
         <p className="text-center text-sc-medium-gray">Loading sections...</p>
+      ) : activeTab === 'map' ? (
+        <div className="bg-white rounded-lg border border-sc-light-orange shadow-lg relative" style={{ height: 'calc(100vh - 300px)', minHeight: '600px' }}>
+          {isMapLoading && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
+                <p className="text-gray-600">Loading map...</p>
+              </div>
+            </div>
+          )}
+          <div ref={mapRef} style={{ width: '100%', height: '100%' }}></div>
+        </div>
       ) : (
         <div className="bg-white rounded-lg border border-sc-light-orange shadow-lg overflow-x-auto">
           <table className="table-auto divide-y divide-sc-light-orange" style={{ minWidth: '100%', tableLayout: 'auto' }}>

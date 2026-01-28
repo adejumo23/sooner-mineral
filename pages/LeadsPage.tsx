@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchLeads, fetchUsers, fetchSections, fetchUnits } from '../services/api';
 import { LeadEnhanced, User, Section, Unit, LeadFilters } from '../types';
@@ -20,6 +20,20 @@ const LeadsPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<keyof LeadEnhanced | string>('priorityScore');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  
+  // Initialize column visibility from localStorage
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('leads-column-visibility');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -180,16 +194,20 @@ const LeadsPage: React.FC = () => {
     return 'bg-green-100 text-green-800';
   };
 
-  const columns = [
+  const allColumns = [
     {
       header: 'Contact',
       accessor: 'linkedContact',
       sortable: true,
       className: 'min-w-[200px]',
-      cell: (lead: LeadEnhanced) => (
+      alwaysVisible: false,
+      cell: (lead: LeadEnhanced) => {
+        // Use the same logic everywhere: prefer contact field, then linkedContact.name, then name
+        const displayName = lead.contact || lead.linkedContact?.name || lead.name || 'Unknown Contact';
+        return (
         <div>
           <div className="font-medium text-gray-900">
-            {lead.linkedContact?.name || lead.name || 'Unknown Contact'}
+            {displayName}
           </div>
           <div className="text-sm text-gray-600 hidden sm:block">
             {lead.linkedContact?.city || lead.city}, {lead.linkedContact?.state || lead.state}
@@ -198,7 +216,8 @@ const LeadsPage: React.FC = () => {
             {lead.phoneEmail || 'No contact info'}
           </div>
         </div>
-      )
+        );
+      }
     },
     {
       header: 'Assets',
@@ -297,6 +316,7 @@ const LeadsPage: React.FC = () => {
       accessor: 'actions',
       sortable: false,
       className: 'min-w-[80px]',
+      alwaysVisible: true,
       cell: (lead: LeadEnhanced) => (
         <div className="flex space-x-2">
           <Link
@@ -309,6 +329,48 @@ const LeadsPage: React.FC = () => {
       )
     }
   ];
+
+  // Filter columns based on visibility
+  const columns = useMemo(() => {
+    return allColumns.filter(col => {
+      const accessor = col.accessor as string;
+      if (col.alwaysVisible) return true;
+      return visibleColumns.size === 0 || visibleColumns.has(accessor);
+    });
+  }, [visibleColumns]);
+
+  // Initialize visible columns on mount if not set
+  useEffect(() => {
+    if (visibleColumns.size === 0) {
+      const allAccessors = allColumns.map(col => col.accessor as string);
+      setVisibleColumns(new Set(allAccessors));
+      localStorage.setItem('leads-column-visibility', JSON.stringify(Array.from(allAccessors)));
+    }
+  }, []);
+
+  const toggleColumnVisibility = (accessor: string) => {
+    const newVisible = new Set(visibleColumns);
+    if (newVisible.has(accessor)) {
+      newVisible.delete(accessor);
+    } else {
+      newVisible.add(accessor);
+    }
+    setVisibleColumns(newVisible);
+    localStorage.setItem('leads-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const showAllColumns = () => {
+    const allAccessors = allColumns.map(col => col.accessor as string);
+    const newVisible = new Set(allAccessors);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('leads-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
+
+  const hideAllColumns = () => {
+    const newVisible = new Set(['actions']);
+    setVisibleColumns(newVisible);
+    localStorage.setItem('leads-column-visibility', JSON.stringify(Array.from(newVisible)));
+  };
 
   return (
     <div className="space-y-6">
@@ -359,6 +421,82 @@ const LeadsPage: React.FC = () => {
               <FunnelIcon className="h-4 w-4 mr-2" />
               Filters
             </Button>
+            
+            {/* Column Visibility Toggle */}
+            <div className="relative">
+              <button
+                onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center space-x-2 border border-gray-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <span>Columns</span>
+                <svg className={`w-4 h-4 transition-transform ${isColumnMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {isColumnMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setIsColumnMenuOpen(false)}
+                  ></div>
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-sm font-semibold text-gray-900">Column Visibility</h3>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={showAllColumns}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            Show All
+                          </button>
+                          <button
+                            onClick={hideAllColumns}
+                            className="text-xs text-gray-600 hover:text-gray-800"
+                          >
+                            Hide All
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      {allColumns.map((column) => {
+                        const accessor = column.accessor as string;
+                        const isVisible = column.alwaysVisible || visibleColumns.size === 0 || visibleColumns.has(accessor);
+                        const isDisabled = column.alwaysVisible;
+                        
+                        return (
+                          <div key={accessor} className="p-2 rounded hover:bg-gray-50">
+                            <label
+                              className={`flex items-center space-x-2 cursor-pointer ${
+                                isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isVisible}
+                                onChange={() => !isDisabled && toggleColumnVisibility(accessor)}
+                                disabled={isDisabled}
+                                className="h-4 w-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{column.header}</span>
+                              {isDisabled && (
+                                <span className="text-xs text-gray-400">Required</span>
+                              )}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            
             <Button variant="outline" onClick={clearFilters}>
               Clear
             </Button>

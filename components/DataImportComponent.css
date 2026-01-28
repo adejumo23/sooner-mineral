@@ -89,23 +89,40 @@
   padding: 15px 20px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 8px 8px 0 0;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   color: #666;
+  position: relative;
+  border-bottom: 3px solid transparent;
 }
 
 .tab-btn:hover:not(:disabled) {
   background: #f8f9fa;
   color: #333;
+  border-bottom-color: #cbd5e0;
 }
 
 .tab-btn.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  border-bottom-color: #667eea;
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #667eea;
+  border-radius: 3px 3px 0 0;
 }
 
 .tab-btn:disabled {
