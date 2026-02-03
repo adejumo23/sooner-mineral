@@ -420,7 +420,7 @@ export const createDataImportRoutes = (
           COUNT(DISTINCT OWNER) as unique_owners,
           COUNT(*) as mineral_interests,
           SUM(CAST(NMA AS DECIMAL(10,2))) as total_acres,
-          AVG(CAST(ALLO_ AS DECIMAL(5,2))) as avg_interest
+          AVG(CAST(\`CURRENT_ALLO_%\` AS DECIMAL(5,2))) as avg_interest
         FROM prod_acreage_schedule
         WHERE NMA IS NOT NULL AND NMA != '' AND NMA != '0'
         GROUP BY COUNTY
@@ -456,10 +456,10 @@ export const createDataImportRoutes = (
           'Production Data' as operator,
           COUNT(*) as total_units,
           COUNT(*) as total_wells,
-          AVG(CAST(ALLO_ AS DECIMAL(5,2))) as avg_allocation,
+          AVG(CAST(\`CURRENT_ALLO_%\` AS DECIMAL(5,2))) as avg_allocation,
           AVG(CAST(ROY AS DECIMAL(5,2))) as avg_pricing
         FROM prod_acreage_schedule
-        WHERE ALLO_ IS NOT NULL AND ALLO_ != '' AND ALLO_ != '0'
+        WHERE \`CURRENT_ALLO_%\` IS NOT NULL AND \`CURRENT_ALLO_%\` != '' AND \`CURRENT_ALLO_%\` != '0'
         UNION ALL
         SELECT 
           'Oklahoma Pricing' as operator,
@@ -554,10 +554,10 @@ export const createDataImportRoutes = (
           LEGAL_DESCRIPTION,
           NMA,
           OWNER,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET,
+          OWNER_CITY,
+          OWNER_ST,
+          OWNER_ZIP,
           PHONE_EMAIL,
           ROY,
           '0' AS ALLOCATION_PERCENT,
@@ -657,12 +657,12 @@ export const createDataImportRoutes = (
       const query = `
         SELECT 
           COUNTY as county,
-          ST as state,
+          OWNER_ST as state,
           COUNT(*) as count,
           SUM(NMA) as total_acres,
           COUNT(DISTINCT OWNER) as unique_owners
         FROM prod_acreage_schedule
-        GROUP BY COUNTY, ST
+        GROUP BY COUNTY, OWNER_ST
         ORDER BY count DESC
       `;
 

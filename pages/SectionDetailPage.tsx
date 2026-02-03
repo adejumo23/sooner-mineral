@@ -566,12 +566,18 @@ const SectionDetailPage: React.FC = () => {
                         {section.assignedBuyer?.name || 'Unassigned'}
                       </div>
                     </div>
-                    {section.sourceChannel && (
-                      <div className="space-y-1">
-                        <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Source Channel</span>
-                        <div className="text-gray-900 font-semibold text-base">{section.sourceChannel}</div>
-                      </div>
-                    )}
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Source Channel</span>
+                      <div className="text-gray-900 font-semibold text-base">{section.sourceChannel || 'N/A'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Title Source</span>
+                      <div className="text-gray-900 font-semibold text-base">{(section as any).title_source || 'N/A'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">ANUM</span>
+                      <div className="text-gray-900 font-semibold text-base">{section.anum || 'N/A'}</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -614,12 +620,6 @@ const SectionDetailPage: React.FC = () => {
                         <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">STR (Combined)</span>
                         <div className="text-gray-900 font-semibold text-base font-mono">{section.str || 'N/A'}</div>
                       </div>
-                      {section.anum && (
-                        <div className="space-y-1">
-                          <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">ANUM</span>
-                          <div className="text-gray-900 font-semibold text-base">{section.anum}</div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -656,16 +656,20 @@ const SectionDetailPage: React.FC = () => {
                       <h4 className="text-sm font-semibold text-blue-900 mb-4 uppercase tracking-wide">Current Unit</h4>
                       <div className="space-y-4">
                         <div>
-                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Unit Name</span>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Current Unit</span>
                           <div className="text-blue-900 font-semibold text-sm whitespace-pre-line">{section.current_unit || 'N/A'}</div>
                         </div>
                         <div>
-                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC_TYPE</span>
-                          <div className="text-blue-900 font-semibold text-sm">{section.new_occ_type || 'N/A'}</div>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Allocation %</span>
+                          <div className="text-blue-900 font-semibold text-sm">{section.allo_percent || 'N/A'}</div>
                         </div>
                         <div>
-                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">ALLO_%</span>
-                          <div className="text-blue-900 font-semibold text-sm">{section.allo_percent || 'N/A'}</div>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">SPUD DATE</span>
+                          <div className="text-blue-900 font-semibold text-sm">{(section as any).spudDate || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">First Production</span>
+                          <div className="text-blue-900 font-semibold text-sm">{(section as any).firstProduction || 'N/A'}</div>
                         </div>
                       </div>
                     </div>
@@ -673,16 +677,20 @@ const SectionDetailPage: React.FC = () => {
                       <h4 className="text-sm font-semibold text-green-900 mb-4 uppercase tracking-wide">New Unit</h4>
                       <div className="space-y-4">
                         <div>
-                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">Unit Name</span>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">New Unit</span>
                           <div className="text-green-900 font-semibold text-sm whitespace-pre-line">{section.new_unit_name || section.new_unit || 'N/A'}</div>
                         </div>
                         <div>
-                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC_TYPE</span>
-                          <div className="text-green-900 font-semibold text-sm">{section.new_occ_type || 'N/A'}</div>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">Allocation %</span>
+                          <div className="text-green-900 font-semibold text-sm">{(section as any).allo_percent_al || section.allo_percent || 'N/A'}</div>
                         </div>
                         <div>
-                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">ALLO_%</span>
-                          <div className="text-green-900 font-semibold text-sm">{section.allo_percent || 'N/A'}</div>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC DATE</span>
+                          <div className="text-green-900 font-semibold text-sm">{(section as any).occDate || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC TYPE (COLUMN AJ)</span>
+                          <div className="text-green-900 font-semibold text-sm">{section.new_occ_type || 'N/A'}</div>
                         </div>
                       </div>
                     </div>
@@ -718,38 +726,44 @@ const SectionDetailPage: React.FC = () => {
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                     <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Gross Acres</span>
-                      <div className="text-gray-900 font-semibold text-lg">{formatAcres(section.grossAcres)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Net Mineral Acres</span>
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NET MINERAL ACRES</span>
                       <div className="text-gray-900 font-semibold text-lg">{formatNMA(section.netMineralAcres)}</div>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Royalty %</span>
-                      <div className="text-gray-900 font-semibold text-lg">{formatPercentage(section.royalty)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Ownership %</span>
-                      <div className="text-gray-900 font-semibold text-lg">{formatPercentage(section.ownershipPercentage)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NRA (1/8 normalized)</span>
-                      <div className="text-gray-900 font-semibold text-lg">{formatAcres(section.nra)}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">$/NRA Cap</span>
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NET ROYALTY ACRES</span>
                       <div className="text-gray-900 font-semibold text-lg">
-                        {section.nraCapUsd ? `$${section.nraCapUsd.toLocaleString()}` : 'N/A'}
+                        {section.netRoyaltyAcres != null ? formatNMA(section.netRoyaltyAcres) : (section.nra != null ? formatAcres(section.nra) : 'N/A')}
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Closed Deals</span>
-                      <div className="text-gray-900 font-semibold text-lg">{section.closedDealsCount || 0}</div>
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NRA/$ CAP</span>
+                      <div className="text-gray-900 font-semibold text-lg">
+                        {section.nraCapUsd != null ? `$${Number(section.nraCapUsd).toLocaleString()}` : 'N/A'}
+                      </div>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">Acres Acquired</span>
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NUMBER OF DEALS CLOSED</span>
+                      <div className="text-gray-900 font-semibold text-lg">{section.closedDealsCount ?? 0}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NET MINERAL ACRES ACQUIRED</span>
                       <div className="text-gray-900 font-semibold text-lg">{formatNMA(section.netMineralAcresAcquired)}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">ROYALTY</span>
+                      <div className="text-gray-900 font-semibold text-lg">{section.royalty != null ? `${Number(section.royalty).toFixed(4)}%` : 'N/A'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">NET ROYALTY ACRES ACQUIRED</span>
+                      <div className="text-gray-900 font-semibold text-lg">
+                        {section.netRoyaltyAcresAcquired != null ? formatNMA(section.netRoyaltyAcresAcquired) : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">OWNERSHIP % IN SECTION</span>
+                      <div className="text-gray-900 font-semibold text-lg">
+                        {section.ownershipPercentInSection != null ? `${section.ownershipPercentInSection.toFixed(6)}%` : 'N/A'}
+                      </div>
                     </div>
                   </div>
                 </div>

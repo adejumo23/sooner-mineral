@@ -17,8 +17,8 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         return res.status(500).json({ success: false, message: 'Database pool not initialized' });
       }
 
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+      const limit = Math.min(1000, Math.max(1, parseInt(String(req.query.limit), 10) || 50));
       const offset = (page - 1) * limit;
 
       if (page < 1 || limit < 1 || limit > 1000) {
@@ -29,178 +29,170 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const countQuery = `
-        SELECT COUNT(DISTINCT TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))) as total
+        SELECT COUNT(*) as total
         FROM prod_acreage_schedule
         WHERE CURRENT_UNIT_NAME IS NOT NULL 
           AND CURRENT_UNIT_NAME != ''
       `;
       const countResult = await executeQuery(dbPool, countQuery);
-      const totalCount = countResult[0].total;
+      const totalCount = Number(countResult[0]?.total ?? 0);
 
-      const uniqueUnitsQuery = `
-        SELECT DISTINCT TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) as CURRENT_UNIT_NAME
+      const query = `
+        SELECT 
+          id,
+          CURRENT_UNIT_NAME,
+          NEW_UNIT_NAME,
+          S_T_R as str,
+          \`New_ALLO_%\` as new_allo_pct,
+          COUNTY as primary_county,
+          STATE as state,
+          STATUS as status,
+          BUYER as assigned_buyer,
+          NMA,
+          \`$_NRA\` as total_nra_usd,
+          NEW_OCC_TYPE as occ_type,
+          created_at,
+          updated_at,
+          NOTE as notes
         FROM prod_acreage_schedule
         WHERE CURRENT_UNIT_NAME IS NOT NULL 
           AND CURRENT_UNIT_NAME != ''
-        ORDER BY TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))
-      `;
-      
-      const uniqueUnits = await executeQuery(dbPool, uniqueUnitsQuery);
-      const totalUniqueUnits = uniqueUnits.length;
-      
-      const startIndex = offset;
-      const endIndex = Math.min(offset + limit, totalUniqueUnits);
-      const paginatedUnitNames = uniqueUnits.slice(startIndex, endIndex).map((u: any) => u.CURRENT_UNIT_NAME);
-      
-      if (paginatedUnitNames.length === 0) {
-        return res.json({
-          data: [],
-          pagination: {
-            page,
-            limit,
-            total: totalUniqueUnits,
-            totalPages: Math.ceil(totalUniqueUnits / limit),
-            hasNextPage: page < Math.ceil(totalUniqueUnits / limit),
-            hasPrevPage: page > 1,
-            nextPage: page < Math.ceil(totalUniqueUnits / limit) ? page + 1 : null,
-            prevPage: page > 1 ? page - 1 : null
-          }
-        });
-      }
-      
-      const placeholders = paginatedUnitNames.map(() => '?').join(',');
-      const query = `
-        SELECT 
-          TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) as unit_name,
-          COUNT(DISTINCT S_T_R) as section_count,
-          SUM(NMA) as total_net_mineral_acres,
-          AVG(ROY) as average_royalty,
-          MAX(BUYER) as assigned_buyer,
-          MAX(COUNTY) as primary_county,
-          MAX(ST) as state,
-          MAX(STATUS) as status,
-          MAX(NOTE) as notes,
-          MAX(created_at) as created_at,
-          MAX(updated_at) as updated_at
-        FROM prod_acreage_schedule
-        WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) IN (${placeholders})
-        GROUP BY TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))
-        ORDER BY TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' '))
+        ORDER BY REGEXP_REPLACE(TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\\r\\n', ' '), '\\n', ' ')), ' +', ' '), S_T_R
+        LIMIT ? OFFSET ?
       `;
 
-      const rows = await executeQuery(dbPool, query, paginatedUnitNames);
+      // Pass as strings to avoid mysql2/MySQL 8.0.22+ stmt_execute argument issues
+      const rows = await executeQuery(dbPool, query, [String(limit), String(offset)]);
       
-      // Fetch all metadata for all units in one query
+      const parentUnitNames = [...new Set(rows.map((r: any) => {
+        const raw = r.CURRENT_UNIT_NAME || '';
+        return raw.replace(/\r\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+      }))];
+
       let metadataMap = new Map<string, any>();
       try {
-        if (rows.length > 0) {
-          const unitNames = rows.map((r: any) => r.unit_name);
-          const placeholders = unitNames.map(() => '?').join(',');
+        if (parentUnitNames.length > 0) {
+          const placeholders = parentUnitNames.map(() => '?').join(',');
           const metadataQuery = `SELECT * FROM units_metadata WHERE unit_name IN (${placeholders})`;
-          const metadataResults = await executeQuery(dbPool, metadataQuery, unitNames);
+          const metadataResults = await executeQuery(dbPool, metadataQuery, parentUnitNames);
           metadataResults.forEach((metadata: any) => {
             metadataMap.set(metadata.unit_name, metadata);
           });
         }
       } catch (metadataError: any) {
-        // If units_metadata table doesn't exist yet, use defaults
-        console.log('Metadata table not available, using defaults:', metadataError.message);
+        console.log('Metadata table not available, using defaults:', (metadataError as Error).message);
       }
-      
-      const units = rows.map((row: any, index: number) => {
-        const unitId = encodeURIComponent(row.unit_name);
-        
-        // Get metadata from the map
-        const metadata = metadataMap.get(row.unit_name);
+
+      const units: any[] = [];
+      for (const row of rows) {
+        const parentUnitName = (row.CURRENT_UNIT_NAME || '').replace(/\r\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+        const unitId = encodeURIComponent(parentUnitName);
+        const currentUnitDisplayName = (String(row.CURRENT_UNIT_NAME || '').split(/\r?\n/)[0]?.trim()) || parentUnitName;
+
+        const newUnitLines = (row.NEW_UNIT_NAME && String(row.NEW_UNIT_NAME).trim())
+          ? String(row.NEW_UNIT_NAME).split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
+          : [currentUnitDisplayName];
+        const strLines = (row.str && String(row.str).trim())
+          ? String(row.str).split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
+          : [row.str || ''];
+        const alloLines = (row.new_allo_pct != null && String(row.new_allo_pct).trim())
+          ? String(row.new_allo_pct).split(/\r?\n/).map((s: string) => s.trim()).filter(Boolean)
+          : [row.new_allo_pct ?? ''];
+
+        const lineCount = Math.max(1, newUnitLines.length, strLines.length, alloLines.length);
+
+        const metadata = metadataMap.get(parentUnitName);
         let operator = 'Unknown';
         let apiNumbers: string[] = [];
-        let targetFormations: string[] = [];
+        let targetFormations: string[] = ['Hunton', 'Woodford', 'Mississippian'];
         let linkedSectionIds: string[] = [];
         let linkedContactIds: string[] = [];
         let heldByFund = false;
         let exitStrategy: 'Hold' | 'Flip' | 'LP Buyout' = 'Hold';
         let isLocked = false;
         let notes = row.notes || '';
-        
+        let spudDate: string | null = null;
+
         if (metadata) {
           operator = metadata.operator || 'Unknown';
+          spudDate = metadata.spud_date || null;
           if (metadata.api_numbers) {
-            try {
-              apiNumbers = JSON.parse(metadata.api_numbers);
-            } catch (e) {
-              apiNumbers = [];
-            }
+            try { apiNumbers = JSON.parse(metadata.api_numbers); } catch (e) { apiNumbers = []; }
           }
           if (metadata.target_formations) {
-            try {
-              targetFormations = JSON.parse(metadata.target_formations);
-            } catch (e) {
-              targetFormations = ['Hunton', 'Woodford', 'Mississippian'];
-            }
+            try { targetFormations = JSON.parse(metadata.target_formations); } catch (e) {}
           }
           if (metadata.linked_section_ids) {
-            try {
-              linkedSectionIds = JSON.parse(metadata.linked_section_ids);
-            } catch (e) {
-              linkedSectionIds = [];
-            }
+            try { linkedSectionIds = JSON.parse(metadata.linked_section_ids); } catch (e) {}
           }
           if (metadata.linked_contact_ids) {
-            try {
-              linkedContactIds = JSON.parse(metadata.linked_contact_ids);
-            } catch (e) {
-              linkedContactIds = [];
-            }
+            try { linkedContactIds = JSON.parse(metadata.linked_contact_ids); } catch (e) {}
           }
           heldByFund = Boolean(metadata.held_by_fund);
           exitStrategy = metadata.exit_strategy || 'Hold';
           isLocked = Boolean(metadata.is_locked);
           notes = metadata.notes || notes;
         }
-        
-        return {
-          id: unitId,
-          unitName: row.unit_name,
-          operator: operator,
-          apiNumbers: apiNumbers,
-          targetFormations: targetFormations.length > 0 ? targetFormations : ['Hunton', 'Woodford', 'Mississippian'],
-          status: row.status === 'PRODUCING' ? 'Producing' : 
-                 row.status === 'PERMITTED' ? 'Permitted' : 'Held by Production',
-          estimatedGrossAcres: parseFloat(row.total_net_mineral_acres) || 0,
-          estimatedNetAcres: parseFloat(row.total_net_mineral_acres) || 0,
-          county: row.primary_county || 'Unknown',
-          state: row.state || 'OK',
-          linkedSectionIds: linkedSectionIds,
-          linkedContactIds: linkedContactIds,
-          assignedBuyerId: null,
-          assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
-          heldByFund: heldByFund,
-          exitStrategy: exitStrategy,
-          isLocked: isLocked,
-          notes: notes,
-          createdAt: row.created_at || new Date().toISOString(),
-          updatedAt: row.updated_at || new Date().toISOString(),
-          createdBy: 'system',
-          updatedBy: 'system',
-          createdByUser: null,
-          updatedByUser: null,
-          esgProfileId: null,
-          esgRiskLevel: null,
-          carbonIntensity: null,
-          operatorComplianceScore: null,
-          regulatoryCompliance: null,
-          hasRiskFlags: false,
-          lastESGUpdate: null,
-          totalNetMineralAcres: parseFloat(row.total_net_mineral_acres) || 0,
-          averageRoyalty: parseFloat(row.average_royalty) || 0,
-          allocationPercentage: 0,
-          buyer: row.assigned_buyer,
-          sectionCount: parseInt(row.section_count) || 0,
-          linkedTractIds: Array.from({ length: parseInt(row.section_count) || 0 }, (_, i) => `section_${i + 1}`)
-        };
-      });
 
-      const totalPages = Math.ceil(totalUniqueUnits / limit);
+        const nma = parseFloat(row.NMA) || 0;
+        const nraCapUsd = row.total_nra_usd != null && row.total_nra_usd !== '' ? parseFloat(row.total_nra_usd) : null;
+
+        for (let i = 0; i < lineCount; i++) {
+          const displayUnitName = newUnitLines[i] ?? newUnitLines[0] ?? currentUnitDisplayName;
+          const strVal = strLines[i] ?? strLines[0] ?? row.str ?? '';
+          const alloVal = alloLines[i] ?? alloLines[0] ?? row.new_allo_pct;
+          const allocationPct = alloVal != null && String(alloVal).trim() !== '' ? parseFloat(String(alloVal)) : undefined;
+
+          units.push({
+            id: unitId,
+            scheduleRowId: row.id ? `${row.id}-${i}` : undefined,
+            currentUnitName: currentUnitDisplayName,
+            unitName: displayUnitName,
+            operator,
+            apiNumbers,
+            targetFormations,
+            status: (row.status === 'PRODUCING' ? 'Producing' : row.status === 'PERMITTED' ? 'Permitted' : 'Held by Production') as 'Permitted' | 'Producing' | 'Held by Production' | 'Plugged',
+            estimatedGrossAcres: nma,
+            estimatedNetAcres: nma,
+            county: row.primary_county || 'Unknown',
+            state: row.state || 'OK',
+            linkedSectionIds,
+            linkedContactIds,
+            assignedBuyerId: null,
+            assignedBuyer: row.assigned_buyer ? { name: row.assigned_buyer } : null,
+            heldByFund,
+            exitStrategy,
+            isLocked,
+            notes,
+            createdAt: row.created_at || new Date().toISOString(),
+            updatedAt: row.updated_at || new Date().toISOString(),
+            createdBy: 'system',
+            updatedBy: 'system',
+            createdByUser: null,
+            updatedByUser: null,
+            esgProfileId: null,
+            esgRiskLevel: null,
+            carbonIntensity: null,
+            operatorComplianceScore: null,
+            regulatoryCompliance: null,
+            hasRiskFlags: false,
+            lastESGUpdate: null,
+            totalNetMineralAcres: nma,
+            averageRoyalty: 0,
+            allocationPercentage: allocationPct,
+            buyer: row.assigned_buyer,
+            sectionCount: 1,
+            linkedTractIds: [] as string[],
+            str: strVal || undefined,
+            occType: row.occ_type || undefined,
+            occDate: row.created_at || null,
+            nraCapUsd: nraCapUsd ?? null,
+            spudDate
+          });
+        }
+      }
+
+      const totalPages = Math.ceil(totalCount / limit);
       const hasNextPage = page < totalPages;
       const hasPrevPage = page > 1;
 
@@ -209,7 +201,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         pagination: {
           page: page,
           limit: limit,
-          total: totalUniqueUnits,
+          total: totalCount,
           totalPages: totalPages,
           hasNextPage: hasNextPage,
           hasPrevPage: hasPrevPage,
@@ -235,7 +227,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for unit names for:', unitName);
       
       const query = `
@@ -309,7 +301,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for tracts for unit:', unitName);
       
       const query = `
@@ -321,16 +313,16 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          \`ALLO_%\` AS ALLOCATION_PERCENT,
+          \`CURRENT_ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
           INTEREST_TYPE,
           LEGAL_DESCRIPTION,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           CONTACT,
           created_at,
@@ -370,7 +362,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         legalDescription: row.LEGAL_DESCRIPTION,
         netMineralAcres: parseFloat(row.NMA) || 0,
         grossAcres: parseFloat(row.NMA) || 0,
-        state: row.ST || 'OK',
+        state: row.state || 'OK',
         heldByFund: false,
         isLocked: false,
         titleStatus: 'Unmapped',
@@ -379,9 +371,9 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         createdBy: 'system',
         updatedBy: 'system',
         owner: row.OWNER,
-        street: row.STREET,
-        city: row.CITY,
-        zip: row.ZIP,
+        street: row.street,
+        city: row.city,
+        zip: row.zip,
         phoneEmail: row.PHONE_EMAIL,
         royalty: parseFloat(row.ROY) || 0,
         allocationPercent: parseFloat(row.ALLOCATION_PERCENT) || 0,
@@ -412,7 +404,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for enhanced tracts for unit:', unitName);
       
       const query = `
@@ -424,16 +416,16 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          \`ALLO_%\` AS ALLOCATION_PERCENT,
+          \`CURRENT_ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
           INTEREST_TYPE,
           LEGAL_DESCRIPTION,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           CONTACT,
           created_at,
@@ -473,7 +465,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         legalDescription: row.LEGAL_DESCRIPTION,
         netMineralAcres: parseFloat(row.NMA) || 0,
         grossAcres: parseFloat(row.NMA) || 0,
-        state: row.ST || 'OK',
+        state: row.state || 'OK',
         heldByFund: false,
         isLocked: false,
         titleStatus: 'Unmapped',
@@ -482,9 +474,9 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         createdBy: 'system',
         updatedBy: 'system',
         owner: row.OWNER,
-        street: row.STREET,
-        city: row.CITY,
-        zip: row.ZIP,
+        street: row.street,
+        city: row.city,
+        zip: row.zip,
         phoneEmail: row.PHONE_EMAIL,
         royalty: parseFloat(row.ROY) || 0,
         allocationPercent: parseFloat(row.ALLOCATION_PERCENT) || 0,
@@ -515,7 +507,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for assignments for unit:', unitName);
       
       if (pendingRequests.has(unitName)) {
@@ -604,7 +596,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for unit name:', unitName);
       
       const query = `
@@ -616,16 +608,16 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          \`ALLO_%\` AS ALLOCATION_PERCENT,
+          \`CURRENT_ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
           INTEREST_TYPE,
           LEGAL_DESCRIPTION,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           CONTACT,
           created_at,
@@ -717,7 +709,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
               estimatedGrossAcres: parseFloat(row.NMA) || 0,
               estimatedNetAcres: parseFloat(row.NMA) || 0,
               county: row.COUNTY,
-              state: row.ST || 'OK',
+              state: row.state || 'OK',
               linkedTractIds: [row.id],
               linkedSectionIds: linkedSectionIds,
               linkedContactIds: linkedContactIds,
@@ -748,9 +740,9 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
               legalDescription: row.LEGAL_DESCRIPTION,
               owner: row.OWNER,
               contact: row.CONTACT,
-              street: row.STREET,
-              city: row.CITY,
-              zip: row.ZIP,
+              street: row.street,
+              city: row.city,
+              zip: row.zip,
               phoneEmail: row.PHONE_EMAIL
             });
           } else {
@@ -788,7 +780,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for unit names for:', unitName);
       
       const query = `
@@ -862,7 +854,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for tracts for unit:', unitName);
       
       const query = `
@@ -874,16 +866,16 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          \`ALLO_%\` AS ALLOCATION_PERCENT,
+          \`CURRENT_ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
           INTEREST_TYPE,
           LEGAL_DESCRIPTION,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           CONTACT,
           created_at,
@@ -923,7 +915,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         legalDescription: row.LEGAL_DESCRIPTION,
         netMineralAcres: parseFloat(row.NMA) || 0,
         grossAcres: parseFloat(row.NMA) || 0,
-        state: row.ST || 'OK',
+        state: row.state || 'OK',
         heldByFund: false,
         isLocked: false,
         titleStatus: 'Unmapped',
@@ -932,9 +924,9 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         createdBy: 'system',
         updatedBy: 'system',
         owner: row.OWNER,
-        street: row.STREET,
-        city: row.CITY,
-        zip: row.ZIP,
+        street: row.street,
+        city: row.city,
+        zip: row.zip,
         phoneEmail: row.PHONE_EMAIL,
         royalty: parseFloat(row.ROY) || 0,
         allocationPercent: parseFloat(row.ALLOCATION_PERCENT) || 0,
@@ -965,7 +957,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for enhanced tracts for unit:', unitName);
       
       const query = `
@@ -977,16 +969,16 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           OWNER,
           NMA,
           ROY,
-          \`ALLO_%\` AS ALLOCATION_PERCENT,
+          \`CURRENT_ALLO_%\` AS ALLOCATION_PERCENT,
           STATUS,
           BUYER,
           NOTE,
           INTEREST_TYPE,
           LEGAL_DESCRIPTION,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           CONTACT,
           created_at,
@@ -1026,7 +1018,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         legalDescription: row.LEGAL_DESCRIPTION,
         netMineralAcres: parseFloat(row.NMA) || 0,
         grossAcres: parseFloat(row.NMA) || 0,
-        state: row.ST || 'OK',
+        state: row.state || 'OK',
         heldByFund: false,
         isLocked: false,
         titleStatus: 'Unmapped',
@@ -1035,9 +1027,9 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         createdBy: 'system',
         updatedBy: 'system',
         owner: row.OWNER,
-        street: row.STREET,
-        city: row.CITY,
-        zip: row.ZIP,
+        street: row.street,
+        city: row.city,
+        zip: row.zip,
         phoneEmail: row.PHONE_EMAIL,
         royalty: parseFloat(row.ROY) || 0,
         allocationPercent: parseFloat(row.ALLOCATION_PERCENT) || 0,
@@ -1068,7 +1060,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for assignments for unit:', unitName);
       
       if (pendingRequests.has(unitName)) {
@@ -1157,7 +1149,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('GET /api/units/:id/notes - Looking for notes for unit:', unitName);
       
       // First verify the unit exists
@@ -1287,7 +1279,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for contacts for unit:', unitName);
       
       const query = `
@@ -1295,10 +1287,10 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           id,
           OWNER,
           CONTACT,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           created_at,
           updated_at
@@ -1315,16 +1307,16 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       rows
         .filter((row: any) => row.OWNER && String(row.OWNER).trim() !== '')
         .forEach((row: any, index: number) => {
-          const contactKey = `${String(row.OWNER).trim()}|${String(row.CONTACT || '').trim()}|${String(row.STREET || '').trim()}|${String(row.CITY || '').trim()}`;
+          const contactKey = `${String(row.OWNER).trim()}|${String(row.CONTACT || '').trim()}|${String(row.OWNER_STREET || row.street || '').trim()}|${String(row.OWNER_CITY || row.city || '').trim()}`;
           if (!contactsMap.has(contactKey)) {
             contactsMap.set(contactKey, {
               id: `contact-${row.id}-${index}`,
               name: row.OWNER,
               contact: row.CONTACT,
-              street: row.STREET,
-              city: row.CITY,
-              state: row.ST,
-              zip: row.ZIP,
+              street: row.street,
+              city: row.city,
+              state: row.state || row.OWNER_ST || 'OK',
+              zip: row.zip,
               phoneEmail: row.PHONE_EMAIL,
               createdAt: row.created_at,
               updatedAt: row.updated_at
@@ -1353,29 +1345,29 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('Looking for aggregated contacts for unit:', unitName);
       
       const query = `
         SELECT 
           OWNER as owner,
           CONTACT as contact,
-          STREET as street,
-          CITY as city,
-          ST as state,
-          ZIP as zip,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL as phoneEmail,
           NMA as nma,
           ROY as royalty,
-          \`ALLO_%\` as allocation,
+          \`CURRENT_ALLO_%\` as allocation,
           COUNT(*) as tractCount,
           SUM(CAST(NMA AS DECIMAL(10,2))) as totalNMA,
           AVG(CAST(ROY AS DECIMAL(5,2))) as avgRoyalty,
-          AVG(CAST(\`ALLO_%\` AS DECIMAL(5,2))) as avgAllocation
+          AVG(CAST(\`CURRENT_ALLO_%\` AS DECIMAL(5,2))) as avgAllocation
         FROM prod_acreage_schedule
         WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
           AND OWNER IS NOT NULL AND OWNER != ''
-        GROUP BY OWNER, CONTACT, STREET, CITY, ST, ZIP, PHONE_EMAIL, NMA, ROY, \`ALLO_%\`
+        GROUP BY OWNER, CONTACT, OWNER_STREET, OWNER_CITY, OWNER_ST, OWNER_ZIP, PHONE_EMAIL, NMA, ROY, \`CURRENT_ALLO_%\`
         ORDER BY OWNER
       `;
 
@@ -1431,14 +1423,18 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
-      console.log('Looking for sections for unit:', unitName);
+      const normalizedUnitName = decodeURIComponent(id)
+        .replace(/\r\n/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      console.log('Looking for sections for unit:', normalizedUnitName);
       
       const query = `
         SELECT 
           S_T_R as str,
           COUNTY as county,
-          ST as state,
+          STATE as state,
           STATUS as title_status,
           LEGAL_DESCRIPTION as legal_description,
           NMA as net_mineral_acres,
@@ -1450,14 +1446,14 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           NOTE as notes,
           CURRENT_UNIT_NAME as current_unit,
           NEW_UNIT_NAME as new_unit,
-          DATE as date_created,
+          created_at as date_created,
           TITLE_SOURCE as title_source
         FROM prod_acreage_schedule 
-        WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ? AND S_T_R IS NOT NULL 
+        WHERE REGEXP_REPLACE(TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\\r\\n', ' '), '\\n', ' ')), ' +', ' ') = ? AND S_T_R IS NOT NULL 
         ORDER BY S_T_R
       `;
 
-      const rows = await executeQuery(dbPool, query, [unitName]);
+      const rows = await executeQuery(dbPool, query, [normalizedUnitName]);
       console.log('Found sections (before deduplication):', rows.length);
       
       // Deduplicate sections by S_T_R (section-township-range)
@@ -1532,39 +1528,76 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
-      console.log('Looking for enhanced sections for unit:', unitName);
+      const normalizedUnitName = decodeURIComponent(id)
+        .replace(/\r\n/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      console.log('Looking for enhanced sections for unit:', normalizedUnitName);
       
       const query = `
         SELECT 
           S_T_R as str,
           MAX(COUNTY) as county,
-          MAX(ST) as state,
+          MAX(STATE) as state,
           MAX(STATUS) as title_status,
           MAX(LEGAL_DESCRIPTION) as legal_description,
           SUM(NMA) as net_mineral_acres,
           SUM(CALCULATED_ACREAGE) as calculated_acreage,
           MAX(BUYER) as assigned_buyer,
+          COUNT(DISTINCT OWNER) as owner_count,
+          MAX(\`CURRENT_ALLO_%\`) as current_allo_pct,
+          MAX(\`New_ALLO_%\`) as new_allo_pct,
+          MAX(\`$_NRA\`) as nra_cap_usd,
           GROUP_CONCAT(DISTINCT OWNER SEPARATOR '; ') as owner_name,
           GROUP_CONCAT(DISTINCT CONTACT SEPARATOR '; ') as contact_info,
           GROUP_CONCAT(DISTINCT PHONE_EMAIL SEPARATOR '; ') as phone_email,
           GROUP_CONCAT(DISTINCT NOTE SEPARATOR '; ') as notes,
           MAX(CURRENT_UNIT_NAME) as current_unit,
           MAX(NEW_UNIT_NAME) as new_unit,
-          MAX(DATE) as date_created,
+          MAX(created_at) as date_created,
           MAX(TITLE_SOURCE) as title_source,
-          GROUP_CONCAT(DISTINCT STREET SEPARATOR '; ') as street,
-          GROUP_CONCAT(DISTINCT CITY SEPARATOR '; ') as city,
-          GROUP_CONCAT(DISTINCT ZIP SEPARATOR '; ') as zip,
+          GROUP_CONCAT(DISTINCT OWNER_STREET SEPARATOR '; ') as street,
+          GROUP_CONCAT(DISTINCT OWNER_CITY SEPARATOR '; ') as city,
+          GROUP_CONCAT(DISTINCT OWNER_ZIP SEPARATOR '; ') as zip,
           GROUP_CONCAT(DISTINCT INTEREST_TYPE SEPARATOR '; ') as interest_type
         FROM prod_acreage_schedule 
-        WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ? AND S_T_R IS NOT NULL 
+        WHERE REGEXP_REPLACE(TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\\r\\n', ' '), '\\n', ' ')), ' +', ' ') = ? AND S_T_R IS NOT NULL 
         GROUP BY S_T_R
         ORDER BY S_T_R
       `;
 
-      const rows = await executeQuery(dbPool, query, [unitName]);
+      const rows = await executeQuery(dbPool, query, [normalizedUnitName]);
       console.log('Found enhanced sections:', rows.length);
+
+      const normalizeStr = (v: any) => {
+        if (v == null || String(v).trim() === '') return '';
+        return String(v)
+          .replace(/,/g, '')
+          .replace(/\r\n/g, ' ')
+          .replace(/\n/g, ' ')
+          .replace(/\r/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+      let strToSectionId: Map<string, string> = new Map();
+      try {
+        const allStrRows = await executeQuery(dbPool, `
+          SELECT DISTINCT S_T_R as str
+          FROM prod_acreage_schedule 
+          WHERE S_T_R IS NOT NULL 
+          ORDER BY S_T_R
+        `);
+        allStrRows.forEach((r: any, idx: number) => {
+          const s = normalizeStr(r.str);
+          if (s) strToSectionId.set(s, `s${idx + 1}`);
+        });
+      } catch (_e) {
+        rows.forEach((r: any, idx: number) => {
+          const s = normalizeStr(r.str);
+          if (s) strToSectionId.set(s, `s${idx + 1}`);
+        });
+      }
       
       const sections = rows.map((row: any, index: number) => {
         let section = '';
@@ -1585,16 +1618,26 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         // Clean STR value: remove all commas and newlines
         const cleanStr = row.str 
           ? String(row.str)
-              .replace(/,/g, '') // Remove all commas
-              .replace(/\r\n/g, ' ') // Replace Windows line breaks
-              .replace(/\n/g, ' ') // Replace Unix line breaks
-              .replace(/\r/g, ' ') // Replace old Mac line breaks
-              .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+              .replace(/,/g, '')
+              .replace(/\r\n/g, ' ')
+              .replace(/\n/g, ' ')
+              .replace(/\r/g, ' ')
+              .replace(/\s+/g, ' ')
               .trim()
           : `Section ${index + 1}`;
+
+        const sectionId = strToSectionId.get(cleanStr) || strToSectionId.get(normalizeStr(row.str)) || `s${index + 1}`;
         
+        const currentAllo = (row.current_allo_pct != null && row.current_allo_pct !== '') ? parseFloat(row.current_allo_pct) : undefined;
+        const newAllo = (row.new_allo_pct != null && row.new_allo_pct !== '') ? parseFloat(row.new_allo_pct) : undefined;
+        const allocationPct = currentAllo ?? newAllo;
+        const nraCapUsd = (row.nra_cap_usd != null && row.nra_cap_usd !== '') ? parseFloat(row.nra_cap_usd) : null;
+        const ownerCount = Number(row.owner_count) || 0;
+
         return {
-          id: `s${index + 1}`,
+          id: sectionId,
+          sectionId,
+          sectionName: cleanStr,
           section_name: cleanStr,
           state: row.state || 'OK',
           county: row.county || 'Unknown',
@@ -1604,9 +1647,13 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           str: cleanStr,
           grossAcres: netAcres,
           netMineralAcres: netAcres,
+          net_mineral_acres: netAcres,
           titleStatus: row.title_status || 'Unknown',
           legalDescription: row.legal_description || '',
           assignedBuyer: row.assigned_buyer || '',
+          ownerCount,
+          allocationPct,
+          nraCapUsd,
           ownerName: row.owner_name || '',
           contactInfo: row.contact_info || '',
           phoneEmail: row.phone_email || '',
@@ -1648,7 +1695,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       const updateData = req.body;
 
       console.log('PUT /api/units/:id - Updating unit:', unitName);
@@ -1803,7 +1850,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         SELECT DISTINCT
           TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) as unit_name,
           MAX(COUNTY) as county,
-          MAX(ST) as state,
+          MAX(STATE) as state,
           MAX(STATUS) as status,
           SUM(NMA) as total_net_mineral_acres,
           MAX(BUYER) as assigned_buyer,
@@ -1889,7 +1936,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       console.log('GET /api/units/:id - Looking for unit name:', unitName);
       
       // Normalize unit name for matching
@@ -1904,27 +1951,31 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
         SELECT 
           id,
           COUNTY,
+          STATE,
           S_T_R,
           CURRENT_UNIT_NAME,
+          NEW_UNIT_NAME,
           OWNER,
           NMA,
           ROY,
-          \`ALLO_%\` AS ALLOCATION_PERCENT,
+          \`CURRENT_ALLO_%\` AS ALLOCATION_PERCENT,
+          \`New_ALLO_%\` AS NEW_ALLO_PCT,
+          \`$_NRA\` AS TOTAL_USD,
           STATUS,
           BUYER,
           NOTE,
           INTEREST_TYPE,
           LEGAL_DESCRIPTION,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           CONTACT,
           created_at,
           updated_at
         FROM prod_acreage_schedule
-        WHERE TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) = ?
+        WHERE REGEXP_REPLACE(TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\\r\\n', ' '), '\\n', ' ')), ' +', ' ') = ?
         ORDER BY CURRENT_UNIT_NAME, COUNTY, S_T_R
       `;
 
@@ -2288,7 +2339,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
               estimatedGrossAcres: parseFloat(row.NMA) || 0,
               estimatedNetAcres: parseFloat(row.NMA) || 0,
               county: unitCounty,
-              state: row.ST || 'OK',
+              state: row.state || 'OK',
               linkedTractIds: [row.id],
               linkedSectionIds: linkedSectionIds,
               linkedContactIds: linkedContactIds,
@@ -2319,9 +2370,9 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
               legalDescription: row.LEGAL_DESCRIPTION,
               owner: row.OWNER,
               contact: row.CONTACT,
-              street: row.STREET,
-              city: row.CITY,
-              zip: row.ZIP,
+              street: row.street,
+              city: row.city,
+              zip: row.zip,
               phoneEmail: row.PHONE_EMAIL,
               // Additional fields from prod_unit_tracker
               wellName: unitTrackerData?.Well_Name || null,
@@ -2351,7 +2402,31 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const unit = units[0];
-      
+      unit.currentUnitName = (rows[0] && String(rows[0].CURRENT_UNIT_NAME || '').split(/\r?\n/)[0]?.trim()) || normalizedUnitName;
+      unit.strList = [...new Set(rows.map((r: any) => r.S_T_R).filter((s: any) => s != null && String(s).trim() !== ''))];
+      // One allocation and NRA per unique S-T-R (first row per STR) to avoid redundant repeated values
+      const allocationByStr = new Map<string, number | undefined>();
+      const nraByStr = new Map<string, number | null>();
+      for (const r of rows) {
+        const str = (r.S_T_R != null && String(r.S_T_R).trim() !== '') ? String(r.S_T_R).trim() : '';
+        if (!str || allocationByStr.has(str)) continue;
+        allocationByStr.set(str, (r.ALLOCATION_PERCENT != null && r.ALLOCATION_PERCENT !== '') ? parseFloat(r.ALLOCATION_PERCENT) : undefined);
+        nraByStr.set(str, (r.TOTAL_USD != null && r.TOTAL_USD !== '') ? parseFloat(r.TOTAL_USD) : null);
+      }
+      unit.allocationList = (unit.strList || []).map((str: string) => allocationByStr.get(str));
+      unit.nraCapUsdList = (unit.strList || []).map((str: string) => nraByStr.get(str) ?? null);
+      unit.estimatedNetAcresList = rows.map((r: any) => parseFloat(r.NMA) || 0);
+      const ownersByStr = new Map<string, Set<string>>();
+      for (const r of rows) {
+        const str = (r.S_T_R != null && String(r.S_T_R).trim() !== '') ? String(r.S_T_R).trim() : '';
+        const owner = (r.OWNER != null && String(r.OWNER).trim() !== '') ? String(r.OWNER).trim() : '';
+        if (!str) continue;
+        if (!ownersByStr.has(str)) ownersByStr.set(str, new Set());
+        if (owner) ownersByStr.get(str)!.add(owner);
+      }
+      unit.estimatedNumberOfOwnersList = (unit.strList || []).map((str: string) => ownersByStr.get(str)?.size ?? 0);
+      if (rows[0] && rows[0].STATE) unit.state = rows[0].STATE;
+
       // First, check if assigned_buyer_id exists in metadata and look up the user
       if (assignedBuyerIdFromMetadata) {
         try {
@@ -2468,7 +2543,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       
       // Normalize unit name
       const normalizedUnitName = unitName
@@ -2486,10 +2561,10 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           LEGAL_DESCRIPTION,
           NMA,
           OWNER,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL,
           ROY,
           STATUS,
@@ -2497,14 +2572,13 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           NOTE,
           CURRENT_UNIT_NAME,
           NEW_UNIT_NAME,
-          DATE,
+          created_at,
           TITLE_SOURCE,
           CALCULATED_ACREAGE,
           CONTACT,
           INTEREST_TYPE,
-          PAYSTUB_NRI,
-          \`ALLO_%\` AS ALLO_,
-          \`TOTAL_\$\`,
+          \`CURRENT_ALLO_%\` AS ALLO_,
+          \`$_NRA\`,
           LAST_OGL,
           NEW_OCC_TYPE,
           created_at,
@@ -2547,7 +2621,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const unitName = decodeURIComponent(id);
+      const unitName = decodeURIComponent(id).replace(/\s+/g, ' ').trim();
       
       // Normalize unit name
       const normalizedUnitName = unitName

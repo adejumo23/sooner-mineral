@@ -397,7 +397,16 @@ const LeadDetailPage: React.FC = () => {
         ) : (
           <div>
             {activeTab === 'overview' && (
-              <LeadOverviewTab lead={lead!} currentUser={currentUser} users={users} onConvertToDeal={() => setActiveTab('conversion')} />
+              <LeadOverviewTab
+                lead={lead!}
+                currentUser={currentUser}
+                users={users}
+                onConvertToDeal={() => setActiveTab('conversion')}
+                callLogs={callLogs}
+                notes={notes}
+                onLogCall={() => setShowCallLogModal(true)}
+                onSendEmail={() => setActiveTab('communication')}
+              />
             )}
             {activeTab === 'tract-assignment' && <LeadSectionAssignmentTab lead={lead!} currentUser={currentUser} users={users} />}
             {activeTab === 'activity-log' && <ActivityLogTab leadId={id!} users={users} />}

@@ -355,49 +355,111 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
               {/* Expanded Content */}
               {expandedLeads.has(lead.id) && (
                 <div className="border-t border-gray-200 p-4">
-                  {/* Lead Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {/* Lead Details - from database */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     <div>
-                      <span className="text-gray-600 text-sm">Contact</span>
+                      <span className="text-gray-600 text-sm block">Contact</span>
                       <div className="text-gray-900 font-medium">{lead.contact || 'N/A'}</div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Phone/Email</span>
+                      <span className="text-gray-600 text-sm block">Phone/Email</span>
                       <div className="text-gray-900 font-medium">{lead.phoneEmail || 'N/A'}</div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Status</span>
+                      <span className="text-gray-600 text-sm block">Status</span>
                       <div className="text-gray-900 font-medium">{lead.status}</div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Created</span>
+                      <span className="text-gray-600 text-sm block">Created</span>
                       <div className="text-gray-900 font-medium">{formatDateTime(lead.createdAt)}</div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Last Updated</span>
+                      <span className="text-gray-600 text-sm block">Last Updated</span>
                       <div className="text-gray-900 font-medium">{formatDateTime(lead.updatedAt)}</div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Last Activity</span>
+                      <span className="text-gray-600 text-sm block">Last Activity</span>
                       <div className="text-gray-900 font-medium">
                         {lead.lastActivity ? formatDateTime(lead.lastActivity) : 'No activity'}
                       </div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Gross Acres</span>
-                      <div className="text-gray-900 font-medium">{lead.grossAcres || 'N/A'}</div>
+                      <span className="text-gray-600 text-sm block">Net Royalty Acres</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.netRoyaltyAcres != null ? Number(lead.netRoyaltyAcres).toFixed(6) : 'N/A'}
+                      </div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Net Mineral Acres</span>
-                      <div className="text-gray-900 font-medium">{lead.netMineralAcres || 'N/A'}</div>
+                      <span className="text-gray-600 text-sm block">Net Mineral Acres</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.netMineralAcres != null ? Number(lead.netMineralAcres).toFixed(6) : 'N/A'}
+                      </div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Royalty</span>
-                      <div className="text-gray-900 font-medium">{lead.royalty || 'N/A'}%</div>
+                      <span className="text-gray-600 text-sm block">Royalty</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.royalty != null ? `${Number(lead.royalty).toFixed(2)}%` : 'N/A'}
+                      </div>
                     </div>
                     <div>
-                      <span className="text-gray-600 text-sm">Unit Name</span>
+                      <span className="text-gray-600 text-sm block">Current Unit</span>
                       <div className="text-gray-900 font-medium whitespace-pre-line">{lead.unitName || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">Allocation %</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{lead.alloPercent ?? 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">Spud Date</span>
+                      <div className="text-gray-900 font-medium">{lead.spudDate || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">First Production</span>
+                      <div className="text-gray-900 font-medium">{lead.firstProduction || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">New Unit</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">{lead.newUnitName ?? 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">New Unit Allocation %</span>
+                      <div className="text-gray-900 font-medium whitespace-pre-line">
+                        {lead.alloPercentAl != null && lead.alloPercentAl !== ''
+                          ? String(lead.alloPercentAl).split(/\s+/).filter(Boolean).join('\n')
+                          : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">OCC Date</span>
+                      <div className="text-gray-900 font-medium">{lead.occDate || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">OCC Type</span>
+                      <div className="text-gray-900 font-medium">{lead.occType || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">NRA/$ Cap</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.nraCapUsd != null ? `$${Number(lead.nraCapUsd).toLocaleString()}` : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">NMA/$ Offer</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.nmaOffer != null ? `$${Number(lead.nmaOffer).toLocaleString()}` : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">Total NMA/$</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.totalNmaUsd != null ? `$${Number(lead.totalNmaUsd).toLocaleString()}` : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 text-sm block">NRA/$ Offer (Converted)</span>
+                      <div className="text-gray-900 font-medium">
+                        {lead.nraOfferConverted != null ? `$${Number(lead.nraOfferConverted).toLocaleString()}` : 'N/A'}
+                      </div>
                     </div>
                   </div>
 

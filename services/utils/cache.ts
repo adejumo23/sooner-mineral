@@ -38,7 +38,7 @@ export const loadAssignmentCache = async (dbPool: Pool | null) => {
         NMA as netMineralAcres,
         ROY as royalty,
         NMA as nra,
-        \`ALLO_%\` as ownershipPercentage,
+        \`CURRENT_ALLO_%\` as ownershipPercentage,
         BUYER as buyer,
         STATUS as status,
         created_at,

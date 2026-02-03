@@ -44,10 +44,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
         SELECT 
           OWNER as name,
           MAX(CONTACT) as contact,
-          MAX(STREET) as street,
-          MAX(CITY) as city,
-          MAX(ST) as state,
-          MAX(ZIP) as zip,
+          MAX(OWNER_STREET) as street,
+          MAX(OWNER_CITY) as city,
+          MAX(OWNER_ST) as state,
+          MAX(OWNER_ZIP) as zip,
           MAX(PHONE_EMAIL) as phoneEmail,
           MAX(CURRENT_UNIT_NAME) as unitName,
           SUM(CAST(NMA AS DECIMAL(10,2))) as totalNMA,
@@ -140,10 +140,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
         SELECT 
           OWNER as name,
           MAX(CONTACT) as contact,
-          MAX(STREET) as street,
-          MAX(CITY) as city,
-          MAX(ST) as state,
-          MAX(ZIP) as zip,
+          MAX(OWNER_STREET) as street,
+          MAX(OWNER_CITY) as city,
+          MAX(OWNER_ST) as state,
+          MAX(OWNER_ZIP) as zip,
           MAX(PHONE_EMAIL) as phoneEmail,
           MAX(CURRENT_UNIT_NAME) as unitName,
           SUM(CAST(NMA AS DECIMAL(10,2))) as totalNMA,
@@ -244,10 +244,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
         SELECT 
           S_T_R as str,
           MAX(COUNTY) as county,
-          MAX(ST) as state,
+          MAX(OWNER_ST) as state,
           SUM(CAST(NMA AS DECIMAL(10,2))) as net_mineral_acres,
           AVG(CAST(ROY AS DECIMAL(5,2))) as royalty_percentage,
-          AVG(CAST(ALLO_ AS DECIMAL(5,2))) as ownership_percentage
+          AVG(CAST(\`CURRENT_ALLO_%\` AS DECIMAL(5,2))) as ownership_percentage
         FROM prod_acreage_schedule 
         WHERE OWNER = ?
         GROUP BY S_T_R
@@ -336,7 +336,7 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
         SELECT 
           TRIM(REPLACE(REPLACE(CURRENT_UNIT_NAME, '\r\n', ' '), '\n', ' ')) as unit_name,
           MAX(COUNTY) as county,
-          MAX(ST) as state,
+          MAX(OWNER_ST) as state,
           MAX(BUYER) as assigned_buyer,
           SUM(CAST(NMA AS DECIMAL(10,2))) as total_nma,
           COUNT(DISTINCT S_T_R) as section_count
@@ -356,10 +356,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
           SELECT 
             S_T_R as str,
             MAX(COUNTY) as county,
-            MAX(ST) as state,
+            MAX(OWNER_ST) as state,
             SUM(CAST(NMA AS DECIMAL(10,2))) as net_mineral_acres,
             AVG(CAST(ROY AS DECIMAL(5,2))) as royalty_percentage,
-            AVG(CAST(ALLO_ AS DECIMAL(5,2))) as ownership_percentage,
+            AVG(CAST(\`CURRENT_ALLO_%\` AS DECIMAL(5,2))) as ownership_percentage,
             MAX(BUYER) as assigned_buyer
           FROM prod_acreage_schedule 
           WHERE OWNER = ?
@@ -503,10 +503,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
           OWNER as owner_name,
           MAX(CONTACT) as contact_info,
           MAX(PHONE_EMAIL) as phone_email,
-          MAX(STREET) as street,
-          MAX(CITY) as city,
-          MAX(ST) as state,
-          MAX(ZIP) as zip,
+          MAX(OWNER_STREET) as street,
+          MAX(OWNER_CITY) as city,
+          MAX(OWNER_ST) as state,
+          MAX(OWNER_ZIP) as zip,
           SUM(CAST(NMA AS DECIMAL(10,2))) as total_net_mineral_acres
         FROM prod_acreage_schedule 
         WHERE (OWNER IS NOT NULL AND OWNER != '')

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   fetchUnit, 
   fetchUnitSections, 
@@ -45,7 +45,10 @@ import {
 
 const UnitDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const unitType = searchParams.get('unitType'); // 'new' when viewing from New Unit table
+  const unitNameFromQuery = searchParams.get('unitName'); // new unit name when unitType=new
   const [unit, setUnit] = useState<Unit | null>(null);
   const [unitSections, setUnitSections] = useState<UnitSection[]>([]);
   const [unitSectionsEnhanced, setUnitSectionsEnhanced] = useState<UnitSectionEnhanced[]>([]);
@@ -148,7 +151,8 @@ const UnitDetailPage: React.FC = () => {
       // Fetch enhanced sections separately
       try {
         const enhancedSections = await fetchUnitSectionsEnhanced(id);
-        setUnitSectionsEnhanced(enhancedSections);
+        const list = Array.isArray(enhancedSections) ? enhancedSections : (enhancedSections?.data ?? []);
+        setUnitSectionsEnhanced(list);
       } catch (error) {
         console.error('Error loading enhanced sections:', error);
         setUnitSectionsEnhanced([]);
@@ -360,11 +364,15 @@ const UnitDetailPage: React.FC = () => {
     );
   }
 
+  const displayUnitName = unitNameFromQuery
+    ? decodeURIComponent(unitNameFromQuery)
+    : (unit.currentUnitName || unit.unitName || '');
+  const unitTypeLabel = unitType === 'new' ? 'New' : 'Current';
+
   const tabs = [
     { id: 'overview', name: 'Overview', icon: DocumentTextIcon },
     { id: 'sections', name: 'Linked Sections', icon: MapIcon },
     { id: 'mapping', name: 'Mapping Preview', icon: MapIcon },
-    { id: 'assignment', name: 'Buyer', icon: CogIcon },
   ];
 
   const filteredAndSortedSections = unitSectionsEnhanced
@@ -410,8 +418,10 @@ const UnitDetailPage: React.FC = () => {
     });
 
   const handleViewTitleChain = (section: UnitSectionEnhanced) => {
-    // Navigate to section detail page with title-chain tab active
-    navigate(`/sections/${section.sectionId}?tab=title-chain`);
+    const sectionId = section.sectionId || (section as any).id;
+    if (sectionId) {
+      navigate(`/sections/${sectionId}?tab=title-chain`);
+    }
   };
 
   const handleViewContacts = async (section: UnitSectionEnhanced) => {
@@ -488,17 +498,7 @@ const UnitDetailPage: React.FC = () => {
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {(() => {
-                const unitName = unit.unitName || 'Unnamed Unit';
-                // Split unit name if it contains multiple wells
-                // Pattern: Split on space after well identifier (ends with letters like XHW/XHM) followed by new well name (capital letters)
-                // Handles both single-word (GAPSTOW) and two-word (CURLY BILL) well names
-                const parts = unitName.split(/(?<=[\d-]+[A-Z0-9]{2,})\s+(?=[A-Z]+(?:\s+[A-Z]+)?\s+[\d-])/);
-                const wellNames = parts.length > 1 ? parts.map(p => p.trim()).filter(p => p) : [unitName];
-                return wellNames.map((name, index) => (
-                  <div key={index} className="break-words">{name}</div>
-                ));
-              })()}
+              {displayUnitName || 'Unnamed Unit'}
             </h1>
             <p className="text-gray-600 mt-1">
               {unit.operator} • {unit.county}, {unit.state}
@@ -601,32 +601,22 @@ const UnitDetailPage: React.FC = () => {
       <div className="min-h-96">
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Basic Information */}
+            {/* Basic Information - Left column */}
             <Card>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Unit Name</dt>
-                    <dd className="text-sm text-gray-900">
-                      {(() => {
-                        const unitName = unit.unitName || 'Unnamed Unit';
-                        // Split unit name if it contains multiple wells
-                        const parts = unitName.split(/\s+(?=[A-Z]+(?:\s+[A-Z]+)*\s+[\d-]+[A-Z0-9]*)/);
-                        const wellNames = parts.length > 1 ? parts.map(p => p.trim()).filter(p => p) : [unitName];
-                        return wellNames.map((name, index) => (
-                          <div key={index} className="break-words">{name}</div>
-                        ));
-                      })()}
-                    </dd>
+                    <dd className="text-sm text-gray-900 mt-0.5">{displayUnitName || '—'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Operator</dt>
-                    <dd className="text-sm text-gray-900">{unit.operator}</dd>
+                    <dd className="text-sm text-gray-900">{unit.operator || '—'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Status</dt>
-                    <dd className="text-sm text-gray-900">{unit.status}</dd>
+                    <dd className="text-sm text-gray-900">{unit.status || '—'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">County</dt>
@@ -634,39 +624,111 @@ const UnitDetailPage: React.FC = () => {
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Exit Strategy</dt>
-                    <dd className="text-sm text-gray-900">{unit.exitStrategy}</dd>
+                    <dd className="text-sm text-gray-900">{unit.exitStrategy || '—'}</dd>
                   </div>
                 </dl>
               </div>
             </Card>
 
-            {/* Acreage & Wells */}
+            {/* Basic Information - Right column */}
             <Card>
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Acreage & Wells</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">&nbsp;</h3>
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Estimated Net Acres</dt>
-                    <dd className="text-sm text-gray-900">{unit.estimatedNetAcres ? unit.estimatedNetAcres.toLocaleString() : 'N/A'}</dd>
+                    <dt className="text-sm font-medium text-gray-500">Unit Type</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">{unitTypeLabel}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Estimated Net Acres</dt>
-                    <dd className="text-sm text-gray-900">
-                      {unit.estimatedNetAcres ? unit.estimatedNetAcres.toLocaleString() : 'TBD'}
+                    <dt className="text-sm font-medium text-gray-500">Section(s)</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {(unit as Unit & { strList?: string[] }).strList?.length ? (
+                        <span className="block">
+                          {(unit as Unit & { strList?: string[] }).strList!.map((s, i) => (
+                            <span key={i} className="block">{s}</span>
+                          ))}
+                        </span>
+                      ) : unit.str ? (
+                        <span className="block">{unit.str}</span>
+                      ) : (
+                        '—'
+                      )}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">API Numbers</dt>
-                    <dd className="text-sm text-gray-900">
-                      {unit.apiNumbers.map(api => (
-                        <div key={api} className="font-mono">{api}</div>
-                      ))}
+                    <dt className="text-sm font-medium text-gray-500">Allocation %</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {(unit as Unit & { allocationList?: (number | undefined)[] }).allocationList?.length ? (
+                        <span className="block">
+                          {(unit as Unit & { allocationList?: (number | undefined)[] }).allocationList!.map((v, i) => (
+                            <span key={i} className="block">{v != null ? Number(v).toFixed(6) : '—'}</span>
+                          ))}
+                        </span>
+                      ) : unit.allocationPercentage != null ? (
+                        Number(unit.allocationPercentage).toFixed(6)
+                      ) : (
+                        '—'
+                      )}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">Target Formations</dt>
-                    <dd className="text-sm text-gray-900">
-                      {unit.targetFormations.join(', ')}
+                    <dt className="text-sm font-medium text-gray-500">Estimated Net Acres</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {unit.estimatedNetAcres != null
+                        ? Number(unit.estimatedNetAcres).toLocaleString()
+                        : (unit as Unit & { estimatedNetAcresList?: number[] }).estimatedNetAcresList?.length
+                          ? (unit as Unit & { estimatedNetAcresList?: number[] }).estimatedNetAcresList!.reduce((s, v) => s + Number(v) || 0, 0).toLocaleString()
+                          : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Estimated Number of Owners</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {(unit as Unit & { estimatedNumberOfOwnersList?: number[] }).estimatedNumberOfOwnersList?.length ? (
+                        <span className="block">
+                          {(unit as Unit & { estimatedNumberOfOwnersList?: number[] }).estimatedNumberOfOwnersList!.map((v, i) => (
+                            <span key={i} className="block">{v}</span>
+                          ))}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">NRA / $ Cap</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {(unit as Unit & { nraCapUsdList?: (number | null)[] }).nraCapUsdList?.length ? (
+                        <span className="block">
+                          {(unit as Unit & { nraCapUsdList?: (number | null)[] }).nraCapUsdList!.map((v, i) => (
+                            <span key={i} className="block">
+                              {v != null ? `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+                            </span>
+                          ))}
+                        </span>
+                      ) : unit.nraCapUsd != null ? (
+                        `$${Number(unit.nraCapUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      ) : (
+                        '—'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">API Number</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5 font-mono">
+                      {unit.apiNumbers?.length ? unit.apiNumbers.join(', ') : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Spud Date</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {unit.spudDate ? new Date(unit.spudDate).toLocaleDateString() : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Target Formation(s)</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {unit.targetFormations?.length ? unit.targetFormations.join(', ') : '—'}
                     </dd>
                   </div>
                 </dl>
@@ -718,36 +780,232 @@ const UnitDetailPage: React.FC = () => {
               </div>
             </Card>
 
-            {/* Buyer Assignment & Notes */}
+            {/* Buyer Assignment History */}
             <Card className="lg:col-span-2">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Buyer Assignment & Notes</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Buyer Assignment History</h3>
+                <dl className="space-y-2">
                   <div>
-                    <h4 className="text-md font-medium text-gray-700 mb-3">Current Buyer Assignment</h4>
-                    {unit.assignedBuyer ? (
-                      <div className="bg-gray-50 p-3 rounded-md">
+                    <dt className="text-sm font-medium text-gray-500">Assigned to</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {unit.assignedBuyer?.name ?? unit.buyer ?? '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Date Assigned</dt>
+                    <dd className="text-sm text-gray-900 mt-0.5">
+                      {unitAssignments.length > 0 && unitAssignments[0].assignedAt
+                        ? new Date(unitAssignments[0].assignedAt).toLocaleDateString()
+                        : '—'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </Card>
+
+            {/* Section Notes */}
+            <Card className="lg:col-span-2">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Section Notes</h3>
+                <div className="bg-gray-50 border border-gray-200 rounded-md min-h-[80px] p-3">
+                  {unit.notes ? (
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{unit.notes}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500">No section notes</p>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Current Buyer Assignment */}
+            <Card className="lg:col-span-2">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Current Buyer Assignment</h3>
+                  {!unit?.assignedBuyer ? (
+                    <Button onClick={() => setShowAssignmentModal(true)}>
+                      Assign Unit
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setShowAssignmentModal(true)}>
+                      Reassign Buyer
+                    </Button>
+                  )}
+                </div>
+                
+                {unit?.assignedBuyer ? (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Buyer Assignment Details</h4>
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Assigned Buyer</dt>
+                            <dd className="text-sm text-gray-900">{unit.assignedBuyer?.name || 'N/A'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Email</dt>
+                            <dd className="text-sm text-gray-600">{unit.assignedBuyer?.email || 'N/A'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Role</dt>
+                            <dd className="text-sm text-gray-600">{unit.assignedBuyer?.role?.name || 'N/A'}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Buyer Assignment Status</h4>
+                        <dl className="space-y-2">
+                          <div>
+                            <dt className="text-sm font-medium text-gray-500">Status</dt>
+                            <dd className="text-sm">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                In Progress
+                              </span>
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Valuation Cap ($/NRA)
+                          </label>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl font-bold text-gray-900">$2,500</span>
+                            <Button variant="outline" size="sm">
+                              <PencilIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Target price per normalized royalty acre for underwriting
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Auto-Generate Leads
+                          </label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="autoGenerateLeads"
+                              defaultChecked={true}
+                              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                            />
+                            <label htmlFor="autoGenerateLeads" className="text-sm text-gray-700">
+                              Create leads for owners tied to linked sections
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Optional checkbox to suppress auto-lead creation
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <Button
+                        variant="outline"
+                        onClick={handleUnassignUnit}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Unassign Unit
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No buyer currently assigned to this unit</p>
+                )}
+              </div>
+            </Card>
+
+            {/* Comment Thread */}
+            <Card className="lg:col-span-2">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Comment Thread</h3>
+                  <Button onClick={() => setShowNoteModal(true)}>
+                    Add Comment
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="border-l-4 border-blue-200 pl-4 py-2">
+                    <div className="flex justify-between items-start">
+                      <div>
                         <p className="text-sm text-gray-900">
-                          <span className="font-medium">Assigned to:</span> {unit.assignedBuyer.name}
+                          Initial assignment made for acquisition campaign. Unit shows strong potential with multiple target formations.
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-medium">Email:</span> {unit.assignedBuyer.email}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Alice Admin • {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
                         </p>
                       </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">No buyer currently assigned</p>
-                    )}
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Assignment
+                      </span>
+                    </div>
                   </div>
                   
-                  <div>
-                    <h4 className="text-md font-medium text-gray-700 mb-3">Notes</h4>
-                    {unit.notes ? (
-                      <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{unit.notes}</p>
-                    ) : (
-                      <p className="text-sm text-gray-500">No notes available</p>
-                    )}
+                  <div className="border-l-4 border-green-200 pl-4 py-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          Valuation cap set at $2,500/NRA based on recent comparable sales in the area.
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Bob Manager • {new Date(Date.now() - 86400000).toLocaleDateString()} {new Date(Date.now() - 86400000).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Valuation
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
+            </Card>
+
+            {/* Unit Notes */}
+            <Card className="lg:col-span-2">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Unit Notes</h3>
+                  <Button onClick={() => setShowNoteModal(true)}>
+                    Add Note
+                  </Button>
+                </div>
+                
+                {!Array.isArray(unitNotes) || unitNotes.length === 0 ? (
+                  <p className="text-gray-500">No notes available</p>
+                ) : (
+                  <div className="space-y-3">
+                    {unitNotes.map((note) => (
+                      <div key={note?.id || Math.random()} className="border-l-4 border-gray-200 pl-4 py-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm text-gray-900">{note?.noteText || 'N/A'}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {note?.createdByUser?.name || 'Unknown'} • {note?.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'N/A'}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            note?.noteType === 'Assignment' ? 'bg-blue-100 text-blue-800' :
+                            note?.noteType === 'Status Change' ? 'bg-yellow-100 text-yellow-800' :
+                            note?.noteType === 'Lock/Unlock' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {note?.noteType || 'Unknown'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </Card>
           </div>
@@ -784,8 +1042,7 @@ const UnitDetailPage: React.FC = () => {
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sc-blue focus:border-transparent"
                     >
                       <option value="sectionName">Sort by Section Name</option>
-                      <option value="grossAcres">Sort by Gross Acres</option>
-                      <option value="netMineralAcres">Sort by Net Acres</option>
+                      <option value="netMineralAcres">Sort by Net Acres (NMA)</option>
                       <option value="titleStatus">Sort by Title Status</option>
                       <option value="lastActivity">Sort by Last Activity</option>
                     </select>
@@ -819,7 +1076,7 @@ const UnitDetailPage: React.FC = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th 
-                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                            className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
                               sectionSortBy === 'sectionName' ? 'bg-gray-100' : ''
                             }`}
                             onClick={() => {
@@ -840,28 +1097,7 @@ const UnitDetailPage: React.FC = () => {
                             </div>
                           </th>
                           <th 
-                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
-                              sectionSortBy === 'grossAcres' ? 'bg-gray-100' : ''
-                            }`}
-                            onClick={() => {
-                              setSectionSortBy('grossAcres');
-                              setSectionSortDirection(prev => sectionSortBy === 'grossAcres' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
-                            }}
-                          >
-                            <div className="flex items-center space-x-1">
-                              <span>Net Acres</span>
-                              {sectionSortBy === 'grossAcres' && (
-                                <span className="text-gray-400">
-                                  {sectionSortDirection === 'asc' ? '↑' : '↓'}
-                                </span>
-                              )}
-                              {sectionSortBy !== 'grossAcres' && (
-                                <span className="opacity-30 text-xs">⇅</span>
-                              )}
-                            </div>
-                          </th>
-                          <th 
-                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                            className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
                               sectionSortBy === 'netMineralAcres' ? 'bg-gray-100' : ''
                             }`}
                             onClick={() => {
@@ -881,11 +1117,26 @@ const UnitDetailPage: React.FC = () => {
                               )}
                             </div>
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Allocation%
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            # of Owners
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Unit Type
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            API Number
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NRA / $ Cap
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Assigned Buyers
                           </th>
                           <th 
-                            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+                            className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
                               sectionSortBy === 'lastActivity' ? 'bg-gray-100' : ''
                             }`}
                             onClick={() => {
@@ -905,7 +1156,7 @@ const UnitDetailPage: React.FC = () => {
                               )}
                             </div>
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Quick Links
                           </th>
                         </tr>
@@ -933,9 +1184,11 @@ const UnitDetailPage: React.FC = () => {
                             .trim();
                           // Final pass: remove any commas that might have been reintroduced
                           str = str.replace(/,/g, '').trim();
-                          const grossAcres = section.grossAcres || section.section?.grossAcres || 0;
-                          const netAcres = section.netMineralAcres || section.section?.netMineralAcres || 0;
-                          const titleStatus = section.titleStatus || section.section?.titleStatus || 'Unknown';
+                          const netAcres = section.netMineralAcres ?? section.section?.netMineralAcres ?? (section as any).net_mineral_acres ?? 0;
+                          const allocationPct = (section as any).allocationPct;
+                          const ownerCount = (section as any).ownerCount;
+                          const nraCapUsd = (section as any).nraCapUsd;
+                          const apiNumber = unit?.apiNumbers?.length ? unit.apiNumbers[0] : '—';
                           
                           return (
                             <tr 
@@ -943,7 +1196,7 @@ const UnitDetailPage: React.FC = () => {
                               className="hover:bg-gray-50 transition-colors duration-150"
                               title={`${sectionName} - ${county}, ${state}`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900 font-mono whitespace-nowrap">
                                   {str}
                                 </div>
@@ -951,20 +1204,41 @@ const UnitDetailPage: React.FC = () => {
                                   {county && state ? `${county}, ${state}` : county || state || ''}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900 font-medium">
-                                  {grossAcres ? grossAcres.toLocaleString() : 'N/A'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
                                   {formatNMA(netAcres)}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-mono">
+                                  {allocationPct != null ? Number(allocationPct).toFixed(6) : '—'}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {ownerCount != null ? ownerCount : '—'}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {unitTypeLabel}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-mono">
+                                  {apiNumber}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {nraCapUsd != null
+                                    ? `$${Number(nraCapUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    : '—'}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
                                   {(() => {
-                                    // Handle buyer as either string (from DB) or User object
                                     const buyerName = typeof section.assignedBuyer === 'string' 
                                       ? section.assignedBuyer 
                                       : (section.assignedBuyer?.name || '');
@@ -980,7 +1254,7 @@ const UnitDetailPage: React.FC = () => {
                                   })()}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-500">
                                   {section.lastActivity ? (
                                     <span title={`Last activity: ${new Date(section.lastActivity).toLocaleString()}`}>
@@ -991,8 +1265,8 @@ const UnitDetailPage: React.FC = () => {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex space-x-2">
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="flex flex-wrap gap-2">
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -1000,12 +1274,24 @@ const UnitDetailPage: React.FC = () => {
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      console.log('Button clicked for section:', section);
                                       handleViewContacts(section);
                                     }}
                                     title="View owners for this section"
                                   >
                                     View Owners
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors duration-150"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleViewTitleChain(section);
+                                    }}
+                                    title="View title chain for this section"
+                                  >
+                                    View Title Chain
                                   </Button>
                                 </div>
                               </td>
@@ -1228,113 +1514,6 @@ const UnitDetailPage: React.FC = () => {
 
         {activeTab === 'assignment' && (
           <div className="space-y-6">
-            {/* Current Assignment */}
-            <Card>
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Current Buyer Assignment</h3>
-                  {!unit?.assignedBuyer ? (
-                    <Button onClick={() => setShowAssignmentModal(true)}>
-                      Assign Unit
-                    </Button>
-                  ) : (
-                    <Button onClick={() => setShowAssignmentModal(true)}>
-                      Reassign Buyer
-                    </Button>
-                  )}
-                </div>
-                
-                {unit?.assignedBuyer ? (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Buyer Assignment Details</h4>
-                        <dl className="space-y-2">
-                          <div>
-                            <dt className="text-sm font-medium text-gray-500">Assigned Buyer</dt>
-                            <dd className="text-sm text-gray-900">{unit.assignedBuyer?.name || 'N/A'}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-sm font-medium text-gray-500">Email</dt>
-                            <dd className="text-sm text-gray-600">{unit.assignedBuyer?.email || 'N/A'}</dd>
-                          </div>
-                          <div>
-                            <dt className="text-sm font-medium text-gray-500">Role</dt>
-                            <dd className="text-sm text-gray-600">{unit.assignedBuyer?.role?.name || 'N/A'}</dd>
-                          </div>
-                        </dl>
-                      </div>
-                      
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Buyer Assignment Status</h4>
-                        <dl className="space-y-2">
-                          <div>
-                            <dt className="text-sm font-medium text-gray-500">Status</dt>
-                            <dd className="text-sm">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                In Progress
-                              </span>
-                            </dd>
-                          </div>
-                        </dl>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Valuation Cap ($/NRA)
-                          </label>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-2xl font-bold text-gray-900">$2,500</span>
-                            <Button variant="outline" size="sm">
-                              <PencilIcon className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Target price per normalized royalty acre for underwriting
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Auto-Generate Leads
-                          </label>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="autoGenerateLeads"
-                              defaultChecked={true}
-                              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                            />
-                            <label htmlFor="autoGenerateLeads" className="text-sm text-gray-700">
-                              Create leads for owners tied to linked sections
-                            </label>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Optional checkbox to suppress auto-lead creation
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <Button
-                        variant="outline"
-                        onClick={handleUnassignUnit}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Unassign Unit
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-gray-500">No buyer currently assigned to this unit</p>
-                )}
-              </div>
-            </Card>
-
             {/* Current Buyer Assignments */}
             <Card>
               <div className="p-6">
@@ -1360,91 +1539,6 @@ const UnitDetailPage: React.FC = () => {
                               <span className="font-medium">Assigned to:</span> {assignment?.buyer?.name || 'Unknown'}
                             </p>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Comment Thread */}
-            <Card>
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Comment Thread</h3>
-                  <Button onClick={() => setShowNoteModal(true)}>
-                    Add Comment
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="border-l-4 border-blue-200 pl-4 py-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm text-gray-900">
-                          Initial assignment made for acquisition campaign. Unit shows strong potential with multiple target formations.
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Alice Admin • {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
-                        </p>
-                      </div>
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Assignment
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="border-l-4 border-green-200 pl-4 py-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm text-gray-900">
-                          Valuation cap set at $2,500/NRA based on recent comparable sales in the area.
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Bob Manager • {new Date(Date.now() - 86400000).toLocaleDateString()} {new Date(Date.now() - 86400000).toLocaleTimeString()}
-                        </p>
-                      </div>
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Valuation
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Unit Notes */}
-            <Card>
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Unit Notes</h3>
-                  <Button onClick={() => setShowNoteModal(true)}>
-                    Add Note
-                  </Button>
-                </div>
-                
-                {!Array.isArray(unitNotes) || unitNotes.length === 0 ? (
-                  <p className="text-gray-500">No notes available</p>
-                ) : (
-                  <div className="space-y-3">
-                    {unitNotes.map((note) => (
-                      <div key={note?.id || Math.random()} className="border-l-4 border-gray-200 pl-4 py-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm text-gray-900">{note?.noteText || 'N/A'}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {note?.createdByUser?.name || 'Unknown'} • {note?.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'N/A'}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            note?.noteType === 'Assignment' ? 'bg-blue-100 text-blue-800' :
-                            note?.noteType === 'Status Change' ? 'bg-yellow-100 text-yellow-800' :
-                            note?.noteType === 'Lock/Unlock' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {note?.noteType || 'Unknown'}
-                          </span>
                         </div>
                       </div>
                     ))}
