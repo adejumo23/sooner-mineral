@@ -85,10 +85,10 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         SELECT 
           OWNER as name,
           CONTACT as contact,
-          STREET as street,
-          CITY as city,
-          ST as state,
-          ZIP as zip,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL as phoneEmail,
           CURRENT_UNIT_NAME as unitName,
           S_T_R as str,
@@ -96,6 +96,9 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           NMA as grossAcres,
           NMA as netMineralAcres,
           ROY as royalty,
+          \`CURRENT_ALLO_%\` as allocation_pct,
+          \`New_ALLO_%\` as new_allo_pct,
+          \`$_NRA\` as nra_cap_usd,
           BUYER as buyer,
           STATUS as status,
           created_at,
@@ -118,7 +121,10 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
             units: new Set(),
             grossAcres: 0,
             netMineralAcres: 0,
-            royalty: 0
+            netRoyaltyAcres: 0,
+            royalty: 0,
+            allocationPct: undefined as number | undefined,
+            nraCapUsd: null as number | null
           });
         }
         
@@ -129,9 +135,24 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         if (row.unitName) {
           ownerData.units.add(row.unitName);
         }
+        const nma = parseFloat(row.netMineralAcres) || 0;
+        const roy = parseFloat(row.royalty) || 0;
         ownerData.grossAcres = Math.max(ownerData.grossAcres, parseFloat(row.grossAcres) || 0);
-        ownerData.netMineralAcres = Math.max(ownerData.netMineralAcres, parseFloat(row.netMineralAcres) || 0);
-        ownerData.royalty = Math.max(ownerData.royalty, parseFloat(row.royalty) || 0);
+        ownerData.netMineralAcres = Math.max(ownerData.netMineralAcres, nma);
+        ownerData.netRoyaltyAcres += nma * (roy / 100);
+        ownerData.royalty = Math.max(ownerData.royalty, roy);
+        if (row.allocation_pct != null && row.allocation_pct !== '') {
+          const v = parseFloat(row.allocation_pct);
+          if (ownerData.allocationPct === undefined) ownerData.allocationPct = v;
+          else ownerData.allocationPct = Math.max(ownerData.allocationPct, v);
+        }
+        if (row.new_allo_pct != null && row.new_allo_pct !== '' && ownerData.allocationPct === undefined) {
+          ownerData.allocationPct = parseFloat(row.new_allo_pct);
+        }
+        if (row.nra_cap_usd != null && row.nra_cap_usd !== '') {
+          const v = parseFloat(row.nra_cap_usd);
+          if (ownerData.nraCapUsd === null || v > ownerData.nraCapUsd) ownerData.nraCapUsd = v;
+        }
       });
       
       const leads = Array.from(ownerDataMap.entries()).map(([ownerName, ownerData]: [string, any], index: number) => {
@@ -149,6 +170,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         const uniqueSections = Array.from(ownerData.sections);
         const uniqueUnits = Array.from(ownerData.units);
         const firstUnitName = uniqueUnits.length > 0 ? uniqueUnits[0] : null;
+        const firstStr = uniqueSections.length > 0 ? uniqueSections[0] : null;
         
         return {
           id: `lead-${offset + index}`,
@@ -175,7 +197,11 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           unitName: firstUnitName,
           grossAcres: grossAcres,
           netMineralAcres: ownerData.netMineralAcres,
+          netRoyaltyAcres: ownerData.netRoyaltyAcres,
           royalty: royalty,
+          allocationPct: ownerData.allocationPct,
+          nraCapUsd: ownerData.nraCapUsd,
+          str: firstStr,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
           linkedContact: {
@@ -275,28 +301,36 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
     }
   });
 
-  // Get single lead by ID - MUST be last (after all specific routes)
-  router.get('/api/leads/:id', async (req, res) => {
+  // Get sections assigned to a lead (by lead id) - MUST be before /api/leads/:id route
+  router.get('/api/leads/:id/sections', async (req, res) => {
     try {
       if (!dbPool) {
         return res.status(500).json({ success: false, message: 'Database pool not initialized' });
       }
-
       const { id } = req.params;
-      const leadIndex = parseInt(id.replace('lead-', ''));
-      
-      const query = `
-        SELECT DISTINCT
-          OWNER as name,
-          CONTACT as contact,
-          STREET as street,
-          CITY as city,
-          ST as state,
-          ZIP as zip,
-          PHONE_EMAIL as phoneEmail,
-          CURRENT_UNIT_NAME as unitName,
+      const leadIndex = parseInt(id.replace('lead-', ''), 10);
+      if (isNaN(leadIndex) || leadIndex < 0) {
+        return res.status(400).json({ success: false, message: 'Invalid lead id' });
+      }
+
+      const ownerQuery = `
+        SELECT DISTINCT OWNER as name
+        FROM prod_acreage_schedule
+        WHERE OWNER IS NOT NULL AND OWNER != ''
+        ORDER BY OWNER
+        LIMIT 1 OFFSET ${leadIndex}
+      `;
+      const ownerRows = await executeQuery(dbPool, ownerQuery, []);
+      if (ownerRows.length === 0) {
+        return res.json([]);
+      }
+      const ownerName = ownerRows[0].name;
+
+      const rowsQuery = `
+        SELECT
           S_T_R as str,
           COUNTY as county,
+          OWNER_ST as state,
           NMA as grossAcres,
           NMA as netMineralAcres,
           ROY as royalty,
@@ -305,18 +339,112 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           created_at,
           updated_at
         FROM prod_acreage_schedule
+        WHERE OWNER = ?
+        ORDER BY S_T_R, created_at
+      `;
+      const rows = await executeQuery(dbPool, rowsQuery, [ownerName]);
+
+      const sectionMap = new Map<string, any>();
+      for (const row of rows) {
+        const str = row.str || 'Unknown';
+        const key = str;
+        if (!sectionMap.has(key)) {
+          const status = row.status === 'DROPPED' ? 'Inactive' : (row.status === 'NEW' ? 'Pending' : (row.status === 'LVM/TXT/EMAIL' ? 'Active' : 'Under Review'));
+          sectionMap.set(key, {
+            id: `section-${key}-${sectionMap.size}`,
+            sectionName: str,
+            str,
+            county: row.county || '',
+            state: row.state || 'OK',
+            legalDescription: str,
+            grossAcres: parseFloat(row.grossAcres) || 0,
+            netMineralAcres: parseFloat(row.netMineralAcres) || 0,
+            royalty: parseFloat(row.royalty) || 0,
+            status,
+            assignedBuyerId: row.buyer ? String(row.buyer).toLowerCase().replace(/\s+/g, '-') : undefined,
+            assignedBuyerName: row.buyer || 'Unassigned',
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            titleStatus: 'Unmapped',
+            heldByFund: false,
+            isLocked: false,
+          });
+        } else {
+          const existing = sectionMap.get(key);
+          existing.grossAcres = Math.max(existing.grossAcres, parseFloat(row.grossAcres) || 0);
+          existing.netMineralAcres = Math.max(existing.netMineralAcres, parseFloat(row.netMineralAcres) || 0);
+          if (row.updated_at && (!existing.updatedAt || new Date(row.updated_at) > new Date(existing.updatedAt))) {
+            existing.updatedAt = row.updated_at;
+          }
+        }
+      }
+
+      const sections = Array.from(sectionMap.values());
+      res.json(sections);
+    } catch (error: any) {
+      console.error('Error fetching lead sections:', error);
+      res.status(500).json({ success: false, message: 'Error fetching lead sections', error: error.message });
+    }
+  });
+
+  // Get single lead by ID - MUST be last (after all specific routes)
+  // Lead id = lead-N means the (N+1)-th distinct OWNER (same as list), not the N-th row.
+  router.get('/api/leads/:id', async (req, res) => {
+    try {
+      if (!dbPool) {
+        return res.status(500).json({ success: false, message: 'Database pool not initialized' });
+      }
+
+      const { id } = req.params;
+      const leadIndex = parseInt(id.replace('lead-', ''), 10);
+      if (isNaN(leadIndex) || leadIndex < 0) {
+        return res.status(400).json({ success: false, message: 'Invalid lead id' });
+      }
+
+      const ownerQuery = `
+        SELECT DISTINCT OWNER as name
+        FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
         ORDER BY OWNER
         LIMIT 1 OFFSET ${leadIndex}
       `;
+      const ownerRows = await executeQuery(dbPool, ownerQuery, []);
+      if (ownerRows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
+      }
+      const ownerName = ownerRows[0].name;
 
-      const rows = await executeQuery(dbPool, query);
-      
+      const query = `
+        SELECT
+          OWNER as name,
+          CONTACT as contact,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
+          PHONE_EMAIL as phoneEmail,
+          CURRENT_UNIT_NAME as unitName,
+          NEW_UNIT_NAME as newUnitName,
+          S_T_R as str,
+          COUNTY as county,
+          NMA as grossAcres,
+          NMA as netMineralAcres,
+          ROY as royalty,
+          \`CURRENT_ALLO_%\` as allocation_pct,
+          \`New_ALLO_%\` as new_allo_pct,
+          \`$_NRA\` as nra_cap_usd,
+          BUYER as buyer,
+          STATUS as status,
+          created_at,
+          updated_at
+        FROM prod_acreage_schedule
+        WHERE OWNER = ?
+        ORDER BY S_T_R, CURRENT_UNIT_NAME
+        LIMIT 1
+      `;
+      const rows = await executeQuery(dbPool, query, [ownerName]);
       if (rows.length === 0) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Lead not found' 
-        });
+        return res.status(404).json({ success: false, message: 'Lead not found' });
       }
 
       const row = rows[0];
@@ -354,6 +482,10 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         zip: row.zip,
         phoneEmail: row.phoneEmail,
         unitName: row.unitName,
+        newUnitName: row.newUnitName ?? null,
+        allocationPct: row.allocation_pct != null && row.allocation_pct !== '' ? parseFloat(row.allocation_pct) : null,
+        newAlloPct: row.new_allo_pct != null && row.new_allo_pct !== '' ? parseFloat(row.new_allo_pct) : null,
+        nraCapUsd: row.nra_cap_usd != null && row.nra_cap_usd !== '' ? parseFloat(row.nra_cap_usd) : null,
         grossAcres: grossAcres,
         netMineralAcres: parseFloat(row.netMineralAcres) || 0,
         royalty: royalty,

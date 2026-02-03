@@ -55,6 +55,11 @@ export interface Section {
   dollar_nra?: string; // $_NRA column from prod_acreage_schedule (as string for GROUP_CONCAT result)
   closedDealsCount?: number; // Number of records with STATUS = 'closed' for this section
   netMineralAcresAcquired?: number; // Sum of NMA where STATUS = 'closed' for this section
+  title_source?: string; // Title Source (COLUMN AN)
+  royalty?: number; // Blended royalty %
+  netRoyaltyAcres?: number; // Net royalty acres (previously provided cal)
+  netRoyaltyAcresAcquired?: number; // Net royalty acres acquired (closed deals)
+  ownershipPercentInSection?: number; // NET MINERAL ACRES ACQUIRED / NET MINERALS IN SECTION
   
   // ESG Tracking Fields
   esgProfileId?: string;
@@ -332,7 +337,6 @@ export interface SectionLead {
   section?: Section;
   lastActivity?: string;
   noteCount?: number;
-  // Additional properties from the API response
   name?: string;
   contact?: string;
   street?: string;
@@ -341,10 +345,26 @@ export interface SectionLead {
   zip?: string;
   phoneEmail?: string;
   unitName?: string;
+  newUnitName?: string;
   grossAcres?: number;
   netMineralAcres?: number;
+  netRoyaltyAcres?: number;
   royalty?: number;
   priority?: string;
+  note?: string;
+  legalDescription?: string;
+  alloPercent?: string;
+  alloPercentAl?: string;
+  occType?: string;
+  occDate?: string | null;
+  spudDate?: string | null;
+  firstProduction?: string | null;
+  nraCapUsd?: number;
+  nmaOffer?: number | null;
+  totalNmaUsd?: number;
+  nraOfferConverted?: number;
+  titleSource?: string;
+  dateField?: string;
 }
 
 export interface LeadNote {
@@ -430,6 +450,10 @@ export interface Rig {
 
 export interface Unit {
   id: string;
+  /** Unique schedule row id for list line items (one row per schedule line) */
+  scheduleRowId?: string;
+  /** Current unit name (CURRENT_UNIT_NAME) for display in Current Unit table */
+  currentUnitName?: string;
   unitName: string;
   operator: string;
   apiNumbers: string[]; // Array of API numbers (1 or more if multiple wells per unit)
@@ -469,6 +493,28 @@ export interface Unit {
   totalNetMineralAcres?: number;
   averageRoyalty?: number;
   allocationPercentage?: number;
+  /** S-T-R (section-township-range) for this line item */
+  str?: string;
+  /** OCC Type */
+  occType?: string;
+  /** OCC Date */
+  occDate?: string | null;
+  /** NRA/$ Cap ($_NRA) */
+  nraCapUsd?: number | null;
+  /** Spud date from metadata or tracker */
+  spudDate?: string | null;
+  /** Current unit display name (for detail view) */
+  currentUnitName?: string;
+  /** Unique S-T-R values for overview (per row) */
+  strList?: string[];
+  /** Allocation % per row (current or new) */
+  allocationList?: (number | undefined)[];
+  /** Estimated net acres per row */
+  estimatedNetAcresList?: number[];
+  /** NRA/$ Cap per row */
+  nraCapUsdList?: (number | null)[];
+  /** Estimated number of owners per STR (distinct OWNER count with same STR) */
+  estimatedNumberOfOwnersList?: number[];
 }
 
 export interface UnitAssignment {

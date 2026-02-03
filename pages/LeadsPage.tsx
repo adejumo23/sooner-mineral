@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchLeads, fetchUsers, fetchSections, fetchUnits } from '../services/api';
 import { LeadEnhanced, User, Section, Unit, LeadFilters } from '../types';
@@ -7,6 +7,23 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { MagnifyingGlassIcon, FunnelIcon, PlusIcon } from '../components/icons/Icons';
+
+const DEFAULT_LEAD_COLUMN_WIDTHS: Record<string, number> = {
+  linkedContact: 220,
+  str: 100,
+  netMineralAcres: 120,
+  royalty: 110,
+  netRoyaltyAcres: 120,
+  assets: 180,
+  allocationPct: 100,
+  nraCapUsd: 100,
+  buyer: 110,
+  status: 100,
+  priorityScore: 80,
+  lastContactDate: 110,
+  nextFollowUpDate: 110,
+  actions: 80
+};
 
 const LeadsPage: React.FC = () => {
   const [leads, setLeads] = useState<LeadEnhanced[]>([]);
@@ -40,6 +57,66 @@ const LeadsPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(50);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
+
+  // Column resize state (widths keyed by accessor, persisted to localStorage)
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('leads-column-widths');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(0);
+  const resizingColumnRef = useRef<string | null>(null);
+  const prevResizingColumnRef = useRef<string | null>(null);
+
+  const getColumnWidth = useCallback((accessor: string) => {
+    return columnWidths[accessor] ?? DEFAULT_LEAD_COLUMN_WIDTHS[accessor] ?? 150;
+  }, [columnWidths]);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent, accessor: string, currentWidth: number) => {
+    e.preventDefault();
+    resizingColumnRef.current = accessor;
+    resizeStartXRef.current = e.clientX;
+    resizeStartWidthRef.current = currentWidth;
+    setResizingColumn(accessor);
+  }, []);
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const accessor = resizingColumnRef.current;
+      if (!accessor) return;
+      const delta = e.clientX - resizeStartXRef.current;
+      const newWidth = Math.max(60, Math.min(500, resizeStartWidthRef.current + delta));
+      setColumnWidths(prev => ({ ...prev, [accessor]: newWidth }));
+    };
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      resizingColumnRef.current = null;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn]);
+
+  // Persist column widths when resize ends (so we have latest state)
+  useEffect(() => {
+    const wasResizing = prevResizingColumnRef.current != null;
+    prevResizingColumnRef.current = resizingColumn;
+    if (wasResizing && resizingColumn === null) {
+      localStorage.setItem('leads-column-widths', JSON.stringify(columnWidths));
+    }
+  }, [resizingColumn, columnWidths]);
 
   useEffect(() => {
     loadData();
@@ -143,8 +220,32 @@ const LeadsPage: React.FC = () => {
     // Handle different field types
     switch (sortField) {
       case 'linkedContact':
-        aValue = a.linkedContact?.name || a.name || '';
-        bValue = b.linkedContact?.name || b.name || '';
+        aValue = a.linkedContact?.name || (a as any).contact || (a as any).name || '';
+        bValue = b.linkedContact?.name || (b as any).contact || (b as any).name || '';
+        break;
+      case 'str':
+        aValue = (a as any).str ?? a.linkedSections?.[0]?.str ?? '';
+        bValue = (b as any).str ?? b.linkedSections?.[0]?.str ?? '';
+        break;
+      case 'netMineralAcres':
+        aValue = (a as any).netMineralAcres ?? 0;
+        bValue = (b as any).netMineralAcres ?? 0;
+        break;
+      case 'royalty':
+        aValue = (a as any).royalty ?? 0;
+        bValue = (b as any).royalty ?? 0;
+        break;
+      case 'netRoyaltyAcres':
+        aValue = (a as any).netRoyaltyAcres ?? 0;
+        bValue = (b as any).netRoyaltyAcres ?? 0;
+        break;
+      case 'allocationPct':
+        aValue = (a as any).allocationPct ?? 0;
+        bValue = (b as any).allocationPct ?? 0;
+        break;
+      case 'nraCapUsd':
+        aValue = (a as any).nraCapUsd ?? 0;
+        bValue = (b as any).nraCapUsd ?? 0;
         break;
       case 'status':
         aValue = a.status || '';
@@ -163,12 +264,12 @@ const LeadsPage: React.FC = () => {
         bValue = b.nextFollowUpDate ? new Date(b.nextFollowUpDate).getTime() : 0;
         break;
       case 'buyer':
-        aValue = a.buyer?.name || '';
-        bValue = b.buyer?.name || '';
+        aValue = (a as any).buyer?.name ?? a.buyer?.name ?? '';
+        bValue = (b as any).buyer?.name ?? b.buyer?.name ?? '';
         break;
       default:
-        aValue = a[sortField as keyof LeadEnhanced] ?? '';
-        bValue = b[sortField as keyof LeadEnhanced] ?? '';
+        aValue = (a as any)[sortField] ?? '';
+        bValue = (b as any)[sortField] ?? '';
     }
 
     // Handle comparison
@@ -191,7 +292,17 @@ const LeadsPage: React.FC = () => {
   const getPriorityColor = (priority: number) => {
     if (priority >= 80) return 'bg-red-100 text-red-800';
     if (priority >= 60) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-green-100 text-green-800';
+    return 'bg-orange-100 text-orange-800';
+  };
+
+  const cleanContactDisplayName = (raw: string): string => {
+    if (!raw || typeof raw !== 'string') return 'Unknown Contact';
+    let name = raw.trim();
+    if (name.includes(' > ')) {
+      name = name.split(' > ').pop()?.trim() || name;
+    }
+    name = name.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    return name || 'Unknown Contact';
   };
 
   const allColumns = [
@@ -202,69 +313,117 @@ const LeadsPage: React.FC = () => {
       className: 'min-w-[200px]',
       alwaysVisible: false,
       cell: (lead: LeadEnhanced) => {
-        // Use the same logic everywhere: prefer contact field, then linkedContact.name, then name
-        const displayName = lead.contact || lead.linkedContact?.name || lead.name || 'Unknown Contact';
-        return (
-        <div>
-          <div className="font-medium text-gray-900">
-            {displayName}
-          </div>
-          <div className="text-sm text-gray-600 hidden sm:block">
-            {lead.linkedContact?.city || lead.city}, {lead.linkedContact?.state || lead.state}
-          </div>
-          <div className="text-xs text-gray-500 hidden md:block">
-            {lead.phoneEmail || 'No contact info'}
-          </div>
-        </div>
-        );
-      }
-    },
-    {
-      header: 'Assets',
-      accessor: 'assets',
-      sortable: false,
-      className: 'min-w-[180px] hidden lg:table-cell',
-      cell: (lead: LeadEnhanced) => {
-        // Sections are already deduplicated on the server
-        const sections = lead.linkedSections || [];
-        // Units are already deduplicated on the server
-        const units = lead.linkedUnits || [];
-        
+        const raw = lead.contact || lead.linkedContact?.name || (lead as any).name || '';
+        const displayName = cleanContactDisplayName(raw);
         return (
           <div>
-            {sections.slice(0, 2).map(section => (
-              <div key={section.id || section.str} className="text-sm text-gray-600">
-                Section: {section.sectionName || section.str || 'Unknown Section'}
-              </div>
-            ))}
-            {sections.length > 2 && (
-              <div className="text-xs text-gray-500">+{sections.length - 2} more sections</div>
-            )}
-            {units.slice(0, 2).map(unit => (
-              <div key={unit.id || unit.unitName} className="text-sm text-gray-600">
-                Unit: {unit.unitName}
-              </div>
-            ))}
-            {units.length > 2 && (
-              <div className="text-xs text-gray-500">+{units.length - 2} more units</div>
-            )}
-            {sections.length === 0 && units.length === 0 && (
-              <div className="text-sm text-gray-400 italic">No assets</div>
-            )}
-            <div className="text-xs text-gray-500 mt-1">
-              {lead.grossAcres ? `${lead.grossAcres.toFixed(2)} acres` : 'No acreage data'}
+            <div className="font-medium text-gray-900">{displayName}</div>
+            <div className="text-sm text-gray-600">
+              {(lead.linkedContact?.city ?? (lead as any).city) || ''}, {(lead.linkedContact?.state ?? (lead as any).state) || ''}
+            </div>
+            <div className="text-xs text-gray-500">
+              {(lead as any).phoneEmail || lead.linkedContact?.phoneEmail || 'No contact info'}
             </div>
           </div>
         );
       }
     },
     {
+      header: 'S-T-R',
+      accessor: 'str',
+      sortable: true,
+      className: 'min-w-[100px]',
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm font-mono text-gray-900">{(lead as any).str ?? (lead.linkedSections?.[0]?.str) ?? '—'}</span>
+      )
+    },
+    {
+      header: 'Net Mineral Acres',
+      accessor: 'netMineralAcres',
+      sortable: true,
+      className: 'min-w-[100px]',
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-900">
+          {(lead as any).netMineralAcres != null ? Number((lead as any).netMineralAcres).toFixed(6) : '—'}
+        </span>
+      )
+    },
+    {
+      header: 'Royalty Burden',
+      accessor: 'royalty',
+      sortable: true,
+      className: 'min-w-[100px]',
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-900 font-mono">
+          {(lead as any).royalty != null ? Number((lead as any).royalty).toFixed(4) : '—'}
+        </span>
+      )
+    },
+    {
+      header: 'Net Royalty Acres',
+      accessor: 'netRoyaltyAcres',
+      sortable: true,
+      className: 'min-w-[110px]',
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-900">
+          {(lead as any).netRoyaltyAcres != null ? Number((lead as any).netRoyaltyAcres).toFixed(6) : '—'}
+        </span>
+      )
+    },
+    {
+      header: 'Assets',
+      accessor: 'assets',
+      sortable: false,
+      className: 'min-w-[180px]',
+      cell: (lead: LeadEnhanced) => {
+        const sections = lead.linkedSections || [];
+        const units = lead.linkedUnits || [];
+        return (
+          <div className="text-sm text-gray-900">
+            {sections.slice(0, 3).map(section => (
+              <div key={section.id || section.str}>Section: {section.sectionName || section.str || 'Unknown'}</div>
+            ))}
+            {sections.length > 3 && <div className="text-xs text-gray-500">+{sections.length - 3} more</div>}
+            {units.slice(0, 3).map(unit => (
+              <div key={unit.id || unit.unitName}>Unit: {unit.unitName}</div>
+            ))}
+            {units.length > 3 && <div className="text-xs text-gray-500">+{units.length - 3} more</div>}
+            {sections.length === 0 && units.length === 0 && <span className="text-gray-400">—</span>}
+          </div>
+        );
+      }
+    },
+    {
+      header: 'Allocation %',
+      accessor: 'allocationPct',
+      sortable: true,
+      className: 'min-w-[90px]',
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm font-mono text-gray-900">
+          {(lead as any).allocationPct != null ? Number((lead as any).allocationPct).toFixed(6) : '—'}
+        </span>
+      )
+    },
+    {
+      header: 'NRA/S Cap',
+      accessor: 'nraCapUsd',
+      sortable: true,
+      className: 'min-w-[90px]',
+      cell: (lead: LeadEnhanced) => (
+        <span className="text-sm text-gray-900">
+          {(lead as any).nraCapUsd != null
+            ? `$${Number((lead as any).nraCapUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : '—'}
+        </span>
+      )
+    },
+    {
       header: 'Buyer',
       accessor: 'buyer',
       sortable: true,
-      className: 'hidden md:table-cell',
+      className: 'min-w-[90px]',
       cell: (lead: LeadEnhanced) => (
-        <span className="text-sm text-gray-600">{lead.buyer?.name || 'Unassigned'}</span>
+        <span className="text-sm text-gray-900">{(lead as any).buyer?.name ?? lead.buyer?.name ?? 'Unassigned'}</span>
       )
     },
     {
@@ -282,7 +441,7 @@ const LeadsPage: React.FC = () => {
       header: 'Priority',
       accessor: 'priorityScore',
       sortable: true,
-      className: 'hidden sm:table-cell',
+      className: 'min-w-[80px]',
       cell: (lead: LeadEnhanced) => (
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(lead.priorityScore)}`}>
           {lead.priorityScore}
@@ -293,7 +452,7 @@ const LeadsPage: React.FC = () => {
       header: 'Last Contact',
       accessor: 'lastContactDate',
       sortable: true,
-      className: 'hidden lg:table-cell',
+      className: 'min-w-[100px]',
       cell: (lead: LeadEnhanced) => (
         <span className="text-sm text-gray-600 whitespace-nowrap">
           {lead.lastContactDate ? new Date(lead.lastContactDate).toLocaleDateString() : 'Never'}
@@ -304,7 +463,7 @@ const LeadsPage: React.FC = () => {
       header: 'Next Follow-up',
       accessor: 'nextFollowUpDate',
       sortable: true,
-      className: 'hidden xl:table-cell',
+      className: 'min-w-[100px]',
       cell: (lead: LeadEnhanced) => (
         <span className="text-sm text-gray-600 whitespace-nowrap">
           {lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toLocaleDateString() : 'Not set'}
@@ -318,14 +477,9 @@ const LeadsPage: React.FC = () => {
       className: 'min-w-[80px]',
       alwaysVisible: true,
       cell: (lead: LeadEnhanced) => (
-        <div className="flex space-x-2">
-          <Link
-            to={`/leads/${lead.id}`}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
-          >
-            View
-          </Link>
-        </div>
+        <Link to={`/leads/${lead.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap">
+          View
+        </Link>
       )
     }
   ];
@@ -634,6 +788,10 @@ const LeadsPage: React.FC = () => {
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={handleSort}
+            columnWidths={columnWidths}
+            onResizeStart={handleResizeStart}
+            resizingColumn={resizingColumn}
+            getColumnWidth={getColumnWidth}
           />
         )}
       </Card>

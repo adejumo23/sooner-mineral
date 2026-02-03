@@ -798,10 +798,10 @@ export const createMappingRoutes = (dbPool: Pool | null) => {
           ORDER BY COUNTY
         `).catch(() => []),
         executeQuery(dbPool, `
-          SELECT DISTINCT ST as state
+          SELECT DISTINCT STATE as state
           FROM prod_acreage_schedule
-          WHERE ST IS NOT NULL AND ST != ''
-          ORDER BY ST
+          WHERE STATE IS NOT NULL AND STATE != ''
+          ORDER BY STATE
         `).catch(() => [])
       ]);
 

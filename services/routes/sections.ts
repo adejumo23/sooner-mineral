@@ -33,29 +33,30 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
       const query = `
         SELECT 
-          S_T_R as str,
-          MAX(COUNTY) as county,
-          MAX(ST) as state,
-          GROUP_CONCAT(DISTINCT STATUS ORDER BY STATUS SEPARATOR ',\n') as statuses,
-          GROUP_CONCAT(DISTINCT LEGAL_DESCRIPTION ORDER BY LEGAL_DESCRIPTION SEPARATOR ';\n') as legal_descriptions,
-          SUM(NMA) as net_mineral_acres,
-          AVG(CALCULATED_ACREAGE) as calculated_acreage,
-          GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
-          COUNT(DISTINCT BUYER) as buyer_count,
-          COUNT(DISTINCT OWNER) as owner_count,
-          MIN(DATE) as date_created,
-          GROUP_CONCAT(DISTINCT TITLE_SOURCE ORDER BY TITLE_SOURCE SEPARATOR ', ') as title_sources,
-          GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit,
-          GROUP_CONCAT(DISTINCT \`ALLO_%\` SEPARATOR ', ') as allo_percent,
-          GROUP_CONCAT(DISTINCT NEW_UNIT_NAME ORDER BY NEW_UNIT_NAME SEPARATOR ',\n') as new_unit_name,
-          GROUP_CONCAT(DISTINCT NEW_OCC_TYPE ORDER BY NEW_OCC_TYPE SEPARATOR ', ') as new_occ_type,
-          GROUP_CONCAT(DISTINCT \`$_NRA\` SEPARATOR ', ') as dollar_nra,
-          COUNT(CASE WHEN UPPER(STATUS) = 'CLOSED' THEN 1 END) as closed_deals_count,
-          SUM(CASE WHEN UPPER(STATUS) = 'CLOSED' THEN NMA ELSE 0 END) as net_mineral_acres_acquired
-        FROM prod_acreage_schedule 
-        WHERE S_T_R IS NOT NULL 
-        GROUP BY S_T_R
-        ORDER BY S_T_R
+          pas.S_T_R as str,
+          MAX(pas.COUNTY) as county,
+          MAX(pas.STATE) as state,
+          GROUP_CONCAT(DISTINCT pas.STATUS ORDER BY pas.STATUS SEPARATOR ',\n') as statuses,
+          GROUP_CONCAT(DISTINCT pas.LEGAL_DESCRIPTION ORDER BY pas.LEGAL_DESCRIPTION SEPARATOR ';\n') as legal_descriptions,
+          SUM(CAST(pas.NMA AS DECIMAL(12,4))) as net_mineral_acres,
+          AVG(pas.CALCULATED_ACREAGE) as calculated_acreage,
+          GROUP_CONCAT(DISTINCT pas.BUYER ORDER BY pas.BUYER SEPARATOR ', ') as assigned_buyer,
+          COUNT(DISTINCT pas.BUYER) as buyer_count,
+          COUNT(DISTINCT pas.OWNER) as owner_count,
+          MIN(pas.created_at) as date_created,
+          GROUP_CONCAT(DISTINCT pas.TITLE_SOURCE ORDER BY pas.TITLE_SOURCE SEPARATOR ', ') as title_sources,
+          GROUP_CONCAT(DISTINCT pas.CURRENT_UNIT_NAME ORDER BY pas.CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit,
+          GROUP_CONCAT(DISTINCT pas.NEW_UNIT_NAME ORDER BY pas.NEW_UNIT_NAME SEPARATOR ',\n') as new_unit_name,
+          GROUP_CONCAT(DISTINCT pas.NEW_OCC_TYPE ORDER BY pas.NEW_OCC_TYPE SEPARATOR ', ') as new_occ_type,
+          COUNT(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN 1 END) as closed_deals_count,
+          SUM(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN CAST(pas.NMA AS DECIMAL(12,4)) ELSE 0 END) as net_mineral_acres_acquired,
+          AVG(CAST(pas.ROY AS DECIMAL(5,2))) as royalty_blended,
+          SUM(CAST(pas.NMA AS DECIMAL(12,4)) * CAST(pas.ROY AS DECIMAL(5,2)) / 100) as net_royalty_acres,
+          SUM(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN CAST(pas.NMA AS DECIMAL(12,4)) * CAST(pas.ROY AS DECIMAL(5,2)) / 100 ELSE 0 END) as net_royalty_acres_acquired
+        FROM prod_acreage_schedule pas
+        WHERE pas.S_T_R IS NOT NULL 
+        GROUP BY pas.S_T_R
+        ORDER BY pas.S_T_R
         LIMIT ${limit} OFFSET ${offset}
       `;
 
@@ -73,8 +74,15 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         }
         
         const netAcres = parseFloat(row.net_mineral_acres) || 0;
+        const netAcresAcquired = parseFloat(row.net_mineral_acres_acquired) || 0;
         const buyer = row.assigned_buyer ? String(row.assigned_buyer).trim() : '';
         const status = buyer ? 'assigned' : 'unassigned';
+        const royaltyBlended = row.royalty_blended != null ? parseFloat(row.royalty_blended) : undefined;
+        const netRoyaltyAcres = row.net_royalty_acres != null ? parseFloat(row.net_royalty_acres) : undefined;
+        const netRoyaltyAcresAcquired = row.net_royalty_acres_acquired != null ? parseFloat(row.net_royalty_acres_acquired) : undefined;
+        const ownershipPercentInSection = netAcres > 0 && netAcresAcquired > 0
+          ? (netAcresAcquired / netAcres) * 100
+          : undefined;
         
         return {
           id: `s${offset + index + 1}`,
@@ -101,7 +109,11 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           new_occ_type: row.new_occ_type || 'N/A',
           dollar_nra: row.dollar_nra || 'N/A',
           closedDealsCount: row.closed_deals_count || 0,
-          netMineralAcresAcquired: parseFloat(row.net_mineral_acres_acquired) || 0,
+          netMineralAcresAcquired: netAcresAcquired,
+          royalty: royaltyBlended,
+          netRoyaltyAcres: netRoyaltyAcres,
+          netRoyaltyAcresAcquired: netRoyaltyAcresAcquired,
+          ownershipPercentInSection: ownershipPercentInSection,
           // Set nraCapUsd to the first value from $_NRA (if available and numeric)
           nraCapUsd: (() => {
             if (row.dollar_nra) {
@@ -182,7 +194,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       }
 
       if (updateData.state !== undefined) {
-        updateFields.push('ST = ?');
+        updateFields.push('STATE = ?');
         updateValues.push(updateData.state);
       }
 
@@ -225,9 +237,9 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         updateValues.push(updateData.royalty);
       }
 
-      // Handle ownershipPercentage -> ALLO_%
+      // Handle ownershipPercentage -> CURRENT_ALLO_%
       if (updateData.ownershipPercentage !== undefined) {
-        updateFields.push('`ALLO_%` = ?');
+        updateFields.push('`CURRENT_ALLO_%` = ?');
         updateValues.push(updateData.ownershipPercentage);
       }
 
@@ -278,7 +290,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         SELECT 
           S_T_R as str,
           MAX(COUNTY) as county,
-          MAX(ST) as state,
+          MAX(STATE) as state,
           GROUP_CONCAT(DISTINCT STATUS ORDER BY STATUS SEPARATOR ',\n') as statuses,
           GROUP_CONCAT(DISTINCT LEGAL_DESCRIPTION ORDER BY LEGAL_DESCRIPTION SEPARATOR ';\n') as legal_descriptions,
           SUM(NMA) as net_mineral_acres,
@@ -286,7 +298,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           GROUP_CONCAT(DISTINCT BUYER ORDER BY BUYER SEPARATOR ', ') as assigned_buyer,
           COUNT(DISTINCT BUYER) as buyer_count,
           COUNT(DISTINCT OWNER) as owner_count,
-          MIN(DATE) as date_created,
+          MIN(created_at) as date_created,
           GROUP_CONCAT(DISTINCT TITLE_SOURCE ORDER BY TITLE_SOURCE SEPARATOR ', ') as title_sources,
           GROUP_CONCAT(DISTINCT CURRENT_UNIT_NAME ORDER BY CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit
         FROM prod_acreage_schedule 
@@ -411,10 +423,10 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         SELECT DISTINCT
           OWNER as name,
           CONTACT as contact,
-          STREET as street,
-          CITY as city,
-          ST as state,
-          ZIP as zip,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL as phoneEmail,
           CURRENT_UNIT_NAME as unitName,
           created_at,
@@ -476,30 +488,41 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       
       const sectionStr = sectionsResponse[sectionNumber - 1].str;
       
-      // Filter leads by the section's S_T_R value
+      // Fetch all lead fields from prod_acreage_schedule for this section
       const query = `
-        SELECT DISTINCT
+        SELECT
+          id,
           OWNER as name,
           CONTACT as contact,
-          STREET as street,
-          CITY as city,
-          ST as state,
-          ZIP as zip,
+          OWNER_STREET as street,
+          OWNER_CITY as city,
+          OWNER_ST as state,
+          OWNER_ZIP as zip,
           PHONE_EMAIL as phoneEmail,
           CURRENT_UNIT_NAME as unitName,
+          NEW_UNIT_NAME as newUnitName,
           S_T_R as str,
           NMA as grossAcres,
           NMA as netMineralAcres,
           ROY as royalty,
           BUYER as buyer,
           STATUS as status,
+          NOTE as note,
+          LEGAL_DESCRIPTION as legalDescription,
+          \`CURRENT_ALLO_%\` as alloPercent,
+          \`New_ALLO_%\` as alloPercentAl,
+          \`TOTAL_\$\` as totalNraUsd,
+          NEW_OCC_TYPE as occType,
+          created_at as dateField,
+          TITLE_SOURCE as titleSource,
+          CALCULATED_ACREAGE as calculatedAcreage,
           created_at,
           updated_at
         FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
           AND S_T_R = ?
-        ORDER BY OWNER
-        LIMIT 50
+        ORDER BY OWNER, id
+        LIMIT 500
       `;
 
       const rows = await executeQuery(dbPool, query, [sectionStr]);
@@ -518,10 +541,18 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         else if (dbStatus === 'Offer Accepted' || dbStatus === 'OFFER ACCEPTED') leadStatus = 'Offer Accepted';
         else if (dbStatus === 'Not Selling Now' || dbStatus === 'NOT SELLING NOW') leadStatus = 'Not Selling Now';
         else if (dbStatus === 'Unable to Locate' || dbStatus === 'UNABLE TO LOCATE') leadStatus = 'Unable to Locate';
-        else if (dbStatus) leadStatus = dbStatus as any; // Use the status as-is if it matches one of our values
+        else if (dbStatus) leadStatus = dbStatus as any;
+        
+        const nma = parseFloat(row.grossAcres) || 0;
+        const roy = parseFloat(row.royalty) || 0;
+        const netRoyaltyAcres = nma * roy / 100;
+        const nraCapUsd = row.totalNraUsd != null ? parseFloat(row.totalNraUsd) : undefined;
+        // NRA/$ Offer (Converted) - if we have NMA and a cap, offer converted could be derived; use same as nraCapUsd if no separate column
+        const nraOfferConverted = nraCapUsd;
         
         return {
           id: `lead-${id}-${index}`,
+          acreageScheduleId: row.id,
           sectionId: id,
           buyerId: row.buyer?.toLowerCase() || 'unassigned',
           status: leadStatus,
@@ -538,10 +569,26 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           zip: row.zip,
           phoneEmail: row.phoneEmail,
           unitName: row.unitName,
-          grossAcres: parseFloat(row.grossAcres) || 0,
-          netMineralAcres: parseFloat(row.netMineralAcres) || 0,
-          royalty: parseFloat(row.royalty) || 0,
+          newUnitName: row.newUnitName,
+          grossAcres: nma,
+          netMineralAcres: nma,
+          netRoyaltyAcres,
+          royalty: roy,
           priority: 'Medium',
+          note: row.note,
+          legalDescription: row.legalDescription,
+          alloPercent: row.alloPercent,
+          alloPercentAl: row.alloPercentAl,
+          occType: row.occType,
+          occDate: null as string | null,
+          spudDate: null as string | null,
+          firstProduction: null as string | null,
+          nraCapUsd,
+          nmaOffer: null as number | null,
+          totalNmaUsd: nraCapUsd,
+          nraOfferConverted,
+          titleSource: row.titleSource,
+          dateField: row.dateField,
           buyer: {
             id: row.buyer?.toLowerCase() || 'unassigned',
             name: row.buyer || 'Unassigned',
@@ -611,30 +658,14 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         return res.status(400).json({ success: false, message: `Invalid lead index: ${indexString}` });
       }
 
-      // Fetch leads for this section (same query as GET endpoint)
+      // Fetch leads for this section (same query/order as GET endpoint so index matches)
       const leadsQuery = `
-        SELECT DISTINCT
-          OWNER as name,
-          CONTACT as contact,
-          STREET as street,
-          CITY as city,
-          ST as state,
-          ZIP as zip,
-          PHONE_EMAIL as phoneEmail,
-          CURRENT_UNIT_NAME as unitName,
-          S_T_R as str,
-          NMA as grossAcres,
-          NMA as netMineralAcres,
-          ROY as royalty,
-          BUYER as buyer,
-          STATUS as status,
-          created_at,
-          updated_at
+        SELECT id, OWNER as name
         FROM prod_acreage_schedule
         WHERE OWNER IS NOT NULL AND OWNER != ''
           AND S_T_R = ?
-        ORDER BY OWNER
-        LIMIT 50
+        ORDER BY OWNER, id
+        LIMIT 500
       `;
       
       const allLeadsRows = await executeQuery(dbPool, leadsQuery, [sectionStr]);
@@ -764,10 +795,10 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           LEGAL_DESCRIPTION,
           NMA,
           OWNER,
-          STREET,
-          CITY,
-          ST,
-          ZIP,
+          OWNER_STREET,
+          OWNER_CITY,
+          OWNER_ST,
+          OWNER_ZIP,
           PHONE_EMAIL,
           ROY,
           STATUS,
@@ -775,13 +806,12 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           NOTE,
           CURRENT_UNIT_NAME,
           NEW_UNIT_NAME,
-          DATE,
+          created_at,
           TITLE_SOURCE,
           CALCULATED_ACREAGE,
           CONTACT,
           INTEREST_TYPE,
-          PAYSTUB_NRI,
-          \`ALLO_%\` AS ALLO_,
+          \`CURRENT_ALLO_%\` AS ALLO_,
           \`TOTAL_\$\`,
           LAST_OGL,
           NEW_OCC_TYPE,
@@ -817,10 +847,10 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
 
       // Build the update query dynamically based on provided fields
       const allowedFields = [
-        'COUNTY', 'S_T_R', 'LEGAL_DESCRIPTION', 'NMA', 'OWNER', 'STREET', 'CITY', 'ST', 'ZIP',
+        'COUNTY', 'S_T_R', 'LEGAL_DESCRIPTION', 'NMA', 'OWNER', 'OWNER_STREET', 'OWNER_CITY', 'OWNER_ST', 'OWNER_ZIP',
         'PHONE_EMAIL', 'ROY', 'STATUS', 'BUYER', 'NOTE', 'CURRENT_UNIT_NAME', 'NEW_UNIT_NAME',
-        'DATE', 'TITLE_SOURCE', 'CALCULATED_ACREAGE', 'CONTACT', 'INTEREST_TYPE', 'PAYSTUB_NRI',
-        'ALLO_%', 'TOTAL_$', 'LAST_OGL', 'NEW_OCC_TYPE'
+        'created_at', 'TITLE_SOURCE', 'CALCULATED_ACREAGE', 'CONTACT', 'INTEREST_TYPE',
+        'CURRENT_ALLO_%', 'TOTAL_$', 'LAST_OGL', 'NEW_OCC_TYPE'
       ];
 
       const updateFields: string[] = [];
@@ -829,7 +859,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       for (const field of allowedFields) {
         if (updateData.hasOwnProperty(field)) {
           // Handle special column names that need backticks
-          const columnName = field === 'ALLO_%' ? '`ALLO_%`' : 
+          const columnName = field === 'CURRENT_ALLO_%' ? '`CURRENT_ALLO_%`' : 
                            field === 'TOTAL_$' ? '`TOTAL_$`' : 
                            field;
           updateFields.push(`${columnName} = ?`);
