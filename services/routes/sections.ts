@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
+import { normalizeRecordDateColumns } from '../utils/dataImport.js';
 
 export const createSectionsRoutes = (dbPool: Pool | null) => {
   const router = Router();
@@ -46,8 +47,12 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           MIN(pas.created_at) as date_created,
           GROUP_CONCAT(DISTINCT pas.TITLE_SOURCE ORDER BY pas.TITLE_SOURCE SEPARATOR ', ') as title_sources,
           GROUP_CONCAT(DISTINCT pas.CURRENT_UNIT_NAME ORDER BY pas.CURRENT_UNIT_NAME SEPARATOR ',\n') as current_unit,
+          GROUP_CONCAT(DISTINCT pas.\`CURRENT_ALLO_%\` ORDER BY pas.\`CURRENT_ALLO_%\` SEPARATOR ',\n') as allo_percent,
           GROUP_CONCAT(DISTINCT pas.NEW_UNIT_NAME ORDER BY pas.NEW_UNIT_NAME SEPARATOR ',\n') as new_unit_name,
+          GROUP_CONCAT(DISTINCT pas.\`New_ALLO_%\` ORDER BY pas.\`New_ALLO_%\` SEPARATOR ',\n') as new_allo_percent,
           GROUP_CONCAT(DISTINCT pas.NEW_OCC_TYPE ORDER BY pas.NEW_OCC_TYPE SEPARATOR ', ') as new_occ_type,
+          MAX(pas.\`OCC_DATE\`) as occ_date,
+          GROUP_CONCAT(DISTINCT pas.\`$_NRA\` ORDER BY pas.\`$_NRA\` SEPARATOR ',\n') as dollar_nra,
           COUNT(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN 1 END) as closed_deals_count,
           SUM(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN CAST(pas.NMA AS DECIMAL(12,4)) ELSE 0 END) as net_mineral_acres_acquired,
           AVG(CAST(pas.ROY AS DECIMAL(5,2))) as royalty_blended,
@@ -106,7 +111,9 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           current_unit: row.current_unit || 'Unknown',
           allo_percent: row.allo_percent || 'N/A',
           new_unit_name: row.new_unit_name || 'N/A',
+          new_allo_percent: row.new_allo_percent || 'N/A',
           new_occ_type: row.new_occ_type || 'N/A',
+          occDate: row.occ_date ?? null,
           dollar_nra: row.dollar_nra || 'N/A',
           closedDealsCount: row.closed_deals_count || 0,
           netMineralAcresAcquired: netAcresAcquired,
@@ -133,8 +140,10 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       const hasNextPage = page < totalPages;
       const hasPrevPage = page > 1;
 
+      const sectionsWithDates = sections.map((s: any) => normalizeRecordDateColumns(s));
+
       res.json({
-        data: sections,
+        data: sectionsWithDates,
         pagination: {
           page: page,
           limit: limit,
@@ -513,6 +522,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           \`New_ALLO_%\` as alloPercentAl,
           \`TOTAL_\$\` as totalNraUsd,
           NEW_OCC_TYPE as occType,
+          \`OCC_DATE\` as occDate,
           created_at as dateField,
           TITLE_SOURCE as titleSource,
           CALCULATED_ACREAGE as calculatedAcreage,
@@ -580,7 +590,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           alloPercent: row.alloPercent,
           alloPercentAl: row.alloPercentAl,
           occType: row.occType,
-          occDate: null as string | null,
+          occDate: row.occDate ?? null,
           spudDate: null as string | null,
           firstProduction: null as string | null,
           nraCapUsd,
@@ -806,6 +816,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           NOTE,
           CURRENT_UNIT_NAME,
           NEW_UNIT_NAME,
+          \`OCC_DATE\` as OCC_DATE,
           created_at,
           TITLE_SOURCE,
           CALCULATED_ACREAGE,
@@ -823,8 +834,9 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
       `;
 
       const rows = await executeQuery(dbPool, query, [sectionStr]);
-      
-      res.json(rows);
+      const { normalizeRecordDateColumns } = await import('../utils/dataImport.js');
+      const normalized = Array.isArray(rows) ? rows.map((r: any) => normalizeRecordDateColumns(r || {})) : rows;
+      res.json(normalized);
     } catch (error: any) {
       console.error('Error fetching section acreage schedule:', error);
       res.status(500).json({ 

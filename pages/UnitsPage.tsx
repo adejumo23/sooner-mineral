@@ -8,6 +8,7 @@ import Button from '../components/ui/Button';
 import Table from '../components/ui/Table';
 import Modal from '../components/ui/Modal';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, LockClosedIcon, LockOpenIcon } from '../components/icons/Icons';
+import { formatOccDate } from '../utils/formatting';
 
 const UnitsPage: React.FC = () => {
   const [units, setUnits] = useState<Unit[]>([]);
@@ -20,12 +21,18 @@ const UnitsPage: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   
-  // Initialize column visibility from localStorage
+  // Initialize column visibility from localStorage (unitName = shared column for both tables)
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('units-column-visibility');
     if (saved) {
       try {
-        return new Set(JSON.parse(saved));
+        const arr = JSON.parse(saved) as string[];
+        const set = new Set(arr);
+        if (set.has('currentUnitName')) {
+          set.delete('currentUnitName');
+          set.add('unitName');
+        }
+        return set;
       } catch (e) {
         return new Set();
       }
@@ -54,7 +61,7 @@ const UnitsPage: React.FC = () => {
   const [newUnitPageSize, setNewUnitPageSize] = useState(25);
 
   // Current Unit table sort (independent from New Unit table)
-  const [currentUnitSortField, setCurrentUnitSortField] = useState<string>('currentUnitName');
+  const [currentUnitSortField, setCurrentUnitSortField] = useState<string>('unitName');
   const [currentUnitSortDirection, setCurrentUnitSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
@@ -206,6 +213,7 @@ const UnitsPage: React.FC = () => {
       let bVal: any;
       switch (currentUnitSortField) {
         case 'currentUnitName':
+        case 'unitName':
           aVal = (a.currentUnitName || a.unitName || '').toLowerCase();
           bVal = (b.currentUnitName || b.unitName || '').toLowerCase();
           break;
@@ -220,6 +228,10 @@ const UnitsPage: React.FC = () => {
         case 'county':
           aVal = (a.county || '').toLowerCase();
           bVal = (b.county || '').toLowerCase();
+          break;
+        case 'allocationPercentage':
+          aVal = (a as Unit).allocationPercentage ?? -1;
+          bVal = (b as Unit).allocationPercentage ?? -1;
           break;
         case 'status':
           aVal = (a.status || '').toLowerCase();
@@ -263,8 +275,11 @@ const UnitsPage: React.FC = () => {
   };
   const aggregatedNewUnits = useMemo(() => {
     const byUnitName = new Map<string, NewUnitAggRow>();
+    const sameAllo = (a: number | undefined, b: number | undefined) =>
+      a === b || (a != null && b != null && Math.abs(a - b) < 1e-9);
     for (const u of filteredUnits) {
-      const key = (u.unitName || '').trim() || '—';
+      const rawName = (u.unitName || '').trim() || '—';
+      const key = rawName.toLowerCase();
       const existing = byUnitName.get(key);
       const nma = u.estimatedNetAcres ?? u.estimatedGrossAcres ?? 0;
       const strVal = u.str && String(u.str).trim() ? String(u.str).trim() : null;
@@ -273,6 +288,7 @@ const UnitsPage: React.FC = () => {
       if (!existing) {
         byUnitName.set(key, {
           ...u,
+          unitName: rawName,
           strList: strVal ? [strVal] : [],
           allocationList: alloVal !== undefined ? [alloVal] : [],
           lineItemCount: 1,
@@ -288,7 +304,7 @@ const UnitsPage: React.FC = () => {
         if (strVal && !existing.strList!.includes(strVal)) {
           existing.strList!.push(strVal);
         }
-        if (alloVal !== undefined) {
+        if (alloVal !== undefined && !existing.allocationList!.some((v) => sameAllo(v, alloVal))) {
           existing.allocationList!.push(alloVal);
         }
       }
@@ -407,7 +423,7 @@ const UnitsPage: React.FC = () => {
   }> = [
     {
       header: 'Current Unit Name',
-      accessor: 'currentUnitName',
+      accessor: 'unitName',
       sortable: true,
       className: 'whitespace-normal min-w-0',
       cell: (row: CurrentUnitRow) => (
@@ -448,6 +464,14 @@ const UnitsPage: React.FC = () => {
       cell: (row: CurrentUnitRow) => `${row.county || '—'}, ${row.state || '—'}`
     },
     {
+      header: 'Allocation %',
+      accessor: 'allocationPercentage',
+      sortable: true,
+      className: 'w-24 whitespace-normal',
+      cell: (row: CurrentUnitRow) =>
+        row.allocationPercentage != null ? Number(row.allocationPercentage).toFixed(6) : '—'
+    },
+    {
       header: 'Status',
       accessor: 'status',
       sortable: true,
@@ -459,13 +483,16 @@ const UnitsPage: React.FC = () => {
       )
     },
     {
-      header: 'Line Items',
+      header: 'Number of Owners',
       accessor: 'lineItemCount',
       sortable: true,
       className: 'w-20',
-      cell: (row: CurrentUnitRow) => (
-        <span className="text-sm text-gray-600">{(row as CurrentUnitRow).lineItemCount} line items</span>
-      )
+      cell: (row: CurrentUnitRow) => {
+        const n = (row as CurrentUnitRow).lineItemCount;
+        return (
+          <span className="text-sm text-gray-600">{n} owner{n !== 1 ? 's' : ''}</span>
+        );
+      }
     },
     {
       header: 'Net Acres',
@@ -582,7 +609,7 @@ const UnitsPage: React.FC = () => {
       accessor: 'occDate',
       sortable: true,
       className: 'w-24',
-      cell: (unit: Unit) => unit.occDate ? new Date(unit.occDate).toLocaleDateString() : '—'
+      cell: (unit: Unit) => formatOccDate(unit.occDate)
     },
     {
       header: 'OCC Type',
@@ -761,7 +788,7 @@ const UnitsPage: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       const diff = e.clientX - resizeStartX;
-      const newWidth = Math.max(100, resizeStartWidth + diff); // Minimum width of 100px
+      const newWidth = Math.max(20, resizeStartWidth + diff);
       setColumnWidths(prev => {
         const updated = { ...prev, [resizingColumn]: newWidth };
         localStorage.setItem('units-column-widths', JSON.stringify(updated));
@@ -935,7 +962,7 @@ const UnitsPage: React.FC = () => {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const newWidth = Math.max(100, getColumnWidth(accessor) - 50);
+                                    const newWidth = Math.max(20, getColumnWidth(accessor) - 50);
                                     setColumnWidths(prev => {
                                       const updated = { ...prev, [accessor]: newWidth };
                                       localStorage.setItem('units-column-widths', JSON.stringify(updated));

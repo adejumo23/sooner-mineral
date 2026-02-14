@@ -39,3 +39,37 @@ export const formatPercentage = (value?: number): string => {
   return value ? `${(value * 100).toFixed(2)}%` : 'N/A';
 };
 
+/**
+ * Format OCC date (or any date) as mm/dd/yyyy for display.
+ * Accepts YYYY-MM-DD string, ISO string, Excel serial number, or Date.
+ * @param value - Date string, number (Excel serial), or null/undefined
+ * @param fallback - String when value is empty (default '—')
+ * @returns Formatted mm/dd/yyyy or fallback
+ */
+export const formatOccDate = (
+  value: string | number | null | undefined,
+  fallback: string = '—'
+): string => {
+  if (value == null || value === '') return fallback;
+  if (typeof value === 'number') {
+    if (value < 1 || value > 1000000) return fallback;
+    const date = new Date((value - 25569) * 86400 * 1000);
+    if (Number.isNaN(date.getTime())) return fallback;
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    const y = date.getUTCFullYear();
+    return `${m}/${d}/${y}`;
+  }
+  const s = String(value).trim();
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (ymd) {
+    return `${ymd[2]}/${ymd[3]}/${ymd[1]}`;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const y = date.getFullYear();
+  return `${m}/${d}/${y}`;
+};
+

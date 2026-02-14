@@ -117,7 +117,7 @@ const LeadOverviewTab: React.FC<LeadOverviewTabProps> = ({
       const accessor = productionResizingColumnRef.current;
       if (!accessor) return;
       const delta = e.clientX - productionResizeStartXRef.current;
-      const newWidth = Math.max(80, Math.min(500, productionResizeStartWidthRef.current + delta));
+      const newWidth = Math.max(20, Math.min(500, productionResizeStartWidthRef.current + delta));
       setProductionColumnWidths(prev => ({ ...prev, [accessor]: newWidth }));
     };
     const handleMouseUp = () => {

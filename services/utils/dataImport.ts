@@ -5,6 +5,45 @@ import XLSX from 'xlsx';
 import { executeQuery } from './database.js';
 import type { Pool } from 'mysql2/promise';
 
+/** Excel stores dates as serial numbers (days since 1900-01-01). Detect and convert to YYYY-MM-DD. */
+function isLikelyDateColumn(columnName: string): boolean {
+  const n = (columnName || '').toUpperCase();
+  return n.includes('DATE') || n.endsWith('_DT') || n === 'DT';
+}
+
+function excelSerialToDateString(value: any): string | null {
+  if (value == null || value === '') return null;
+  const num = typeof value === 'number' ? value : Number(value);
+  if (Number.isNaN(num) || num < 1 || num > 1000000) return null;
+  const date = new Date((num - 25569) * 86400 * 1000);
+  if (Number.isNaN(date.getTime())) return null;
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function normalizeDateCell(columnName: string, value: any): any {
+  if (value == null || value === '') return null;
+  if (!isLikelyDateColumn(columnName)) return value;
+  const converted = excelSerialToDateString(value);
+  return converted !== null ? converted : value;
+}
+
+/** Convert Excel serial date values to YYYY-MM-DD in record keys that look like date columns. Use when returning acreage schedule rows from API. */
+export function normalizeRecordDateColumns(record: Record<string, any>): Record<string, any> {
+  if (!record || typeof record !== 'object') return record;
+  const out = { ...record };
+  for (const key of Object.keys(out)) {
+    if (!isLikelyDateColumn(key)) continue;
+    const v = out[key];
+    if (v == null || v === '') continue;
+    const converted = excelSerialToDateString(v);
+    if (converted !== null) out[key] = converted;
+  }
+  return out;
+}
+
 export async function extractColumnsFromCSV(filePath: string): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const columns: string[] = [];
@@ -214,7 +253,9 @@ async function importDataFromExcel(
     
     const record: any = {};
     sanitizedColumns.forEach((col, index) => {
-      record[col] = row[index] || null;
+      const raw = row[index];
+      const value = raw ?? null;
+      record[col] = value != null ? normalizeDateCell(col, value) : null;
     });
     records.push(record);
   });

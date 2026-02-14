@@ -5,7 +5,7 @@ import * as api from '../services/api';
 import LeadsTab from '../components/LeadsTab';
 import ArcGISMappingTab from '../components/ArcGISMappingTab';
 import Button from '../components/ui/Button';
-import { formatNMA, formatAcres, formatPercentage } from '../utils/formatting';
+import { formatNMA, formatAcres, formatPercentage, formatOccDate } from '../utils/formatting';
 import { useAuth } from '../hooks/useAuth';
 
 interface RecordRowProps {
@@ -583,7 +583,7 @@ const SectionDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Legal Information */}
+            {/* Legal Descriptions */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div 
                 className="p-5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
@@ -595,7 +595,7 @@ const SectionDetailPage: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Legal Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Legal Descriptions</h3>
                 </div>
                 <svg 
                   className={`w-5 h-5 text-gray-400 transform transition-transform ${collapsedCards.legalInfo ? 'rotate-180' : ''}`}
@@ -610,15 +610,22 @@ const SectionDetailPage: React.FC = () => {
                 <div className="p-6">
                   <div className="space-y-5">
                     <div>
-                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-2 block">Legal Description</span>
-                      <div className="text-gray-900 mt-1 whitespace-pre-line leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        {section.legalDescription}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="space-y-1">
-                        <span className="text-gray-500 text-xs font-medium uppercase tracking-wide">STR (Combined)</span>
-                        <div className="text-gray-900 font-semibold text-base font-mono">{section.str || 'N/A'}</div>
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-2 block">Legal Descriptions</span>
+                      <div className="text-gray-900 mt-1 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
+                        {(() => {
+                          const raw = section.legalDescription || '';
+                          const distinct = Array.from(new Set(
+                            raw.split(/\s*;\s*/).map((s: string) => s.trim()).filter(Boolean)
+                          ));
+                          if (distinct.length === 0) {
+                            return <span className="text-gray-500">No description available</span>;
+                          }
+                          return distinct.map((desc, i) => (
+                            <div key={i} className="whitespace-pre-line border-b border-gray-200 last:border-0 last:pb-0 pb-3 last:pb-0">
+                              {desc}
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -655,13 +662,22 @@ const SectionDetailPage: React.FC = () => {
                     <div className="bg-blue-50 rounded-lg p-5 border border-blue-100">
                       <h4 className="text-sm font-semibold text-blue-900 mb-4 uppercase tracking-wide">Current Unit</h4>
                       <div className="space-y-4">
-                        <div>
-                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Current Unit</span>
-                          <div className="text-blue-900 font-semibold text-sm whitespace-pre-line">{section.current_unit || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Allocation %</span>
-                          <div className="text-blue-900 font-semibold text-sm">{section.allo_percent || 'N/A'}</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Current Unit</span>
+                            <div className="text-blue-900 font-semibold text-sm whitespace-pre-line">{section.current_unit || 'N/A'}</div>
+                          </div>
+                          <div>
+                            <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">Allocation %</span>
+                            <div className="text-blue-900 font-semibold text-sm">
+                              {(() => {
+                                const raw = section.allo_percent || '';
+                                const values = raw.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean);
+                                if (values.length === 0) return 'N/A';
+                                return values.map((v, i) => <div key={i}>{v}</div>);
+                              })()}
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <span className="text-blue-700 text-xs font-medium uppercase tracking-wide block mb-1">SPUD DATE</span>
@@ -676,20 +692,29 @@ const SectionDetailPage: React.FC = () => {
                     <div className="bg-green-50 rounded-lg p-5 border border-green-100">
                       <h4 className="text-sm font-semibold text-green-900 mb-4 uppercase tracking-wide">New Unit</h4>
                       <div className="space-y-4">
-                        <div>
-                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">New Unit</span>
-                          <div className="text-green-900 font-semibold text-sm whitespace-pre-line">{section.new_unit_name || section.new_unit || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">Allocation %</span>
-                          <div className="text-green-900 font-semibold text-sm">{(section as any).allo_percent_al || section.allo_percent || 'N/A'}</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">New Unit</span>
+                            <div className="text-green-900 font-semibold text-sm whitespace-pre-line">{section.new_unit_name || section.new_unit || 'N/A'}</div>
+                          </div>
+                          <div>
+<span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">Allocation %</span>
+                          <div className="text-green-900 font-semibold text-sm">
+                            {(() => {
+                              const raw = section.new_allo_percent || (section as any).allo_percent_al || section.allo_percent || '';
+                              const values = raw.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean);
+                              if (values.length === 0) return 'N/A';
+                              return values.map((v, i) => <div key={i}>{v}</div>);
+                            })()}
+                          </div>
+                          </div>
                         </div>
                         <div>
                           <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC DATE</span>
-                          <div className="text-green-900 font-semibold text-sm">{(section as any).occDate || 'N/A'}</div>
+                          <div className="text-green-900 font-semibold text-sm">{formatOccDate((section as any).occDate, 'N/A')}</div>
                         </div>
                         <div>
-                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC TYPE (COLUMN AJ)</span>
+                          <span className="text-green-700 text-xs font-medium uppercase tracking-wide block mb-1">OCC TYPE</span>
                           <div className="text-green-900 font-semibold text-sm">{section.new_occ_type || 'N/A'}</div>
                         </div>
                       </div>

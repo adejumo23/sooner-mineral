@@ -51,6 +51,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           NMA,
           \`$_NRA\` as total_nra_usd,
           NEW_OCC_TYPE as occ_type,
+          \`OCC_DATE\` as occ_date,
           created_at,
           updated_at,
           NOTE as notes
@@ -185,7 +186,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
             linkedTractIds: [] as string[],
             str: strVal || undefined,
             occType: row.occ_type || undefined,
-            occDate: row.created_at || null,
+            occDate: row.occ_date ?? row.created_at ?? null,
             nraCapUsd: nraCapUsd ?? null,
             spudDate
           });
@@ -2572,6 +2573,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
           NOTE,
           CURRENT_UNIT_NAME,
           NEW_UNIT_NAME,
+          \`OCC_DATE\` as OCC_DATE,
           created_at,
           TITLE_SOURCE,
           CALCULATED_ACREAGE,
@@ -2601,8 +2603,10 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       
       const uniqueRecords = Array.from(recordsMap.values());
       console.log('Returning acreage schedule records (after deduplication):', uniqueRecords.length);
-      
-      res.json(uniqueRecords);
+
+      const { normalizeRecordDateColumns } = await import('../utils/dataImport.js');
+      const normalized = uniqueRecords.map((r: any) => normalizeRecordDateColumns(r || {}));
+      res.json(normalized);
     } catch (error: any) {
       console.error('Error fetching unit acreage schedule:', error);
       res.status(500).json({ 

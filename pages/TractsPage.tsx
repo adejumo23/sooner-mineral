@@ -459,7 +459,7 @@ const SectionsPage: React.FC = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const newWidth = Math.max(100, getColumnWidth(accessor) - 50);
+                                  const newWidth = Math.max(20, getColumnWidth(accessor) - 50);
                                   setColumnWidths(prev => {
                                     const updated = { ...prev, [accessor]: newWidth };
                                     localStorage.setItem('tracts-column-widths', JSON.stringify(updated));

@@ -8,7 +8,8 @@ import {
   extractColumnsFromExcel,
   createStagingTable,
   createProductionTable,
-  importDataToStaging
+  importDataToStaging,
+  normalizeRecordDateColumns
 } from '../utils/dataImport.js';
 import { DataImportService } from '../dataImportService.js';
 
@@ -224,8 +225,8 @@ export const createDataImportRoutes = (
         });
       }
 
-      const data = await executeQuery(dbPool, `SELECT * FROM \`${tableName}\` LIMIT ${limit}`);
-      
+      const raw = await executeQuery(dbPool, `SELECT * FROM \`${tableName}\` LIMIT ${limit}`);
+      const data = Array.isArray(raw) ? raw.map((row: any) => normalizeRecordDateColumns(row || {})) : raw;
       res.json({
         success: true,
         data,
@@ -257,8 +258,8 @@ export const createDataImportRoutes = (
         });
       }
 
-      const data = await executeQuery(dbPool, `SELECT * FROM \`${tableName}\` LIMIT ${limit}`);
-      
+      const raw = await executeQuery(dbPool, `SELECT * FROM \`${tableName}\` LIMIT ${limit}`);
+      const data = Array.isArray(raw) ? raw.map((row: any) => normalizeRecordDateColumns(row || {})) : raw;
       res.json({
         success: true,
         data,
