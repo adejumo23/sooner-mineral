@@ -153,6 +153,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           const v = parseFloat(row.nra_cap_usd);
           if (ownerData.nraCapUsd === null || v > ownerData.nraCapUsd) ownerData.nraCapUsd = v;
         }
+        if (row.occ_date != null && ownerData.occDate == null) ownerData.occDate = row.occ_date;
+        if (row.occ_type != null && ownerData.occType == null) ownerData.occType = row.occ_type;
       });
       
       const leads = Array.from(ownerDataMap.entries()).map(([ownerName, ownerData]: [string, any], index: number) => {
@@ -201,6 +203,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           royalty: royalty,
           allocationPct: ownerData.allocationPct,
           nraCapUsd: ownerData.nraCapUsd,
+          occDate: ownerData.occDate ?? null,
+          occType: ownerData.occType ?? null,
           str: firstStr,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
@@ -486,6 +490,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         allocationPct: row.allocation_pct != null && row.allocation_pct !== '' ? parseFloat(row.allocation_pct) : null,
         newAlloPct: row.new_allo_pct != null && row.new_allo_pct !== '' ? parseFloat(row.new_allo_pct) : null,
         nraCapUsd: row.nra_cap_usd != null && row.nra_cap_usd !== '' ? parseFloat(row.nra_cap_usd) : null,
+        occDate: row.occ_date ?? null,
+        occType: row.occ_type ?? null,
         grossAcres: grossAcres,
         netMineralAcres: parseFloat(row.netMineralAcres) || 0,
         royalty: royalty,

@@ -317,9 +317,16 @@ const SectionsPage: React.FC = () => {
     {
       header: 'ALLO_%',
       accessor: 'allo_percent',
-      cell: (section: Section) => (
-        <div className="text-sm text-gray-900 whitespace-pre-line">{section.allo_percent || 'N/A'}</div>
-      )
+      cell: (section: Section) => {
+        const raw = section.allo_percent || '';
+        const values = raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+        if (values.length === 0) return <div className="text-sm text-gray-900">N/A</div>;
+        return (
+          <div className="text-sm text-gray-900">
+            {values.map((v, i) => <div key={i}>{v}</div>)}
+          </div>
+        );
+      }
     },
     {
       header: 'NEW_UNIT_NAME',
@@ -327,6 +334,20 @@ const SectionsPage: React.FC = () => {
       cell: (section: Section) => (
         <div className="text-sm text-gray-900 whitespace-pre-line">{section.new_unit_name || 'N/A'}</div>
       )
+    },
+    {
+      header: 'New Unit Allocation %',
+      accessor: 'new_allo_percent',
+      cell: (section: Section) => {
+        const raw = section.new_allo_percent || '';
+        const values = raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+        if (values.length === 0) return <div className="text-sm text-gray-900">N/A</div>;
+        return (
+          <div className="text-sm text-gray-900">
+            {values.map((v, i) => <div key={i}>{v}</div>)}
+          </div>
+        );
+      }
     },
     {
       header: 'NEW_OCC_TYPE',
@@ -453,7 +474,7 @@ const SectionsPage: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       const diff = e.clientX - resizeStartX;
-      const newWidth = Math.max(100, resizeStartWidth + diff); // Minimum width of 100px
+      const newWidth = Math.max(20, resizeStartWidth + diff);
       setColumnWidths(prev => {
         const updated = { ...prev, [resizingColumn]: newWidth };
         localStorage.setItem('sections-column-widths', JSON.stringify(updated));
@@ -643,7 +664,7 @@ const SectionsPage: React.FC = () => {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const newWidth = Math.max(100, width - 50);
+                                      const newWidth = Math.max(20, width - 50);
                                       setColumnWidths(prev => {
                                         const updated = { ...prev, [accessor]: newWidth };
                                         localStorage.setItem('sections-column-widths', JSON.stringify(updated));

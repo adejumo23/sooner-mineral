@@ -94,7 +94,7 @@ const LeadsPage: React.FC = () => {
       const accessor = resizingColumnRef.current;
       if (!accessor) return;
       const delta = e.clientX - resizeStartXRef.current;
-      const newWidth = Math.max(60, Math.min(500, resizeStartWidthRef.current + delta));
+      const newWidth = Math.max(20, Math.min(500, resizeStartWidthRef.current + delta));
       setColumnWidths(prev => ({ ...prev, [accessor]: newWidth }));
     };
     const handleMouseUp = () => {

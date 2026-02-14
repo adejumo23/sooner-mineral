@@ -60,6 +60,7 @@ const PricingPage: React.FC = () => {
   const [favoriteRecords, setFavoriteRecords] = useState<Set<string>>(new Set());
   const [viewHistory, setViewHistory] = useState<string[]>([]);
   const [showQuickStats, setShowQuickStats] = useState(true);
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
     County: true,
     Basin: true,
@@ -86,6 +87,17 @@ const PricingPage: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('pricing-column-widths');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return {};
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   // Fetch pricing data
   useEffect(() => {
@@ -237,6 +249,38 @@ const PricingPage: React.FC = () => {
     setPriceRange({ min: '', max: '' });
     setCurrentPage(1);
   };
+
+  const handleResizeStart = (e: React.MouseEvent, key: string, currentWidth: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(key);
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(currentWidth);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - resizeStartX;
+      const newWidth = Math.max(20, resizeStartWidth + diff);
+      setColumnWidths(prev => {
+        const next = { ...prev, [resizingColumn]: newWidth };
+        try {
+          localStorage.setItem('pricing-column-widths', JSON.stringify(next));
+        } catch (_) {}
+        return next;
+      });
+    };
+    const handleMouseUp = () => setResizingColumn(null);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, resizeStartX, resizeStartWidth]);
+
+  const getColumnWidth = (key: string): number => columnWidths[key] ?? 120;
 
   const handleRecordClick = (record: PricingRecord) => {
     setSelectedRecord(record);
@@ -525,216 +569,133 @@ const PricingPage: React.FC = () => {
     );
   }
 
+  const hasActiveFilters = !!(searchTerm || countyFilter || formationFilter || basinFilter || priceRange.min || priceRange.max);
+
   return (
-    <div className={`pricing-page ${compactMode ? 'compact-mode' : ''} ${darkMode ? 'dark-mode' : ''}`}>
-      {/* Header with white background and icon */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center mr-4">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Mineral Rights Pricing</h1>
-              <p className="text-gray-600 mt-1">Comprehensive pricing data for Oklahoma and Texas mineral rights</p>
-              {showQuickStats && (
-                <div className="flex flex-wrap gap-4 mt-3">
-                  <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    📊 {filteredData.length} records
-                  </span>
-                  <span className="text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
-                    💰 ${summary.averagePrice.toLocaleString()}/acre avg
-                  </span>
-                  <span className="text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded">
-                    🏛️ {summary.uniqueCounties} counties
-                  </span>
-                  <span className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                    ⛰️ {summary.uniqueFormations} formations
-                  </span>
-                </div>
-              )}
-            </div>
+    <div className="pricing-page">
+      <header className="pricing-header">
+        <div className="pricing-header-accent" aria-hidden />
+        <div className="pricing-header-inner">
+          <div className="pricing-header-text">
+            <h1 className="pricing-title">Mineral Rights Pricing</h1>
+            <p className="pricing-subtitle">Oklahoma and Texas pricing data</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                showQuickStats 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setShowQuickStats(!showQuickStats)}
-              title="Toggle Quick Stats"
-            >
-              📊 Stats
-            </button>
-            <button 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                showFilters 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setShowFilters(!showFilters)}
-              title="Toggle Filters"
-            >
-              🔍 Filters
-            </button>
-            <button 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'table' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setViewMode('table')}
-            >
-              📊 Table
-            </button>
-            <button 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'cards' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setViewMode('cards')}
-            >
-              🃏 Cards
-            </button>
-            <button 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'analytics' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setViewMode('analytics')}
-            >
-              📈 Analytics
-            </button>
-            <button 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                compactMode 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setCompactMode(!compactMode)}
-            >
-              {compactMode ? '📏 Expand' : '📐 Compact'}
-            </button>
+          <div className="pricing-view-toggle" role="group" aria-label="View mode">
+            <button type="button" className={viewMode === 'table' ? 'active' : ''} onClick={() => setViewMode('table')} aria-pressed={viewMode === 'table'}>Table</button>
+            <button type="button" className={viewMode === 'cards' ? 'active' : ''} onClick={() => setViewMode('cards')} aria-pressed={viewMode === 'cards'}>Cards</button>
+            <button type="button" className={viewMode === 'analytics' ? 'active' : ''} onClick={() => setViewMode('analytics')} aria-pressed={viewMode === 'analytics'}>Analytics</button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button 
-          className={`tab-btn ${activeTab === 'oklahoma' ? 'active' : ''}`}
-          onClick={() => setActiveTab('oklahoma')}
-        >
-          🌾 Oklahoma Pricing ({oklahomaData.length})
+      <div className="pricing-tabs-wrap" role="tablist" aria-label="State">
+        <button type="button" role="tab" aria-selected={activeTab === 'oklahoma'} className={`pricing-tab ${activeTab === 'oklahoma' ? 'active' : ''}`} onClick={() => setActiveTab('oklahoma')}>
+          Oklahoma <span className="pricing-tab-count">{oklahomaData.length}</span>
         </button>
-        <button 
-          className={`tab-btn ${activeTab === 'texas' ? 'active' : ''}`}
-          onClick={() => setActiveTab('texas')}
-        >
-          🤠 Texas Pricing ({texasData.length})
+        <button type="button" role="tab" aria-selected={activeTab === 'texas'} className={`pricing-tab ${activeTab === 'texas' ? 'active' : ''}`} onClick={() => setActiveTab('texas')}>
+          Texas <span className="pricing-tab-count">{texasData.length}</span>
         </button>
       </div>
 
-      {/* Enhanced Filters Panel */}
-      {showFilters && (
-        <div className="filters-panel">
-          <div className="filters-header">
-            <h3>Advanced Filters</h3>
-            <button 
-              className="close-filters-btn"
-              onClick={() => setShowFilters(false)}
-            >
-              ×
-            </button>
+      <section className="pricing-stats" aria-label="Summary">
+        <div className="pricing-stat">
+          <span className="pricing-stat-value">{summary.totalRecords.toLocaleString()}</span>
+          <span className="pricing-stat-label">Records</span>
+        </div>
+        <div className="pricing-stat pricing-stat-highlight">
+          <span className="pricing-stat-value">${summary.averagePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          <span className="pricing-stat-label">Avg $/acre</span>
+        </div>
+        <div className="pricing-stat">
+          <span className="pricing-stat-value">${summary.minPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          <span className="pricing-stat-label">Min</span>
+        </div>
+        <div className="pricing-stat">
+          <span className="pricing-stat-value">${summary.maxPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          <span className="pricing-stat-label">Max</span>
+        </div>
+        <div className="pricing-stat">
+          <span className="pricing-stat-value">{summary.uniqueCounties}</span>
+          <span className="pricing-stat-label">Counties</span>
+        </div>
+        <div className="pricing-stat">
+          <span className="pricing-stat-value">{summary.uniqueFormations}</span>
+          <span className="pricing-stat-label">Formations</span>
+        </div>
+      </section>
+
+      <section className="pricing-filters">
+        <button type="button" className="pricing-filters-toggle" onClick={() => setFiltersExpanded(!filtersExpanded)} aria-expanded={filtersExpanded}>
+          <span className="pricing-filters-toggle-icon" aria-hidden>{filtersExpanded ? '▼' : '▶'}</span>
+          <span>{filtersExpanded ? 'Hide filters' : 'Show filters'}</span>
+          {hasActiveFilters && <span className="pricing-filters-badge">{[countyFilter, formationFilter, basinFilter, searchTerm, priceRange.min, priceRange.max].filter(Boolean).length}</span>}
+        </button>
+        {hasActiveFilters && (
+          <div className="pricing-filter-chips">
+            {searchTerm && (
+              <span className="pricing-chip">
+                Search: “{searchTerm.slice(0, 20)}{searchTerm.length > 20 ? '…' : ''}”
+                <button type="button" onClick={() => setSearchTerm('')} className="pricing-chip-remove" aria-label="Clear search">×</button>
+              </span>
+            )}
+            {countyFilter && (
+              <span className="pricing-chip">
+                County: {countyFilter}
+                <button type="button" onClick={() => setCountyFilter('')} className="pricing-chip-remove" aria-label="Clear county">×</button>
+              </span>
+            )}
+            {formationFilter && (
+              <span className="pricing-chip">
+                Formation: {formationFilter}
+                <button type="button" onClick={() => setFormationFilter('')} className="pricing-chip-remove" aria-label="Clear formation">×</button>
+              </span>
+            )}
+            {basinFilter && (
+              <span className="pricing-chip">
+                Basin: {basinFilter}
+                <button type="button" onClick={() => setBasinFilter('')} className="pricing-chip-remove" aria-label="Clear basin">×</button>
+              </span>
+            )}
+            {(priceRange.min || priceRange.max) && (
+              <span className="pricing-chip">
+                Price: {priceRange.min || '—'} – {priceRange.max || '—'}
+                <button type="button" onClick={() => setPriceRange({ min: '', max: '' })} className="pricing-chip-remove" aria-label="Clear price range">×</button>
+              </span>
+            )}
+            <button type="button" className="pricing-chip pricing-chip-clear" onClick={clearFilters}>Clear all</button>
           </div>
-          <div className="filters-content">
-            <div className="filters-grid">
-              <div className="filter-group">
-                <label>Search Term</label>
-                <input
-                  type="text"
-                  placeholder="Search across all fields..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-              <div className="filter-group">
-                <label>County</label>
-                <select
-                  value={countyFilter}
-                  onChange={(e) => setCountyFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">All Counties</option>
-                  {Array.from(new Set(currentData.map(record => record.County))).map(county => (
-                    <option key={county} value={county}>{county}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="filter-group">
-                <label>Formation</label>
-                <select
-                  value={formationFilter}
-                  onChange={(e) => setFormationFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">All Formations</option>
-                  {Array.from(new Set(currentData.map(record => record.Formation))).map(formation => (
-                    <option key={formation} value={formation}>{formation}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="filter-group">
-                <label>Basin</label>
-                <select
-                  value={basinFilter}
-                  onChange={(e) => setBasinFilter(e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="">All Basins</option>
-                  {Array.from(new Set(currentData.map(record => record.Basin))).map(basin => (
-                    <option key={basin} value={basin}>{basin}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="filter-group">
-                <label>Price Range</label>
-                <div className="price-range">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={priceRange.min}
-                    onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
-                    className="search-input"
-                  />
-                  <span>to</span>
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={priceRange.max}
-                    onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
-                    className="search-input"
-                  />
-                </div>
-              </div>
+        )}
+        <div className={`pricing-filters-content ${filtersExpanded ? 'is-open' : ''}`}>
+          <div className="pricing-filters-grid">
+            <div className="pricing-search-wrap">
+              <span className="pricing-search-icon" aria-hidden>⌕</span>
+              <input type="search" placeholder="Search…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pricing-search" />
             </div>
-            <div className="filters-actions">
-              <button onClick={clearFilters} className="clear-filters-btn">
-                🗑️ Clear All
-              </button>
-              <button onClick={() => setShowFilters(false)} className="action-btn">
-                ✅ Apply Filters
-              </button>
+            <select value={countyFilter} onChange={(e) => setCountyFilter(e.target.value)} className="pricing-select" aria-label="County">
+              <option value="">All counties</option>
+              {uniqueCounties.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={formationFilter} onChange={(e) => setFormationFilter(e.target.value)} className="pricing-select" aria-label="Formation">
+              <option value="">All formations</option>
+              {uniqueFormations.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <select value={basinFilter} onChange={(e) => setBasinFilter(e.target.value)} className="pricing-select" aria-label="Basin">
+              <option value="">All basins</option>
+              {uniqueBasins.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <div className="pricing-price-range">
+              <label className="pricing-input-label">Min $</label>
+              <input type="number" placeholder="0" value={priceRange.min} onChange={(e) => setPriceRange(p => ({ ...p, min: e.target.value }))} className="pricing-input-num" />
             </div>
+            <div className="pricing-price-range">
+              <label className="pricing-input-label">Max $</label>
+              <input type="number" placeholder="—" value={priceRange.max} onChange={(e) => setPriceRange(p => ({ ...p, max: e.target.value }))} className="pricing-input-num" />
+            </div>
+            {hasActiveFilters && <button type="button" className="pricing-btn pricing-btn-ghost" onClick={clearFilters}>Clear filters</button>}
+            <button type="button" className="pricing-btn pricing-btn-primary" onClick={exportData}>Export CSV</button>
           </div>
         </div>
-      )}
+      </section>
 
       {/* Export Menu */}
       {showExportMenu && (
@@ -1174,130 +1135,37 @@ const PricingPage: React.FC = () => {
         </div>
       )}
 
-      {/* Summary Cards */}
-      {!compactMode && (
-        <div className="summary-cards">
-          <div className="summary-card">
-            <div className="card-icon">📋</div>
-            <div className="card-content">
-              <h3>{summary.totalRecords.toLocaleString()}</h3>
-              <p>Total Records</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="card-icon">💰</div>
-            <div className="card-content">
-              <h3>${summary.averagePrice.toLocaleString()}</h3>
-              <p>Avg Price/Acre</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="card-icon">📈</div>
-            <div className="card-content">
-              <h3>${summary.maxPrice.toLocaleString()}</h3>
-              <p>Highest Price</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="card-icon">📉</div>
-            <div className="card-content">
-              <h3>${summary.minPrice.toLocaleString()}</h3>
-              <p>Lowest Price</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="card-icon">🏘️</div>
-            <div className="card-content">
-              <h3>{summary.uniqueCounties}</h3>
-              <p>Counties</p>
-            </div>
-          </div>
-          <div className="summary-card">
-            <div className="card-icon">⛰️</div>
-            <div className="card-content">
-              <h3>{summary.uniqueFormations}</h3>
-              <p>Formations</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters and Search */}
-      <div className="filters-section">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="Search all fields..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
-          <span className="search-icon">🔍</span>
-        </div>
-        
-        <div className="filter-controls">
-          <select
-            value={countyFilter}
-            onChange={(e) => setCountyFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Counties</option>
-            {uniqueCounties.map(county => (
-              <option key={county} value={county}>{county}</option>
-            ))}
-          </select>
-
-          <select
-            value={formationFilter}
-            onChange={(e) => setFormationFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Formations</option>
-            {uniqueFormations.map(formation => (
-              <option key={formation} value={formation}>{formation}</option>
-            ))}
-          </select>
-
-          <select
-            value={basinFilter}
-            onChange={(e) => setBasinFilter(e.target.value)}
-            className="filter-select"
-          >
-            <option value="">All Basins</option>
-            {uniqueBasins.map(basin => (
-              <option key={basin} value={basin}>{basin}</option>
-            ))}
-          </select>
-
-          <input
-            type="number"
-            placeholder="Min Price"
-            value={priceRange.min}
-            onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-            className="price-input"
-          />
-
-          <input
-            type="number"
-            placeholder="Max Price"
-            value={priceRange.max}
-            onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-            className="price-input"
-          />
-
-          <button onClick={exportData} className="export-btn">
-            📥 Export CSV
-          </button>
-
-          <button onClick={clearFilters} className="clear-filters-btn">
-            🗑️ Clear Filters
-          </button>
-        </div>
-      </div>
-
       {/* Data Display */}
       <div className="data-section">
-        {viewMode === 'table' && (
+        {filteredData.length === 0 && (
+          <div className="pricing-empty">
+            <div className="pricing-empty-icon" aria-hidden>📋</div>
+            <h3 className="pricing-empty-title">No records match your filters</h3>
+            <p className="pricing-empty-text">Try adjusting search, county, formation, basin, or price range.</p>
+            <button type="button" className="pricing-btn pricing-btn-primary" onClick={clearFilters}>Clear all filters</button>
+          </div>
+        )}
+        {viewMode === 'table' && filteredData.length > 0 && (() => {
+          const tableColumns = activeTab === 'oklahoma'
+            ? [
+                { key: 'County', label: 'County', sortKey: 'County' as keyof PricingRecord },
+                { key: 'Basin', label: 'Basin', sortKey: 'Basin' as keyof PricingRecord },
+                { key: 'Survey_Company', label: 'Survey Company', sortKey: 'Survey_Company' as keyof PricingRecord },
+                { key: 'Formation', label: 'Formation', sortKey: 'Formation' as keyof PricingRecord },
+                { key: 'S_T_R', label: 'S-T-R', sortKey: 'S_T_R' as keyof PricingRecord },
+                { key: 'Price_Per_Acre', label: 'Price/Acre', sortKey: 'Price_Per_Acre' as keyof PricingRecord },
+                { key: 'actions', label: 'Actions', sortKey: null }
+              ]
+            : [
+                { key: 'County', label: 'County', sortKey: 'County' as keyof PricingRecord },
+                { key: 'Basin', label: 'Basin', sortKey: 'Basin' as keyof PricingRecord },
+                { key: 'Survey_Company', label: 'Survey Company', sortKey: 'Survey_Company' as keyof PricingRecord },
+                { key: 'Formation', label: 'Formation', sortKey: 'Formation' as keyof PricingRecord },
+                { key: 'Section', label: 'Section', sortKey: 'Section' as keyof PricingRecord },
+                { key: 'Price_Per_Acre', label: 'Price/Acre', sortKey: 'Price_Per_Acre' as keyof PricingRecord },
+                { key: 'actions', label: 'Actions', sortKey: null }
+              ];
+          return (
           <div className="table-container">
             <table className="pricing-table">
               <thead>
@@ -1310,32 +1178,30 @@ const PricingPage: React.FC = () => {
                       title="Select All"
                     />
                   </th>
-                  <th onClick={() => handleSort('County')} className="sortable">
-                    County {sortField === 'County' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th onClick={() => handleSort('Basin')} className="sortable">
-                    Basin {sortField === 'Basin' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th onClick={() => handleSort('Survey_Company')} className="sortable">
-                    Survey Company {sortField === 'Survey_Company' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th onClick={() => handleSort('Formation')} className="sortable">
-                    Formation {sortField === 'Formation' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </th>
-                  {activeTab === 'oklahoma' && (
-                    <th onClick={() => handleSort('S_T_R')} className="sortable">
-                      S-T-R {sortField === 'S_T_R' && (sortDirection === 'asc' ? '↑' : '↓')}
-                    </th>
-                  )}
-                  {activeTab === 'texas' && (
-                    <th onClick={() => handleSort('Section')} className="sortable">
-                      Section {sortField === 'Section' && (sortDirection === 'asc' ? '↑' : '↓')}
-                    </th>
-                  )}
-                  <th onClick={() => handleSort('Price_Per_Acre')} className="sortable">
-                    Price/Acre {sortField === 'Price_Per_Acre' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th>Actions</th>
+                  {tableColumns.map((col) => {
+                    const width = getColumnWidth(col.key);
+                    const isResizing = resizingColumn === col.key;
+                    return (
+                      <th
+                        key={col.key}
+                        className={`pricing-th ${col.sortKey ? 'sortable' : ''}`}
+                        style={{ width: `${width}px`, minWidth: col.key === 'actions' ? undefined : `${width}px` }}
+                        onClick={col.sortKey ? (e) => { if ((e.target as HTMLElement).classList.contains('pricing-resizer')) return; handleSort(col.sortKey!); } : undefined}
+                      >
+                        <span className="pricing-th-inner">
+                          {col.label}
+                          {col.sortKey && sortField === col.sortKey && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                        </span>
+                        {col.key !== 'actions' && (
+                          <div
+                            className={`pricing-resizer ${isResizing ? 'active' : ''}`}
+                            onMouseDown={(e) => handleResizeStart(e, col.key, width)}
+                            aria-hidden
+                          />
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -1348,64 +1214,38 @@ const PricingPage: React.FC = () => {
                         onChange={() => handleSelectRecord(record.id)}
                       />
                     </td>
-                    <td className="owner-cell">{record.County}</td>
-                    <td>{record.Basin}</td>
-                    <td className="owner-cell">{record.Survey_Company}</td>
-                    <td>{record.Formation}</td>
-                    {activeTab === 'oklahoma' && (
-                      <td>{record.S_T_R || record.STR || '-'}</td>
-                    )}
-                    {activeTab === 'texas' && (
-                      <td>{record.Section || '-'}</td>
-                    )}
-                    <td className="price-cell">
-                      ${(typeof record.Price_Per_Acre === 'number' 
-                        ? record.Price_Per_Acre 
-                        : parseFloat(record.Price_Per_Acre) || 0
-                      ).toLocaleString()}
-                    </td>
-                    <td className="actions-column">
-                      <div className="action-buttons">
-                        <button 
-                          onClick={() => handleRecordClick(record)}
-                          className="action-btn-small"
-                          title="View Details"
-                        >
-                          👁️
-                        </button>
-                        <button 
-                          onClick={() => handleFavoriteToggle(record.id)}
-                          className={`action-btn-small ${favoriteRecords.has(record.id) ? 'favorited' : ''}`}
-                          title={favoriteRecords.has(record.id) ? 'Remove from Favorites' : 'Add to Favorites'}
-                        >
-                          {favoriteRecords.has(record.id) ? '❤️' : '🤍'}
-                        </button>
-                        <button 
-                          onClick={() => handleAddToComparison(record)}
-                          className="action-btn-small"
-                          title="Add to Comparison"
-                          disabled={comparisonRecords.length >= 5 || comparisonRecords.find(r => r.id === record.id)}
-                        >
-                          ⚖️
-                        </button>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(JSON.stringify(record, null, 2));
-                            alert('Record copied to clipboard!');
-                          }}
-                          className="action-btn-small"
-                          title="Copy Record"
-                        >
-                          📋
-                        </button>
-                      </div>
-                    </td>
+                    {tableColumns.map((col) => {
+                      const width = getColumnWidth(col.key);
+                      const style = col.key !== 'actions' ? { width: `${width}px`, minWidth: `${width}px` } : undefined;
+                      if (col.key === 'County') return <td key={col.key} className="owner-cell" style={style}>{record.County}</td>;
+                      if (col.key === 'Basin') return <td key={col.key} style={style}>{record.Basin}</td>;
+                      if (col.key === 'Survey_Company') return <td key={col.key} className="owner-cell" style={style}>{record.Survey_Company}</td>;
+                      if (col.key === 'Formation') return <td key={col.key} style={style}>{record.Formation}</td>;
+                      if (col.key === 'S_T_R') return <td key={col.key} style={style}>{record.S_T_R || record.STR || '-'}</td>;
+                      if (col.key === 'Section') return <td key={col.key} style={style}>{record.Section || '-'}</td>;
+                      if (col.key === 'Price_Per_Acre') return (
+                        <td key={col.key} className="price-cell" style={style}>
+                          ${(typeof record.Price_Per_Acre === 'number' ? record.Price_Per_Acre : parseFloat(record.Price_Per_Acre) || 0).toLocaleString()}
+                        </td>
+                      );
+                      return (
+                        <td key={col.key} className="actions-column" style={style}>
+                          <div className="action-buttons">
+                            <button onClick={() => handleRecordClick(record)} className="action-btn-small" title="View Details">👁️</button>
+                            <button onClick={() => handleFavoriteToggle(record.id)} className={`action-btn-small ${favoriteRecords.has(record.id) ? 'favorited' : ''}`} title={favoriteRecords.has(record.id) ? 'Remove from Favorites' : 'Add to Favorites'}>{favoriteRecords.has(record.id) ? '❤️' : '🤍'}</button>
+                            <button onClick={() => handleAddToComparison(record)} className="action-btn-small" title="Add to Comparison" disabled={comparisonRecords.length >= 5 || !!comparisonRecords.find(r => r.id === record.id)}>⚖️</button>
+                            <button onClick={() => { navigator.clipboard.writeText(JSON.stringify(record, null, 2)); alert('Record copied to clipboard!'); }} className="action-btn-small" title="Copy Record">📋</button>
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        )}
+          );
+        })()}
 
         {viewMode === 'cards' && (
           <div className="cards-container">
@@ -1463,7 +1303,7 @@ const PricingPage: React.FC = () => {
           </div>
         )}
 
-        {viewMode === 'analytics' && (
+        {viewMode === 'analytics' && filteredData.length > 0 && (
           <div className="analytics-container">
             <div className="analytics-grid">
               <div className="analytics-card">

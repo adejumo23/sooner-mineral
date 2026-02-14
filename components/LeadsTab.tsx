@@ -3,6 +3,7 @@ import type { SectionLead, LeadNote, User } from '../types';
 import * as api from '../services/api';
 import Button from './ui/Button';
 import Modal from './ui/Modal';
+import { formatOccDate } from '../utils/formatting';
 
 interface LeadsTabProps {
   sectionId: string;
@@ -431,7 +432,7 @@ const LeadsTab: React.FC<LeadsTabProps> = ({ sectionId, users }) => {
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm block">OCC Date</span>
-                      <div className="text-gray-900 font-medium">{lead.occDate || 'N/A'}</div>
+                      <div className="text-gray-900 font-medium">{formatOccDate(lead.occDate, 'N/A')}</div>
                     </div>
                     <div>
                       <span className="text-gray-600 text-sm block">OCC Type</span>

@@ -1,866 +1,770 @@
 /* ============================================================================
-   ACREAGE SCHEDULE PAGE STYLES
+   ACREAGE SCHEDULE PAGE — Design system
    ============================================================================ */
 
-.acreage-schedule-page {
+:root {
+  --acreage-bg: #f8f9fb;
+  --acreage-surface: #ffffff;
+  --acreage-border: #e5e7eb;
+  --acreage-border-strong: #d1d5db;
+  --acreage-text: #111827;
+  --acreage-text-muted: #6b7280;
+  --acreage-text-subtle: #9ca3af;
+  --acreage-primary: #0d9488;
+  --acreage-primary-hover: #0f766e;
+  --acreage-primary-muted: #ccfbf1;
+  --acreage-accent: #0369a1;
+  --acreage-success: #059669;
+  --acreage-warning: #d97706;
+  --acreage-danger: #dc2626;
+  --acreage-radius: 10px;
+  --acreage-radius-sm: 6px;
+  --acreage-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --acreage-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------------------------------------------------------------------------- Page container */
+.acreage-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
-  max-width: 100vw;
+  background: var(--acreage-bg);
+  padding: 1.5rem;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--acreage-text);
 }
 
-.acreage-schedule-page.compact-mode {
-  font-size: 0.9rem;
+@media (min-width: 1024px) {
+  .acreage-page {
+    padding: 2rem 2.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
 }
 
-.acreage-schedule-page.compact-mode .page-header {
-  padding: 0.75rem 1rem;
-}
-
-.acreage-schedule-page.compact-mode .header-content h1 {
-  font-size: 1.5rem;
-}
-
-.acreage-schedule-page.compact-mode .header-content p {
-  font-size: 0.8rem;
-}
-
-.acreage-schedule-page.compact-mode .filters-section {
-  padding: 0.75rem 1rem;
-}
-
-.acreage-schedule-page.compact-mode .data-section {
-  padding: 0.75rem;
-}
-
-/* ============================================================================
-   LOADING AND ERROR STATES
-   ============================================================================ */
-
-.loading-container,
-.error-container {
+/* ---------------------------------------------------------------------------- Loading */
+.acreage-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 60vh;
+  min-height: 50vh;
+  gap: 1rem;
+}
+
+.acreage-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--acreage-border);
+  border-top-color: var(--acreage-primary);
+  border-radius: 50%;
+  animation: acreage-spin 0.8s linear infinite;
+}
+
+.acreage-loading-text {
+  color: var(--acreage-text-muted);
+  font-size: 0.95rem;
+}
+
+@keyframes acreage-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------------------------------------------------------------------------- Error */
+.acreage-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.acreage-error-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--acreage-danger);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.acreage-error h2 {
+  font-size: 1.25rem;
+  color: var(--acreage-text);
+  margin: 0 0 0.5rem;
+}
+
+.acreage-error p {
+  color: var(--acreage-text-muted);
+  margin: 0 0 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------- Buttons */
+.acreage-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--acreage-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.acreage-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.acreage-btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.acreage-btn-primary {
+  background: var(--acreage-primary);
+  color: white;
+}
+
+.acreage-btn-primary:hover:not(:disabled) {
+  background: var(--acreage-primary-hover);
+}
+
+.acreage-btn-ghost {
+  background: transparent;
+  color: var(--acreage-text-muted);
+  border-color: var(--acreage-border);
+}
+
+.acreage-btn-ghost:hover:not(:disabled) {
+  background: var(--acreage-bg);
+  color: var(--acreage-text);
+}
+
+/* ---------------------------------------------------------------------------- Header */
+.acreage-header {
+  background: var(--acreage-surface);
+  border-radius: var(--acreage-radius);
+  box-shadow: var(--acreage-shadow);
+  border: 1px solid var(--acreage-border);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.acreage-header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.acreage-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--acreage-text);
+  letter-spacing: -0.02em;
+}
+
+.acreage-subtitle {
+  font-size: 0.9rem;
+  color: var(--acreage-text-muted);
+  margin: 0.25rem 0 0;
+}
+
+.acreage-view-toggle {
+  display: flex;
+  gap: 0;
+  background: var(--acreage-bg);
+  border-radius: var(--acreage-radius-sm);
+  padding: 3px;
+  border: 1px solid var(--acreage-border);
+}
+
+.acreage-view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--acreage-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.acreage-view-toggle button:hover {
+  color: var(--acreage-text);
+  background: var(--acreage-surface);
+}
+
+.acreage-view-toggle button.active {
+  background: var(--acreage-surface);
+  color: var(--acreage-primary);
+  box-shadow: var(--acreage-shadow);
+}
+
+.acreage-view-icon {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+/* ---------------------------------------------------------------------------- Stats bar */
+.acreage-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.acreage-stat {
+  background: var(--acreage-surface);
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius-sm);
+  padding: 1rem;
+  text-align: center;
+  box-shadow: var(--acreage-shadow);
+}
+
+.acreage-stat-value {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--acreage-text);
+  letter-spacing: -0.02em;
+}
+
+.acreage-stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--acreage-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.25rem;
+}
+
+/* ---------------------------------------------------------------------------- Filters */
+.acreage-filters {
+  background: var(--acreage-surface);
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  box-shadow: var(--acreage-shadow);
+}
+
+.acreage-filters-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--acreage-text);
+  background: var(--acreage-bg);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.acreage-filters-toggle:hover {
+  background: var(--acreage-border);
+}
+
+.acreage-filters-badge {
+  background: var(--acreage-primary);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  min-width: 1.25rem;
   text-align: center;
 }
 
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid #e3e3e3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.error-container h2 {
-  color: #dc3545;
-  margin-bottom: 10px;
-}
-
-.error-container button {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-top: 15px;
-}
-
-/* ============================================================================
-   PAGE HEADER
-   ============================================================================ */
-
-.page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.header-content h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.header-content p {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.view-toggle {
-  background: rgba(255,255,255,0.2);
-  color: white;
-  border: 2px solid rgba(255,255,255,0.3);
-  padding: 10px 20px;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.view-toggle:hover {
-  background: rgba(255,255,255,0.3);
-  transform: translateY(-2px);
-}
-
-.view-toggle.active {
-  background: white;
-  color: #667eea;
-  border-color: white;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-/* ============================================================================
-   SUMMARY CARDS
-   ============================================================================ */
-
-.summary-cards {
+.acreage-filters-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  padding: 1rem;
-  background: white;
-  margin: 0;
-}
-
-.summary-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
+  grid-template-columns: 1fr;
   gap: 0.75rem;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  padding: 1rem;
+  border-top: 1px solid var(--acreage-border);
 }
 
-.summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+@media (min-width: 640px) {
+  .acreage-filters-grid {
+    grid-template-columns: 1.5fr repeat(3, 1fr) auto;
+  }
 }
 
-.card-icon {
-  font-size: 1.8rem;
-  opacity: 0.9;
-}
-
-.card-content h3 {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.card-content p {
-  margin: 0.2rem 0 0 0;
-  font-size: 0.8rem;
-  opacity: 0.9;
-  font-weight: 500;
-}
-
-/* ============================================================================
-   FILTERS SECTION
-   ============================================================================ */
-
-.filters-section {
-  background: white;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.search-box {
+.acreage-search-wrap {
   position: relative;
-  flex: 1;
-  min-width: 250px;
 }
 
-.search-input {
-  width: 100%;
-  padding: 8px 35px 8px 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  background: #f8f9fa;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #667eea;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.search-icon {
+.acreage-search-icon {
   position: absolute;
-  right: 15px;
+  left: 0.875rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #6c757d;
-  font-size: 1.2rem;
-}
-
-.filter-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.filter-select {
-  padding: 8px 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  background: white;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 120px;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.clear-filters-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.clear-filters-btn:hover {
-  background: #c82333;
-  transform: translateY(-1px);
-}
-
-/* ============================================================================
-   BREAKDOWN SECTION
-   ============================================================================ */
-
-.breakdown-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-}
-
-.breakdown-card {
-  background: white;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.breakdown-card h4 {
-  margin: 0 0 0.75rem 0;
-  color: #495057;
   font-size: 1rem;
-  font-weight: 600;
-  border-bottom: 2px solid #667eea;
-  padding-bottom: 0.4rem;
+  color: var(--acreage-text-subtle);
+  pointer-events: none;
 }
 
-.breakdown-items {
+.acreage-search {
+  width: 100%;
+  padding: 0.5rem 0.875rem 0.5rem 2.25rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius-sm);
+  background: var(--acreage-surface);
+  color: var(--acreage-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.acreage-search::placeholder {
+  color: var(--acreage-text-subtle);
+}
+
+.acreage-search:focus {
+  outline: none;
+  border-color: var(--acreage-primary);
+  box-shadow: 0 0 0 3px var(--acreage-primary-muted);
+}
+
+.acreage-select {
+  width: 100%;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius-sm);
+  background: var(--acreage-surface);
+  color: var(--acreage-text);
+  cursor: pointer;
+}
+
+.acreage-select:focus {
+  outline: none;
+  border-color: var(--acreage-primary);
+}
+
+/* ---------------------------------------------------------------------------- Breakdown bar (when filters collapsed) */
+.acreage-breakdown-bar {
+  background: var(--acreage-surface);
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius-sm);
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.acreage-breakdown-scroll {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.breakdown-item {
-  display: flex;
-  justify-content: space-between;
+.acreage-breakdown-pill {
+  display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  transition: background 0.3s ease;
-}
-
-.breakdown-item:hover {
-  background: #e9ecef;
-}
-
-.breakdown-label {
-  font-weight: 500;
-  color: #495057;
-}
-
-.breakdown-count {
-  background: #667eea;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  background: var(--acreage-bg);
+  border-radius: 999px;
   font-size: 0.8rem;
+}
+
+.acreage-breakdown-label {
+  color: var(--acreage-text-muted);
+}
+
+.acreage-breakdown-count {
   font-weight: 600;
-  min-width: 25px;
+  color: var(--acreage-text);
+}
+
+/* ---------------------------------------------------------------------------- Content area */
+.acreage-content {
+  background: var(--acreage-surface);
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius);
+  overflow: hidden;
+  box-shadow: var(--acreage-shadow);
+  min-height: 200px;
+}
+
+/* ---------------------------------------------------------------------------- Empty state */
+.acreage-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 2rem;
+  color: var(--acreage-text-muted);
   text-align: center;
 }
 
-/* ============================================================================
-   DATA SECTION
-   ============================================================================ */
-
-.data-section {
-  padding: 1rem;
-  background: white;
-  min-height: 300px;
-}
-
-/* Table View */
-.table-container {
+/* ---------------------------------------------------------------------------- Table */
+.acreage-table-wrap {
   overflow-x: auto;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  max-width: 100%;
-  width: 100%;
 }
 
 .acreage-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   table-layout: fixed;
 }
 
-.acreage-table th {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 10px 8px;
+.acreage-th {
+  position: relative;
   text-align: left;
+  padding: 0.75rem 1rem;
   font-weight: 600;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  font-size: 0.8rem;
+  color: var(--acreage-text-muted);
+  background: var(--acreage-bg);
+  border-bottom: 1px solid var(--acreage-border);
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.acreage-table th.sortable {
+.acreage-th-inner {
+  display: block;
+  padding-right: 0.5rem;
+}
+
+.acreage-th.sortable {
   cursor: pointer;
   user-select: none;
-  transition: background 0.3s ease;
 }
 
-.acreage-table th.sortable:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+.acreage-th.sortable:hover {
+  color: var(--acreage-text);
 }
 
-.acreage-table td {
-  padding: 8px;
-  border-bottom: 1px solid #e9ecef;
-  vertical-align: middle;
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  overflow-wrap: break-word;
+.acreage-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
 }
 
-/* Column width constraints */
-.acreage-table th:nth-child(1), .acreage-table td:nth-child(1) { width: 12%; } /* County */
-.acreage-table th:nth-child(2), .acreage-table td:nth-child(2) { width: 15%; } /* S-T-R */
-.acreage-table th:nth-child(3), .acreage-table td:nth-child(3) { width: 20%; } /* Legal Description */
-.acreage-table th:nth-child(4), .acreage-table td:nth-child(4) { width: 8%; }  /* NMA */
-.acreage-table th:nth-child(5), .acreage-table td:nth-child(5) { width: 15%; } /* Owner */
-.acreage-table th:nth-child(6), .acreage-table td:nth-child(6) { width: 10%; } /* Status */
-.acreage-table th:nth-child(7), .acreage-table td:nth-child(7) { width: 10%; } /* Buyer */
-.acreage-table th:nth-child(8), .acreage-table td:nth-child(8) { width: 10%; } /* Actions */
-
-.data-row {
-  transition: background 0.3s ease;
+.acreage-resizer:hover,
+.acreage-resizer.active {
+  background: var(--acreage-primary);
+  opacity: 0.4;
 }
 
-.data-row:hover {
-  background: #f8f9fa;
+.acreage-resizer.active {
+  opacity: 0.7;
 }
 
-.owner-cell {
-  font-weight: 500;
-  color: #495057;
+.acreage-tr {
+  border-bottom: 1px solid var(--acreage-border);
+  transition: background 0.15s;
 }
 
-.number-cell {
-  text-align: right;
-  font-family: 'Courier New', monospace;
-  font-weight: 500;
+.acreage-tr:hover {
+  background: var(--acreage-bg);
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-badge.working {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-badge.dropped {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.status-badge.unknown {
-  background: #e2e3e5;
-  color: #6c757d;
-}
-
-.view-details-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.view-details-btn:hover {
-  background: #5a6fd8;
-  transform: translateY(-1px);
-}
-
-/* Card View */
-.cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.acreage-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.acreage-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-}
-
-.card-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 0.75rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h3 {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.card-content {
-  padding: 1rem;
-}
-
-.card-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f8f9fa;
-}
-
-.card-row:last-child {
+.acreage-tr:last-child {
   border-bottom: none;
 }
 
-.card-row .label {
+.acreage-table td {
+  padding: 0.65rem 1rem;
+  vertical-align: middle;
+}
+
+.acreage-cell-owner {
+  font-weight: 500;
+  color: var(--acreage-text);
+}
+
+.acreage-cell-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Status badges */
+.acreage-status {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #6c757d;
-  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
 }
 
-.card-row .value {
-  color: #495057;
-  font-weight: 500;
+.acreage-status--new,
+.acreage-status--unknown {
+  background: #f3f4f6;
+  color: #4b5563;
 }
 
-.card-actions {
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+.acreage-status--producing,
+.acreage-status--held-by-production {
+  background: #d1fae5;
+  color: #065f46;
 }
 
-/* Map View */
-.map-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.acreage-status--permitted {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
-.map-placeholder {
-  text-align: center;
-  color: #6c757d;
+.acreage-status--negotiating,
+.acreage-status--lvm\/txt\/email {
+  background: #fef3c7;
+  color: #92400e;
 }
 
-.map-placeholder h3 {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+.acreage-status--dropped,
+.acreage-status--plugged {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-.map-placeholder p {
-  font-size: 1.1rem;
-  margin: 0.5rem 0;
+.acreage-status--closed,
+.acreage-status--offer-accepted {
+  background: #d1fae5;
+  color: #047857;
 }
 
-/* ============================================================================
-   PAGINATION
-   ============================================================================ */
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
+/* ---------------------------------------------------------------------------- Cards view */
+.acreage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
   padding: 1rem;
-  background: white;
 }
 
-.pagination-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+.acreage-card {
+  background: var(--acreage-bg);
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius);
+  overflow: hidden;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.pagination-btn:hover:not(:disabled) {
-  background: #5a6fd8;
-  transform: translateY(-1px);
+.acreage-card:hover {
+  border-color: var(--acreage-primary);
+  box-shadow: 0 0 0 1px var(--acreage-primary-muted);
 }
 
-.pagination-btn:disabled {
-  background: #e9ecef;
-  color: #6c757d;
-  cursor: not-allowed;
-  transform: none;
+.acreage-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--acreage-surface);
+  border-bottom: 1px solid var(--acreage-border);
 }
 
-.pagination-info {
-  color: #495057;
-  font-weight: 500;
-  font-size: 0.9rem;
+.acreage-card-owner {
+  font-weight: 600;
+  color: var(--acreage-text);
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ============================================================================
-   MODAL
-   ============================================================================ */
+.acreage-card-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
-.modal-overlay {
+.acreage-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.acreage-card-row span:first-child {
+  color: var(--acreage-text-muted);
+  flex-shrink: 0;
+}
+
+.acreage-card-row span:last-child {
+  color: var(--acreage-text);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acreage-card-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--acreage-border);
+  background: var(--acreage-surface);
+}
+
+/* ---------------------------------------------------------------------------- Pagination */
+.acreage-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: var(--acreage-surface);
+  border: 1px solid var(--acreage-border);
+  border-radius: var(--acreage-radius);
+  box-shadow: var(--acreage-shadow);
+}
+
+.acreage-pagination-info {
+  font-size: 0.875rem;
+  color: var(--acreage-text-muted);
+}
+
+/* ---------------------------------------------------------------------------- Modal */
+.acreage-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 2rem;
+  padding: 1.5rem;
+  animation: acreage-fadeIn 0.2s ease;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  max-width: 800px;
+@keyframes acreage-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.acreage-modal {
+  background: var(--acreage-surface);
+  border-radius: var(--acreage-radius);
+  box-shadow: var(--acreage-shadow-md);
+  max-width: 720px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: acreage-modalIn 0.25s ease;
 }
 
-.modal-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem;
+@keyframes acreage-modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.acreage-modal-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 12px 12px 0 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--acreage-border);
 }
 
-.modal-header h2 {
+.acreage-modal-head h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--acreage-text);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 2rem;
-  cursor: pointer;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+.acreage-modal-close {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: background 0.3s ease;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--acreage-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--acreage-radius-sm);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255,255,255,0.2);
+.acreage-modal-close:hover {
+  background: var(--acreage-bg);
+  color: var(--acreage-text);
 }
 
-.modal-body {
-  padding: 2rem;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-}
-
-.detail-section {
-  background: #f8f9fa;
+.acreage-modal-body {
   padding: 1.5rem;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
+  overflow-y: auto;
 }
 
-.detail-section h4 {
-  margin: 0 0 1rem 0;
-  color: #495057;
-  font-size: 1.1rem;
+.acreage-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.acreage-detail-block {
+  background: var(--acreage-bg);
+  border-radius: var(--acreage-radius-sm);
+  padding: 1rem;
+  border-left: 3px solid var(--acreage-primary);
+}
+
+.acreage-detail-block h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  color: var(--acreage-text);
 }
 
-.detail-item {
+.acreage-detail-block dl {
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
+  gap: 0.5rem;
 }
 
-.detail-item:last-child {
-  margin-bottom: 0;
-}
-
-.detail-label {
+.acreage-detail-block dt {
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #6c757d;
-  font-size: 0.9rem;
+  color: var(--acreage-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
 }
 
-.detail-value {
-  color: #495057;
-  font-weight: 500;
+.acreage-detail-block dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--acreage-text);
   line-height: 1.4;
 }
 
-/* ============================================================================
-   RESPONSIVE DESIGN
-   ============================================================================ */
-
-@media (max-width: 1200px) {
-  .summary-cards {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  }
-  
-  .breakdown-section {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-  
-  .cards-container {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    gap: 0.75rem;
-    text-align: center;
-    padding: 0.75rem 1rem;
-  }
-
-  .header-content h1 {
-    font-size: 1.5rem;
-  }
-
-  .header-actions {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .view-toggle {
-    padding: 8px 16px;
-    font-size: 0.85rem;
-  }
-
-  .summary-cards {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 0.75rem;
-    padding: 0.75rem;
-  }
-
-  .summary-card {
-    padding: 0.75rem;
-    flex-direction: column;
-    text-align: center;
-    gap: 0.5rem;
-  }
-
-  .card-icon {
-    font-size: 1.5rem;
-  }
-
-  .card-content h3 {
-    font-size: 1.2rem;
-  }
-
-  .filters-section {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-  }
-
-  .search-box {
-    min-width: 100%;
-  }
-
-  .filter-controls {
-    width: 100%;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .filter-select {
-    min-width: 100px;
-    font-size: 0.8rem;
-  }
-
-  .breakdown-section {
-    grid-template-columns: 1fr;
-    padding: 0.75rem 1rem;
-  }
-
-  .data-section {
-    padding: 0.75rem;
-  }
-
-  .cards-container {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .acreage-table {
-    font-size: 0.75rem;
-  }
-
-  .acreage-table th,
-  .acreage-table td {
-    padding: 6px 4px;
-  }
-
-  /* Adjust column widths for mobile */
-  .acreage-table th:nth-child(1), .acreage-table td:nth-child(1) { width: 15%; } /* County */
-  .acreage-table th:nth-child(2), .acreage-table td:nth-child(2) { width: 20%; } /* S-T-R */
-  .acreage-table th:nth-child(3), .acreage-table td:nth-child(3) { width: 25%; } /* Legal Description */
-  .acreage-table th:nth-child(4), .acreage-table td:nth-child(4) { width: 10%; }  /* NMA */
-  .acreage-table th:nth-child(5), .acreage-table td:nth-child(5) { width: 20%; } /* Owner */
-  .acreage-table th:nth-child(6), .acreage-table td:nth-child(6) { width: 10%; } /* Status */
-  .acreage-table th:nth-child(7), .acreage-table td:nth-child(7) { width: 0%; display: none; } /* Hide Buyer on mobile */
-  .acreage-table th:nth-child(8), .acreage-table td:nth-child(8) { width: 0%; display: none; } /* Hide Actions on mobile */
-
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .modal-content {
-    margin: 0.5rem;
-    max-height: calc(100vh - 1rem);
-  }
-
-  .modal-body {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-header {
-    padding: 1rem;
-  }
-
-  .header-content h1 {
-    font-size: 2rem;
-  }
-
-  .summary-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .acreage-table {
-    font-size: 0.8rem;
-  }
-
-  .acreage-table th,
-  .acreage-table td {
-    padding: 8px 6px;
-  }
+.acreage-detail-block dd .acreage-status {
+  margin-top: 0.15rem;
 }
