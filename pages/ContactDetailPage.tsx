@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { formatNMA } from '../utils/formatting';
+import { netRoyaltyAcresFromNmaAndRoy } from '../utils/nra';
 import { 
   fetchContact, 
   fetchContactTractOwnership, 
@@ -700,7 +701,7 @@ const ContactDetailPage: React.FC = () => {
                                             Royalty %
                                           </th>
                                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            NRA (1/8th norm.)
+                                            Net Royalty Acres
                                           </th>
                                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Status
@@ -718,9 +719,15 @@ const ContactDetailPage: React.FC = () => {
                                           const str = sectionData.str || 'N/A';
                                           const sectionId = section.sectionId || section.tractId || section.id;
                                           
-                                          // Calculate NRA (1/8th normalized)
-                                          const nra = section.nra || (section.nma && section.royaltyPercentage ? 
-                                            (section.nma * section.royaltyPercentage / 0.125) : 0);
+                                          const royPct =
+                                            section.royaltyPercentage != null
+                                              ? Number(section.royaltyPercentage) * 100
+                                              : NaN;
+                                          const nra =
+                                            section.nra ??
+                                            (section.nma != null && Number.isFinite(royPct)
+                                              ? netRoyaltyAcresFromNmaAndRoy(Number(section.nma), royPct)
+                                              : 0);
                                           
                                           return (
                                             <tr key={section.id} className="hover:bg-gray-50">

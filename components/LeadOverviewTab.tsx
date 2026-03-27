@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { LeadEnhanced, User, LeadCallLog, LeadNote } from '../types';
+import { netRoyaltyAcresFromNmaAndRoy } from '../utils/nra';
 import Button from './ui/Button';
 import { ArrowLeftIcon } from './icons/Icons';
 
@@ -52,7 +53,7 @@ const LeadOverviewTab: React.FC<LeadOverviewTabProps> = ({
   const netMineralAcres = (lead as any).netMineralAcres ?? lead.linkedSections?.[0]?.netMineralAcres;
   const royalty = (lead as any).royalty ?? lead.linkedSections?.[0]?.royalty;
   const netRoyaltyAcres = (lead as any).netRoyaltyAcres ?? (netMineralAcres != null && royalty != null
-    ? Number(netMineralAcres) * (Number(royalty) / 100)
+    ? netRoyaltyAcresFromNmaAndRoy(Number(netMineralAcres), Number(royalty))
     : null);
   const address = [
     lead.linkedContact?.street ?? (lead as any).street,
@@ -172,7 +173,10 @@ const LeadOverviewTab: React.FC<LeadOverviewTabProps> = ({
     const nraCap = (lead as any).nraCapUsd != null
       ? `$${Number((lead as any).nraCapUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : '—';
-    return [{ currentUnit: unitNames, allocationPct, newUnit, newAlloPct, occType: 'N/A', docType: 'N/A', nraCap }];
+    const occTypeRaw = (lead as any).occType;
+    const occType =
+      occTypeRaw != null && String(occTypeRaw).trim() !== '' ? String(occTypeRaw).trim() : '—';
+    return [{ currentUnit: unitNames, allocationPct, newUnit, newAlloPct, occType, docType: 'N/A', nraCap }];
   }, [lead]);
 
   const conversationEntries = React.useMemo(() => {
@@ -220,7 +224,6 @@ const LeadOverviewTab: React.FC<LeadOverviewTabProps> = ({
               <div>
                 <div className="text-gray-500 font-medium">Full Name</div>
                 <div className="text-gray-900 font-medium">{contactName || '—'}</div>
-                <div className="text-gray-500 text-xs mt-0.5">Lead ID-{String(lead.id).replace('lead-', '')}</div>
               </div>
               <div>
                 <div className="text-gray-500 font-medium">Section</div>

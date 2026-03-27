@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
+import { netRoyaltyAcresFromNmaAndRoy } from '../../utils/nra.js';
 import { getCachedAssignments } from '../utils/cache.js';
 
 // Request deduplication map (should be shared across routes)
@@ -1377,7 +1378,7 @@ export const createUnitsRoutes = (dbPool: Pool | null) => {
       const aggregatedContacts = rows.map((row: any, index: number) => {
         const totalNMA = parseFloat(row.totalNMA) || 0;
         const avgRoyalty = parseFloat(row.avgRoyalty) || 0;
-        const totalNRA = avgRoyalty > 0 ? totalNMA * (avgRoyalty / 100) / 0.125 : 0;
+        const totalNRA = netRoyaltyAcresFromNmaAndRoy(totalNMA, avgRoyalty);
         
         return {
           id: `contact-${index}`,

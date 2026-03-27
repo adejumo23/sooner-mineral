@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
+import { netRoyaltyAcresFromNmaAndRoy, SQL_NRA_MULTIPLIER_FROM_ROY } from '../../utils/nra.js';
 import { normalizeRecordDateColumns } from '../utils/dataImport.js';
 
 export const createSectionsRoutes = (dbPool: Pool | null) => {
@@ -56,8 +57,8 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
           COUNT(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN 1 END) as closed_deals_count,
           SUM(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN CAST(pas.NMA AS DECIMAL(12,4)) ELSE 0 END) as net_mineral_acres_acquired,
           AVG(CAST(pas.ROY AS DECIMAL(5,2))) as royalty_blended,
-          SUM(CAST(pas.NMA AS DECIMAL(12,4)) * CAST(pas.ROY AS DECIMAL(5,2)) / 100) as net_royalty_acres,
-          SUM(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN CAST(pas.NMA AS DECIMAL(12,4)) * CAST(pas.ROY AS DECIMAL(5,2)) / 100 ELSE 0 END) as net_royalty_acres_acquired
+          SUM(CAST(pas.NMA AS DECIMAL(12,4)) * ${SQL_NRA_MULTIPLIER_FROM_ROY}) as net_royalty_acres,
+          SUM(CASE WHEN UPPER(pas.STATUS) = 'CLOSED' THEN CAST(pas.NMA AS DECIMAL(12,4)) * ${SQL_NRA_MULTIPLIER_FROM_ROY} ELSE 0 END) as net_royalty_acres_acquired
         FROM prod_acreage_schedule pas
         WHERE pas.S_T_R IS NOT NULL 
         GROUP BY pas.S_T_R
@@ -555,7 +556,7 @@ export const createSectionsRoutes = (dbPool: Pool | null) => {
         
         const nma = parseFloat(row.grossAcres) || 0;
         const roy = parseFloat(row.royalty) || 0;
-        const netRoyaltyAcres = nma * roy / 100;
+        const netRoyaltyAcres = netRoyaltyAcresFromNmaAndRoy(nma, roy);
         const nraCapUsd = row.totalNraUsd != null ? parseFloat(row.totalNraUsd) : undefined;
         // NRA/$ Offer (Converted) - if we have NMA and a cap, offer converted could be derived; use same as nraCapUsd if no separate column
         const nraOfferConverted = nraCapUsd;
