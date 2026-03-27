@@ -558,6 +558,8 @@ const AcreageSchedulePage: React.FC = () => {
                         <dt>OCC date</dt><dd>{formatOccDate(selectedRecord.OCC_DATE ?? selectedRecord.occDate, '—')}</dd>
                       </>
                     )}
+                    <dt>OCC type</dt>
+                    <dd>{getRecordVal(selectedRecord, 'NEW_OCC_TYPE', 'new_occ_type', 'newOccType') || '—'}</dd>
                   </dl>
                 </div>
                 <div className="acreage-detail-block">

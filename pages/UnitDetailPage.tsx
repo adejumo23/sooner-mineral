@@ -1350,7 +1350,7 @@ const UnitDetailPage: React.FC = () => {
                             NMA (Total)
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            NRA (1/8 Normalized)
+                            Net Royalty Acres
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Sections Owned

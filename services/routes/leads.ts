@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
+import { netRoyaltyAcresFromNmaAndRoy } from '../../utils/nra.js';
 
 /** Encode owner name as a URL-safe lead id so detail view always loads the correct lead. */
 function leadIdFromOwnerName(ownerName: string): string {
@@ -154,7 +155,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
             netRoyaltyAcres: 0,
             royalty: 0,
             allocationPct: undefined as number | undefined,
-            nraCapUsd: null as number | null
+            nraCapUsd: null as number | null,
+            occTypes: new Set<string>(),
           });
         }
         
@@ -169,7 +171,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         const roy = parseFloat(row.royalty) || 0;
         ownerData.grossAcres = Math.max(ownerData.grossAcres, parseFloat(row.grossAcres) || 0);
         ownerData.netMineralAcres = Math.max(ownerData.netMineralAcres, nma);
-        ownerData.netRoyaltyAcres += nma * (roy / 100);
+        ownerData.netRoyaltyAcres += netRoyaltyAcresFromNmaAndRoy(nma, roy);
         ownerData.royalty = Math.max(ownerData.royalty, roy);
         if (row.allocation_pct != null && row.allocation_pct !== '') {
           const v = parseFloat(row.allocation_pct);
@@ -184,7 +186,9 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           if (ownerData.nraCapUsd === null || v > ownerData.nraCapUsd) ownerData.nraCapUsd = v;
         }
         if (row.occ_date != null && ownerData.occDate == null) ownerData.occDate = row.occ_date;
-        if (row.occ_type != null && ownerData.occType == null) ownerData.occType = row.occ_type;
+        if (row.occ_type != null && String(row.occ_type).trim() !== '') {
+          ownerData.occTypes.add(String(row.occ_type).trim());
+        }
       });
       
       const leads = Array.from(ownerDataMap.entries()).map(([ownerName, ownerData]: [string, any], index: number) => {
@@ -424,32 +428,38 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
 
       const query = `
         SELECT
-          OWNER as name,
-          CONTACT as contact,
-          OWNER_STREET as street,
-          OWNER_CITY as city,
-          OWNER_ST as state,
-          OWNER_ZIP as zip,
-          PHONE_EMAIL as phoneEmail,
-          CURRENT_UNIT_NAME as unitName,
-          NEW_UNIT_NAME as newUnitName,
-          S_T_R as str,
-          COUNTY as county,
-          NMA as grossAcres,
-          NMA as netMineralAcres,
-          ROY as royalty,
-          \`CURRENT_ALLO_%\` as allocation_pct,
-          \`New_ALLO_%\` as new_allo_pct,
-          \`$_NRA\` as nra_cap_usd,
-          BUYER as buyer,
-          STATUS as status,
-          \`OCC_DATE\` as occ_date,
-          NEW_OCC_TYPE as occ_type,
-          created_at,
-          updated_at
-        FROM prod_acreage_schedule
-        WHERE OWNER = ?
-        ORDER BY S_T_R, CURRENT_UNIT_NAME
+          p.OWNER as name,
+          p.CONTACT as contact,
+          p.OWNER_STREET as street,
+          p.OWNER_CITY as city,
+          p.OWNER_ST as state,
+          p.OWNER_ZIP as zip,
+          p.PHONE_EMAIL as phoneEmail,
+          p.CURRENT_UNIT_NAME as unitName,
+          p.NEW_UNIT_NAME as newUnitName,
+          p.S_T_R as str,
+          p.COUNTY as county,
+          p.NMA as grossAcres,
+          p.NMA as netMineralAcres,
+          p.ROY as royalty,
+          p.\`CURRENT_ALLO_%\` as allocation_pct,
+          p.\`New_ALLO_%\` as new_allo_pct,
+          p.\`$_NRA\` as nra_cap_usd,
+          p.BUYER as buyer,
+          p.STATUS as status,
+          p.\`OCC_DATE\` as occ_date,
+          (
+            SELECT GROUP_CONCAT(DISTINCT TRIM(p2.NEW_OCC_TYPE) ORDER BY TRIM(p2.NEW_OCC_TYPE) SEPARATOR ', ')
+            FROM prod_acreage_schedule p2
+            WHERE p2.OWNER = p.OWNER
+              AND p2.NEW_OCC_TYPE IS NOT NULL
+              AND TRIM(p2.NEW_OCC_TYPE) != ''
+          ) as occ_type,
+          p.created_at,
+          p.updated_at
+        FROM prod_acreage_schedule p
+        WHERE p.OWNER = ?
+        ORDER BY p.S_T_R, p.CURRENT_UNIT_NAME
         LIMIT 1
       `;
       const rows = await executeQuery(dbPool, query, [ownerName]);

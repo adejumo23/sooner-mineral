@@ -350,7 +350,7 @@ const SectionsPage: React.FC = () => {
       }
     },
     {
-      header: 'NEW_OCC_TYPE',
+      header: 'OCC Type',
       accessor: 'new_occ_type',
       cell: (section: Section) => (
         <div className="text-sm text-gray-900 whitespace-pre-line">{section.new_occ_type || 'N/A'}</div>

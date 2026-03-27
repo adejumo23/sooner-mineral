@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
+import { netRoyaltyAcresFromNmaAndRoy } from '../../utils/nra.js';
 
 export const createTractsRoutes = (dbPool: Pool | null) => {
   const router = Router();
@@ -176,7 +177,7 @@ export const createTractsRoutes = (dbPool: Pool | null) => {
       
       const netMineralAcres = parseFloat(row.NMA) || 0;
       const royalty = parseFloat(row.ROY) || 0;
-      const nra = royalty > 0 ? netMineralAcres * royalty / 0.125 : 0;
+      const nra = netRoyaltyAcresFromNmaAndRoy(netMineralAcres, royalty);
       
       let titleStatus = 'Unmapped';
       if (row.LEGAL_DESCRIPTION && row.NMA && row.OWNER) {

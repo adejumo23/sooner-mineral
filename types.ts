@@ -36,7 +36,7 @@ export interface Section {
   grossAcres: number;
   royalty?: number;
   netMineralAcres?: number;
-  nra?: number; // Net Royalty Acres. Auto-calculated: NMA * Royalty / 0.125
+  nra?: number; // Net Royalty Acres: NMA × ROY tier multiplier (utils/nra.ts; ROY from prod_acreage_schedule)
   ownershipPercentage?: number;
   titleStatus: TitleStatus;
   status?: 'assigned' | 'unassigned'; // Computed from buyer column: empty = unassigned, non-empty = assigned
@@ -58,7 +58,7 @@ export interface Section {
   netMineralAcresAcquired?: number; // Sum of NMA where STATUS = 'closed' for this section
   title_source?: string; // Title Source (COLUMN AN)
   royalty?: number; // Blended royalty %
-  netRoyaltyAcres?: number; // Net royalty acres (previously provided cal)
+  netRoyaltyAcres?: number; // Sum of NMA × ROY tier multiplier per prod_acreage_schedule row (utils/nra.ts)
   netRoyaltyAcresAcquired?: number; // Net royalty acres acquired (closed deals)
   ownershipPercentInSection?: number; // NET MINERAL ACRES ACQUIRED / NET MINERALS IN SECTION
   
@@ -114,7 +114,7 @@ export interface ContactEnhanced extends Contact {
   
   // Calculated fields
   totalNMA: number; // Total net mineral acres across all tracts
-  totalNRA: number; // Total NRA (1/8 normalized) across all tracts
+  totalNRA: number; // Total Net Royalty Acres across tracts (NMA × ROY tier; utils/nra.ts)
   
   // Distress and intent signals
   distressSignals: DistressSignal[];
@@ -192,7 +192,7 @@ export interface ContactUnitSummary {
   state: string;
   formation: string;
   totalNMA: number; // Sum of NMA across all tracts in this unit
-  totalNRA: number; // Sum of NRA across all tracts in this unit
+  totalNRA: number; // Sum of Net Royalty Acres (utils/nra.ts) across tracts in this unit
   sectionCount: number; // Number of tracts owned in this unit
   sections: ContactSectionOwnershipEnhanced[]; // Detailed tract breakdown
   hasActiveLead: boolean;
@@ -286,7 +286,7 @@ export interface ContactSectionOwnership {
   contact?: Contact;
   section?: Section;
   nma?: number; // Net Mineral Acres = Gross Acres × Ownership %
-  nra?: number; // NRA (1/8 normalized) = NMA × (Royalty % ÷ 0.125)
+  nra?: number; // Net Royalty Acres from NMA and ROY (utils/nra.ts)
 }
 
 export interface ContactNote {
@@ -356,6 +356,7 @@ export interface SectionLead {
   legalDescription?: string;
   alloPercent?: string;
   alloPercentAl?: string;
+  /** prod_acreage_schedule.NEW_OCC_TYPE */
   occType?: string;
   occDate?: string | null;
   spudDate?: string | null;
@@ -496,7 +497,7 @@ export interface Unit {
   allocationPercentage?: number;
   /** S-T-R (section-township-range) for this line item */
   str?: string;
-  /** OCC Type */
+  /** prod_acreage_schedule.NEW_OCC_TYPE */
   occType?: string;
   /** OCC Date */
   occDate?: string | null;
@@ -568,7 +569,7 @@ export interface UnitSectionEnhanced {
   grossAcres: number;
   netMineralAcres?: number;
   royalty?: number;
-  nra?: number; // NRA (1/8 Normalized)
+  nra?: number; // Net Royalty Acres (NMA × ROY tier; utils/nra.ts)
   
   // Title and assignment information
   titleStatus: TitleStatus;
@@ -606,7 +607,7 @@ export interface UnitContactAggregated {
   ownershipPercentageWeighted: number; // Pro rata share across all linked tracts
   royaltyPercentageWeighted: number; // Weighted average royalty across linked tracts
   totalNMA: number; // Sum of net mineral acres across all tracts
-  totalNRA: number; // NMA × (Royalty % ÷ 0.125) - 1/8 normalized
+  totalNRA: number; // Net Royalty Acres (NMA × ROY tier; utils/nra.ts)
   
   // Tract ownership details
   sectionsOwned: string[]; // List of section IDs the contact appears in within the unit
@@ -776,7 +777,10 @@ export interface LeadEnhanced {
   outreachCount: number;
   documentLinks?: string[]; // Array of document URLs
   assignmentId?: string; // Reference to the assignment that created this lead
-  
+  /** Distinct NEW_OCC_TYPE from prod_acreage_schedule (comma-separated when multiple) */
+  occType?: string;
+  occDate?: string | null;
+
   // ESG Tracking Fields
   esgRiskLevel?: ESGRiskLevel;
   requiresESGReview?: boolean;

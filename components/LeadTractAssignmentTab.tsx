@@ -196,7 +196,7 @@ const LeadTractAssignmentTab: React.FC<{
               {th('Gross Acres', 'grossAcres', 'Total tract size')}
               {th('NMA', 'nma', 'Net mineral acres (contact-specific)')}
               {th('Royalty %', 'royalty', 'Royalty rate for this contact')}
-              {th('NRA (1/8th)', 'nra', 'NMA × Royalty % ÷ 0.125')}
+              {th('NRA', 'nra', 'Net Royalty Acres from NMA × ROY (tiered; see app logic)')}
               {th('Assigned Buyer', 'assignedBuyerId', 'Current assigned buyer')}
               {th('Valuation Guidance', 'valuation', 'Internal pricing benchmarks')}
               {th('Status', 'status', 'Curative or review status')}
@@ -226,7 +226,7 @@ const LeadTractAssignmentTab: React.FC<{
                   <td className="px-3 py-2">{tract.grossAcres}</td>
                   <td className="px-3 py-2" title="Net mineral acres">{formatNMA(tract.nma)}</td>
                   <td className="px-3 py-2" title="Royalty rate">{(tract.royalty * 100).toFixed(2)}%</td>
-                  <td className="px-3 py-2" title="NRA = NMA × Royalty % ÷ 0.125">{tract.nra}</td>
+                  <td className="px-3 py-2" title="Net Royalty Acres from NMA and ROY (tiered)">{tract.nra}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2 group relative">
                       <div className="w-7 h-7 rounded-full bg-sc-blue text-white flex items-center justify-center font-bold text-xs" title={assignedBuyer.name}>

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
+import { netRoyaltyAcresFromNmaAndRoy } from '../../utils/nra.js';
 
 export const createContactsRoutes = (dbPool: Pool | null) => {
   const router = Router();
@@ -282,7 +283,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
           ownershipPercentage: (parseFloat(row.ownership_percentage) || 0) / 100,
           royaltyPercentage: (parseFloat(row.royalty_percentage) || 0) / 100,
           nma: parseFloat(row.net_mineral_acres) || 0,
-          nra: (parseFloat(row.net_mineral_acres) || 0) * ((parseFloat(row.royalty_percentage) || 0) / 100) / 0.125,
+          nra: netRoyaltyAcresFromNmaAndRoy(
+            parseFloat(row.net_mineral_acres) || 0,
+            parseFloat(row.royalty_percentage) || 0
+          ),
           hasActiveLead: false
         };
       });
@@ -387,7 +391,10 @@ export const createContactsRoutes = (dbPool: Pool | null) => {
             ownershipPercentage: (parseFloat(sectionRow.ownership_percentage) || 0) / 100,
             royaltyPercentage: (parseFloat(sectionRow.royalty_percentage) || 0) / 100,
             nma: parseFloat(sectionRow.net_mineral_acres) || 0,
-            nra: (parseFloat(sectionRow.net_mineral_acres) || 0) * ((parseFloat(sectionRow.royalty_percentage) || 0) / 100) / 0.125,
+            nra: netRoyaltyAcresFromNmaAndRoy(
+              parseFloat(sectionRow.net_mineral_acres) || 0,
+              parseFloat(sectionRow.royalty_percentage) || 0
+            ),
             hasActiveLead: false,
             status: sectionRow.assigned_buyer ? 'Assigned' : 'Unassigned',
             assignedBuyer: sectionRow.assigned_buyer ? { name: sectionRow.assigned_buyer } : null
