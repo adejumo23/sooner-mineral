@@ -417,6 +417,77 @@ export const deleteLead = async (id: string) => {
   }
 };
 
+// Tickets API
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+export const fetchTickets = async (params?: { module?: string; status?: string }) => {
+  const q = new URLSearchParams();
+  if (params?.module) q.set('module', params.module);
+  if (params?.status) q.set('status', params.status);
+  const query = q.toString();
+  const url = `${API_BASE}/tickets${query ? '?' + query : ''}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const fetchTicket = async (id: string) => {
+  return apiRequest(`/tickets/${id}`);
+};
+
+export const fetchTicketModules = async () => {
+  const res = await fetch(`${API_BASE}/tickets/modules?_t=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const createTicket = async (data: {
+  title: string;
+  description?: string;
+  module: string;
+  priority?: string;
+  requesterId: string;
+  assigneeId?: string | null;
+}) => {
+  return apiRequest('/tickets', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateTicket = async (id: string, data: Partial<{ title: string; description: string; status: string; priority: string; assigneeId: string | null }>) => {
+  return apiRequest(`/tickets/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
+export const addTicketComment = async (ticketId: string, userId: string, body: string) => {
+  return apiRequest(`/tickets/${ticketId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, body }),
+  });
+};
+
+export const uploadTicketAttachment = async (ticketId: string, file: File, userId: string) => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('userId', userId);
+  const url = `${API_BASE}/tickets/${ticketId}/attachments?_t=${Date.now()}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || 'Upload failed');
+  }
+  return res.json();
+};
+
+export const getTicketAttachmentUrl = (attachId: string) => {
+  return `${API_BASE}/tickets/attachments/${attachId}`;
+};
+
 // Contact API functions
 export const fetchUnassignedOwners = async (page = 1, limit = 50) => {
   try {

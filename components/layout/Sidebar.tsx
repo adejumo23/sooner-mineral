@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon, DocumentArrowUpIcon, TableCellsIcon, CurrencyDollarIcon } from '../icons/Icons';
+import { HomeIcon, UserGroupIcon, ShieldCheckIcon, KeyIcon, BuildingIcon, MapIcon, CubeIcon, ClipboardDocumentListIcon, UserIcon, EnvelopeIcon, CheckListIcon, DocumentIcon, ChartBarIcon, GlobeAltIcon, DocumentArrowUpIcon, TableCellsIcon, CurrencyDollarIcon, TicketIcon } from '../icons/Icons';
 import { useAuth } from '../../hooks/useAuth';
 import './Sidebar.css';
 
@@ -22,6 +22,7 @@ const navigation = [
   { name: 'Pricing', href: '/pricing', icon: CurrencyDollarIcon, roles: ['Admin', 'Manager'] },
   { name: 'Reporting', href: '/reporting', icon: ChartBarIcon, roles: ['Admin', 'Manager', 'Analyst'] },
   { name: 'ESG Tracking', href: '/esg', icon: GlobeAltIcon, roles: ['Admin', 'Manager'] },
+  { name: 'Tickets', href: '/tickets', icon: TicketIcon, roles: ['Admin', 'Manager', 'Buyer', 'Viewer', 'Analyst'] },
   { name: 'Users', href: '/users', icon: UserGroupIcon, roles: ['Admin'] },
   { name: 'Roles', href: '/roles', icon: ShieldCheckIcon, roles: ['Admin'] },
   { name: 'Privileges', href: '/privileges', icon: KeyIcon, roles: ['Admin'] },
