@@ -30,33 +30,6 @@ async function getOwnerNameFromLeadId(id: string, dbPool: Pool): Promise<string 
   }
 }
 
-/** Encode owner name as a URL-safe lead id so detail view always loads the correct lead. */
-function leadIdFromOwnerName(ownerName: string): string {
-  return 'lead-' + Buffer.from(ownerName, 'utf8').toString('base64url');
-}
-
-/** Resolve lead id to owner name: supports "lead-<base64url(ownerName)>" (stable) or legacy "lead-<number>" (offset). */
-async function getOwnerNameFromLeadId(id: string, dbPool: Pool): Promise<string | null> {
-  const rest = id.replace(/^lead-/, '');
-  if (!rest) return null;
-  const num = parseInt(rest, 10);
-  if (!isNaN(num) && num >= 0 && String(num) === rest) {
-    const offset = Math.min(num, 2147483647);
-    const rows = await executeQuery(
-      dbPool,
-      `SELECT DISTINCT OWNER as name FROM prod_acreage_schedule WHERE OWNER IS NOT NULL AND OWNER != '' ORDER BY OWNER LIMIT 1 OFFSET ${offset}`,
-      []
-    );
-    return (rows as any[])[0]?.name ?? null;
-  }
-  try {
-    const decoded = Buffer.from(rest, 'base64url').toString('utf8');
-    return decoded || null;
-  } catch {
-    return null;
-  }
-}
-
 export const createLeadsRoutes = (dbPool: Pool | null) => {
   const router = Router();
 
