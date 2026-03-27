@@ -42,6 +42,15 @@ export const fetchLeadNotes = apiClient.fetchLeadNotes;
 export const fetchLeadSections = apiClient.fetchLeadSections;
 export const createLeadNote = apiClient.createLeadNote;
 
+export const fetchTickets = apiClient.fetchTickets;
+export const fetchTicket = apiClient.fetchTicket;
+export const fetchTicketModules = apiClient.fetchTicketModules;
+export const createTicket = apiClient.createTicket;
+export const updateTicket = apiClient.updateTicket;
+export const addTicketComment = apiClient.addTicketComment;
+export const uploadTicketAttachment = apiClient.uploadTicketAttachment;
+export const getTicketAttachmentUrl = apiClient.getTicketAttachmentUrl;
+
 export const fetchContacts = apiClient.fetchContacts;
 export const fetchContact = apiClient.fetchContact;
 

@@ -2,10 +2,38 @@ import { Router } from 'express';
 import type { Pool } from 'mysql2/promise';
 import { executeQuery } from '../utils/database.js';
 
+/** Encode owner name as a URL-safe lead id so detail view always loads the correct lead. */
+function leadIdFromOwnerName(ownerName: string): string {
+  return 'lead-' + Buffer.from(ownerName, 'utf8').toString('base64url');
+}
+
+/** Resolve lead id to owner name: supports "lead-<base64url(ownerName)>" (stable) or legacy "lead-<number>" (offset). */
+async function getOwnerNameFromLeadId(id: string, dbPool: Pool): Promise<string | null> {
+  const rest = id.replace(/^lead-/, '');
+  if (!rest) return null;
+  const num = parseInt(rest, 10);
+  if (!isNaN(num) && num >= 0 && String(num) === rest) {
+    const offset = Math.min(num, 2147483647);
+    const rows = await executeQuery(
+      dbPool,
+      `SELECT DISTINCT OWNER as name FROM prod_acreage_schedule WHERE OWNER IS NOT NULL AND OWNER != '' ORDER BY OWNER LIMIT 1 OFFSET ${offset}`,
+      []
+    );
+    return (rows as any[])[0]?.name ?? null;
+  }
+  try {
+    const decoded = Buffer.from(rest, 'base64url').toString('utf8');
+    return decoded || null;
+  } catch {
+    return null;
+  }
+}
+
 export const createLeadsRoutes = (dbPool: Pool | null) => {
   const router = Router();
 
-  // Get all leads - shows all owners in the database regardless of section
+  // Get all leads - shows all owners in the database regardless of section.
+  // Owner-related fields: name from OWNER, street from OWNER_STREET, city from OWNER_CITY, state from OWNER_ST, zip from OWNER_ZIP.
   router.get('/api/leads', async (req, res) => {
     try {
       if (!dbPool) {
@@ -82,7 +110,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
       
       const placeholders = ownerNames.map(() => '?').join(',');
       const query = `
-        SELECT 
+        SELECT
           OWNER as name,
           CONTACT as contact,
           OWNER_STREET as street,
@@ -101,6 +129,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           \`$_NRA\` as nra_cap_usd,
           BUYER as buyer,
           STATUS as status,
+          \`OCC_DATE\` as occ_date,
+          NEW_OCC_TYPE as occ_type,
           created_at,
           updated_at
         FROM prod_acreage_schedule
@@ -175,8 +205,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         const firstStr = uniqueSections.length > 0 ? uniqueSections[0] : null;
         
         return {
-          id: `lead-${offset + index}`,
-          linkedContactId: `contact-${offset + index}`,
+          id: leadIdFromOwnerName(ownerName),
+          linkedContactId: `contact-${encodeURIComponent(ownerName)}`,
           linkedSectionIds: uniqueSections.map((str: string) => `section-${str}`),
           linkedUnitIds: uniqueUnits.map((unitName: string) => `unit-${unitName}`),
           buyerId: row.buyer?.toLowerCase() || 'unassigned',
@@ -209,7 +239,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
           linkedContact: {
-            id: `contact-${offset + index}`,
+            id: `contact-${encodeURIComponent(ownerName)}`,
             name: row.contact || row.name,
             city: row.city,
             state: row.state,
@@ -312,23 +342,10 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         return res.status(500).json({ success: false, message: 'Database pool not initialized' });
       }
       const { id } = req.params;
-      const leadIndex = parseInt(id.replace('lead-', ''), 10);
-      if (isNaN(leadIndex) || leadIndex < 0) {
-        return res.status(400).json({ success: false, message: 'Invalid lead id' });
+      const ownerName = await getOwnerNameFromLeadId(id, dbPool);
+      if (!ownerName) {
+        return res.status(404).json({ success: false, message: 'Lead not found' });
       }
-
-      const ownerQuery = `
-        SELECT DISTINCT OWNER as name
-        FROM prod_acreage_schedule
-        WHERE OWNER IS NOT NULL AND OWNER != ''
-        ORDER BY OWNER
-        LIMIT 1 OFFSET ${leadIndex}
-      `;
-      const ownerRows = await executeQuery(dbPool, ownerQuery, []);
-      if (ownerRows.length === 0) {
-        return res.json([]);
-      }
-      const ownerName = ownerRows[0].name;
 
       const rowsQuery = `
         SELECT
@@ -391,8 +408,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
     }
   });
 
-  // Get single lead by ID - MUST be last (after all specific routes)
-  // Lead id = lead-N means the (N+1)-th distinct OWNER (same as list), not the N-th row.
+  // Get single lead by ID - MUST be last (after all specific routes).
+  // Lead id = lead-<base64url(ownerName)> (stable) or legacy lead-<number> (offset). Lookup by OWNER so View always shows the correct lead.
   router.get('/api/leads/:id', async (req, res) => {
     try {
       if (!dbPool) {
@@ -400,23 +417,10 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
       }
 
       const { id } = req.params;
-      const leadIndex = parseInt(id.replace('lead-', ''), 10);
-      if (isNaN(leadIndex) || leadIndex < 0) {
-        return res.status(400).json({ success: false, message: 'Invalid lead id' });
-      }
-
-      const ownerQuery = `
-        SELECT DISTINCT OWNER as name
-        FROM prod_acreage_schedule
-        WHERE OWNER IS NOT NULL AND OWNER != ''
-        ORDER BY OWNER
-        LIMIT 1 OFFSET ${leadIndex}
-      `;
-      const ownerRows = await executeQuery(dbPool, ownerQuery, []);
-      if (ownerRows.length === 0) {
+      const ownerName = await getOwnerNameFromLeadId(id, dbPool);
+      if (!ownerName) {
         return res.status(404).json({ success: false, message: 'Lead not found' });
       }
-      const ownerName = ownerRows[0].name;
 
       const query = `
         SELECT
@@ -439,6 +443,8 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
           \`$_NRA\` as nra_cap_usd,
           BUYER as buyer,
           STATUS as status,
+          \`OCC_DATE\` as occ_date,
+          NEW_OCC_TYPE as occ_type,
           created_at,
           updated_at
         FROM prod_acreage_schedule
@@ -465,7 +471,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
       
       const lead = {
         id: id,
-        linkedContactId: `contact-${leadIndex}`,
+        linkedContactId: `contact-${encodeURIComponent(ownerName)}`,
         linkedSectionIds: row.unitName ? [`section-${row.unitName}`] : [],
         linkedUnitIds: row.unitName ? [`unit-${row.unitName}`] : [],
         buyerId: row.buyer?.toLowerCase() || 'unassigned',
@@ -498,7 +504,7 @@ export const createLeadsRoutes = (dbPool: Pool | null) => {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         linkedContact: {
-          id: `contact-${leadIndex}`,
+          id: `contact-${encodeURIComponent(ownerName)}`,
           name: row.contact || row.name,
           city: row.city,
           state: row.state,

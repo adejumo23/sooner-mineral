@@ -929,6 +929,49 @@ export interface DealConversion {
   executionTimestamp: string;
 }
 
+// Ticketing system
+export type TicketStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+export type TicketPriority = 'Low' | 'Medium' | 'High';
+
+export interface Ticket {
+  id: string;
+  title: string;
+  description?: string;
+  module: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  requesterId: string;
+  assigneeId?: string | null;
+  requesterName?: string;
+  assigneeName?: string | null;
+  requesterEmail?: string;
+  assigneeEmail?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  comments?: TicketComment[];
+  attachments?: TicketAttachment[];
+}
+
+export interface TicketComment {
+  id: string;
+  ticketId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+export interface TicketAttachment {
+  id: string;
+  ticketId: string;
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 export interface DealAuditTrail {
   dealId: string;
   userId: string;

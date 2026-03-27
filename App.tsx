@@ -44,6 +44,8 @@ import FinancialsPage from './pages/FinancialsPage';
 import MobilePage from './pages/MobilePage';
 import AIInsightsPage from './pages/AIInsightsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
+import TicketsPage from './pages/TicketsPage';
+import TicketDetailPage from './pages/TicketDetailPage';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -116,6 +118,9 @@ function App() {
           <Route path="/ai-insights" element={<AIInsightsPage />} />
           
           <Route path="/integrations" element={<IntegrationsPage />} />
+          
+          <Route path="/tickets" element={<TicketsPage />} />
+          <Route path="/tickets/:id" element={<TicketDetailPage />} />
           
           <Route path="/test-normalized" element={<TractTestComponent />} />
           <Route path="/test-database" element={<DatabaseTestComponent />} />
